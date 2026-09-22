@@ -59,7 +59,7 @@ function Home() {
         <p className="mt-1 text-sm text-muted-foreground">
           Matchmaking automático com preenchimento por bots quando faltam jogadores.
         </p>
-        <Link to="/play" className="mt-4 block">
+        <Link to="/play" search={{ game: "ludo" }} className="mt-4 block">
           <Button size="lg" className="w-full">
             Jogar agora
           </Button>

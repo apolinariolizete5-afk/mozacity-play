@@ -37,6 +37,7 @@ export function MatchShell({
       <div className="flex items-center justify-between">
         <Link
           to="/play"
+          search={{ game: "ludo" }}
           className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary"
           aria-label="Sair da partida"
         >
@@ -117,7 +118,7 @@ export function ResultOverlay({
           <Button size="lg" className="flex-1" onClick={onRematch}>
             Revanche
           </Button>
-          <Link to="/play" className="flex-1">
+          <Link to="/play" search={{ game: "ludo" }} className="flex-1">
             <Button size="lg" variant="ghost" className="w-full">
               Sair
             </Button>

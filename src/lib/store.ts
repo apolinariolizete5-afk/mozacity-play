@@ -176,7 +176,9 @@ export function useApp(): AppState {
     const sync = () => setSnapshot({ ...read() });
     sync();
     listeners.add(sync);
-    return () => listeners.delete(sync);
+    return () => {
+      listeners.delete(sync);
+    };
   }, []);
   return snapshot ?? defaultState();
 }
@@ -187,7 +189,9 @@ export function useHydratedApp(): { app: AppState; ready: boolean } {
     const sync = () => setSnapshot({ ...read() });
     sync();
     listeners.add(sync);
-    return () => listeners.delete(sync);
+    return () => {
+      listeners.delete(sync);
+    };
   }, []);
   return { app: snapshot ?? defaultState(), ready: snapshot !== null };
 }
@@ -209,8 +213,8 @@ export function addTransaction(
         walletOwnerId: s.profile.id,
         kind,
         amount,
-        currency: "COIN",
-        status: "completed",
+        currency: "COIN" as const,
+        status: "completed" as const,
         reference,
         description,
         createdAt: new Date().toISOString(),
