@@ -84,7 +84,9 @@ async function call(path: string, body: unknown): Promise<NetshopResult> {
         : remote === "failed" || remote === "error"
           ? "failed"
           : "pending";
-    return { ok: status !== "failed", providerRef: providerRef || undefined, status };
+    return providerRef
+      ? { ok: status !== "failed", providerRef, status }
+      : { ok: status !== "failed", status };
   } catch (error) {
     return { ok: false, status: "failed", error: (error as Error).message };
   }

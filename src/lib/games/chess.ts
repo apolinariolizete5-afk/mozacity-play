@@ -239,10 +239,10 @@ function rawApply(s: ChessState, m: ChessMove): ChessState {
   if (p.t === "k" && Math.abs(file(m.to) - file(m.from)) === 2) {
     const r = rank(m.from);
     if (file(m.to) === 6) {
-      n.board[idx(r, 5)] = n.board[idx(r, 7)];
+      n.board[idx(r, 5)] = n.board[idx(r, 7)] ?? null;
       n.board[idx(r, 7)] = null;
     } else {
-      n.board[idx(r, 3)] = n.board[idx(r, 0)];
+      n.board[idx(r, 3)] = n.board[idx(r, 0)] ?? null;
       n.board[idx(r, 0)] = null;
     }
   }

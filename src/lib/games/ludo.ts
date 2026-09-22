@@ -121,7 +121,7 @@ export function movableTokens(s: LudoState): number[] {
       if (s.dice === 6) out.push(i);
       return;
     }
-    if (pos + s.dice <= FINISHED) out.push(i);
+    if (pos + (s.dice ?? 0) <= FINISHED) out.push(i);
   });
   return out;
 }

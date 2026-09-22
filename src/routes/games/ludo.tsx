@@ -105,7 +105,7 @@ function LudoMatch() {
           avatar: i === 0 ? app.profile.avatar : "🤖",
           bot: i !== 0,
           active: state.turn === i,
-          label: LUDO_NAMES[i],
+          label: LUDO_NAMES[i] ?? "",
         }))}
         statusText={
           state.over
