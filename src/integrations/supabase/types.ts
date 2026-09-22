@@ -62,6 +62,24 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          value?: string
+        }
+        Relationships: []
+      }
       match_moves: {
         Row: {
           created_at: string
@@ -529,6 +547,51 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_balance: {
+        Args: { _amount_cents: number; _reason: string; _user_id: string }
+        Returns: undefined
+      }
+      admin_overview: { Args: never; Returns: Json }
+      admin_set_blocked: {
+        Args: { _blocked: boolean; _user_id: string }
+        Returns: undefined
+      }
+      admin_settle_payout: {
+        Args: {
+          _error?: string
+          _payout_id: string
+          _provider_ref: string
+          _status: Database["public"]["Enums"]["tx_status"]
+        }
+        Returns: undefined
+      }
+      app_settings: {
+        Args: never
+        Returns: {
+          house_fee_percent: number
+          id: number
+          max_bet_cents: number
+          methods_enabled: Json
+          min_bet_cents: number
+          min_deposit_cents: number
+          min_withdrawal_cents: number
+          real_money_enabled: boolean
+          updated_at: string
+          withdrawal_fee_fixed_cents: number
+          withdrawal_fee_percent: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "platform_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      bootstrap_me: {
+        Args: { _display_name?: string; _phone?: string }
+        Returns: undefined
+      }
+      claim_admin: { Args: { _code: string }; Returns: string }
       credit_wallet: {
         Args: {
           _amount_cents: number
@@ -562,6 +625,46 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      internal_secret_matches: {
+        Args: { _name: string; _value: string }
+        Returns: boolean
+      }
+      request_withdrawal: {
+        Args: {
+          _amount_cents: number
+          _destination: string
+          _method: Database["public"]["Enums"]["wallet_method"]
+        }
+        Returns: string
+      }
+      settle_deposit: {
+        Args: {
+          _idempotency_key: string
+          _provider_ref: string
+          _status: Database["public"]["Enums"]["tx_status"]
+          _token: string
+        }
+        Returns: string
+      }
+      start_deposit: {
+        Args: {
+          _amount_cents: number
+          _method: Database["public"]["Enums"]["wallet_method"]
+          _msisdn: string
+        }
+        Returns: {
+          idempotency_key: string
+          transaction_id: string
+        }[]
+      }
+      withdrawal_quote: {
+        Args: { _amount_cents: number }
+        Returns: {
+          amount_cents: number
+          fee_cents: number
+          net_cents: number
+        }[]
       }
     }
     Enums: {
