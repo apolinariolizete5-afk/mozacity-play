@@ -10,33 +10,167 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HistoryRouteImport } from './routes/history'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as PlayRouteImport } from './routes/play'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RankingRouteImport } from './routes/ranking'
+import { Route as RoomsRouteImport } from './routes/rooms'
+import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as GamesCheckersRouteImport } from './routes/games/checkers'
+import { Route as GamesChessRouteImport } from './routes/games/chess'
+import { Route as GamesLudoRouteImport } from './routes/games/ludo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayRoute = PlayRouteImport.update({
+  id: '/play',
+  path: '/play',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RankingRoute = RankingRouteImport.update({
+  id: '/ranking',
+  path: '/ranking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoomsRoute = RoomsRouteImport.update({
+  id: '/rooms',
+  path: '/rooms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GamesCheckersRoute = GamesCheckersRouteImport.update({
+  id: '/games/checkers',
+  path: '/games/checkers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GamesChessRoute = GamesChessRouteImport.update({
+  id: '/games/chess',
+  path: '/games/chess',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GamesLudoRoute = GamesLudoRouteImport.update({
+  id: '/games/ludo',
+  path: '/games/ludo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
+  '/notifications': typeof NotificationsRoute
+  '/play': typeof PlayRoute
+  '/profile': typeof ProfileRoute
+  '/ranking': typeof RankingRoute
+  '/rooms': typeof RoomsRoute
+  '/wallet': typeof WalletRoute
+  '/games/checkers': typeof GamesCheckersRoute
+  '/games/chess': typeof GamesChessRoute
+  '/games/ludo': typeof GamesLudoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
+  '/notifications': typeof NotificationsRoute
+  '/play': typeof PlayRoute
+  '/profile': typeof ProfileRoute
+  '/ranking': typeof RankingRoute
+  '/rooms': typeof RoomsRoute
+  '/wallet': typeof WalletRoute
+  '/games/checkers': typeof GamesCheckersRoute
+  '/games/chess': typeof GamesChessRoute
+  '/games/ludo': typeof GamesLudoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/history': typeof HistoryRoute
+  '/notifications': typeof NotificationsRoute
+  '/play': typeof PlayRoute
+  '/profile': typeof ProfileRoute
+  '/ranking': typeof RankingRoute
+  '/rooms': typeof RoomsRoute
+  '/wallet': typeof WalletRoute
+  '/games/checkers': typeof GamesCheckersRoute
+  '/games/chess': typeof GamesChessRoute
+  '/games/ludo': typeof GamesLudoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/history'
+    | '/notifications'
+    | '/play'
+    | '/profile'
+    | '/ranking'
+    | '/rooms'
+    | '/wallet'
+    | '/games/checkers'
+    | '/games/chess'
+    | '/games/ludo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/history'
+    | '/notifications'
+    | '/play'
+    | '/profile'
+    | '/ranking'
+    | '/rooms'
+    | '/wallet'
+    | '/games/checkers'
+    | '/games/chess'
+    | '/games/ludo'
+  id:
+    | '__root__'
+    | '/'
+    | '/history'
+    | '/notifications'
+    | '/play'
+    | '/profile'
+    | '/ranking'
+    | '/rooms'
+    | '/wallet'
+    | '/games/checkers'
+    | '/games/chess'
+    | '/games/ludo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HistoryRoute: typeof HistoryRoute
+  NotificationsRoute: typeof NotificationsRoute
+  PlayRoute: typeof PlayRoute
+  ProfileRoute: typeof ProfileRoute
+  RankingRoute: typeof RankingRoute
+  RoomsRoute: typeof RoomsRoute
+  WalletRoute: typeof WalletRoute
+  GamesCheckersRoute: typeof GamesCheckersRoute
+  GamesChessRoute: typeof GamesChessRoute
+  GamesLudoRoute: typeof GamesLudoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +182,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play': {
+      id: '/play'
+      path: '/play'
+      fullPath: '/play'
+      preLoaderRoute: typeof PlayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ranking': {
+      id: '/ranking'
+      path: '/ranking'
+      fullPath: '/ranking'
+      preLoaderRoute: typeof RankingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rooms': {
+      id: '/rooms'
+      path: '/rooms'
+      fullPath: '/rooms'
+      preLoaderRoute: typeof RoomsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/games/checkers': {
+      id: '/games/checkers'
+      path: '/games/checkers'
+      fullPath: '/games/checkers'
+      preLoaderRoute: typeof GamesCheckersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/games/chess': {
+      id: '/games/chess'
+      path: '/games/chess'
+      fullPath: '/games/chess'
+      preLoaderRoute: typeof GamesChessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/games/ludo': {
+      id: '/games/ludo'
+      path: '/games/ludo'
+      fullPath: '/games/ludo'
+      preLoaderRoute: typeof GamesLudoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HistoryRoute: HistoryRoute,
+  NotificationsRoute: NotificationsRoute,
+  PlayRoute: PlayRoute,
+  ProfileRoute: ProfileRoute,
+  RankingRoute: RankingRoute,
+  RoomsRoute: RoomsRoute,
+  WalletRoute: WalletRoute,
+  GamesCheckersRoute: GamesCheckersRoute,
+  GamesChessRoute: GamesChessRoute,
+  GamesLudoRoute: GamesLudoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
