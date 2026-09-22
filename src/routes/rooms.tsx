@@ -1,0 +1,219 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { Bot, Lock, Globe, Plus, Play } from "lucide-react";
+import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
+import { GAME_META, type GameId } from "@/lib/games/types";
+import {
+  createRoom,
+  fillWithBots,
+  findRoomByCode,
+  joinRoom,
+  notify,
+  setRoomStatus,
+  useApp,
+  type Room,
+  type RoomStatus,
+} from "@/lib/store";
+
+export const Route = createFileRoute("/rooms")({
+  head: () => ({
+    meta: [
+      { title: "Salas públicas e privadas — MozaPlay" },
+      {
+        name: "description",
+        content: "Cria salas com código curto, entra em salas públicas e preenche vagas com bots.",
+      },
+      { property: "og:title", content: "Salas públicas e privadas — MozaPlay" },
+      { property: "og:description", content: "Salas MozaPlay com código curto tipo MP7K92." },
+    ],
+  }),
+  component: Rooms,
+});
+
+const STATUS_TONE: Record<RoomStatus, "muted" | "primary" | "accent" | "success" | "danger"> = {
+  WAITING: "muted",
+  READY: "accent",
+  STARTING: "primary",
+  PLAYING: "success",
+  FINISHED: "muted",
+  CANCELLED: "danger",
+};
+
+function Rooms() {
+  const app = useApp();
+  const navigate = useNavigate();
+  const [creating, setCreating] = useState(false);
+  const [game, setGame] = useState<GameId>("ludo");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [bet, setBet] = useState(0);
+  const [code, setCode] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+
+  const enter = (room: Room) => {
+    setRoomStatus(room.id, "PLAYING");
+    if (room.game === "ludo")
+      navigate({
+        to: "/games/ludo",
+        search: { bet: room.bet, timer: room.timer, players: room.capacity },
+      });
+    else if (room.game === "checkers")
+      navigate({ to: "/games/checkers", search: { bet: room.bet, timer: room.timer } });
+    else navigate({ to: "/games/chess", search: { bet: room.bet, timer: room.timer } });
+  };
+
+  const submitCreate = () => {
+    const room = createRoom({
+      game,
+      isPrivate,
+      bet,
+      timer: app.timer,
+      capacity: game === "ludo" ? 4 : 2,
+    });
+    setCreating(false);
+    notify({
+      title: "Sala criada",
+      body: `Partilha o código ${room.code} para convidar amigos.`,
+      kind: "invite",
+    });
+    setMessage(`Sala ${room.code} criada.`);
+  };
+
+  const joinByCode = () => {
+    const room = findRoomByCode(code);
+    if (!room) {
+      setMessage("Código não encontrado.");
+      return;
+    }
+    joinRoom(room.id);
+    setCode("");
+    setMessage(`Entraste na sala ${room.code}.`);
+  };
+
+  const visible = app.rooms.filter((r) => r.status !== "CANCELLED");
+
+  return (
+    <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
+      <PageHeader
+        title="Salas"
+        subtitle="Públicas, privadas e por código"
+        right={
+          <Button size="sm" onClick={() => setCreating((c) => !c)}>
+            <Plus className="h-4 w-4" /> Criar
+          </Button>
+        }
+      />
+
+      <Card className="flex gap-2 p-3">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="Código da sala (ex: MP7K92)"
+          maxLength={6}
+          className="h-12 flex-1 rounded-2xl bg-secondary px-4 text-sm font-bold uppercase tracking-widest outline-none placeholder:font-medium placeholder:tracking-normal placeholder:text-muted-foreground"
+        />
+        <Button onClick={joinByCode} disabled={code.length < 4}>
+          Entrar
+        </Button>
+      </Card>
+
+      {message ? <p className="px-1 text-xs text-accent">{message}</p> : null}
+
+      {creating ? (
+        <Card className="space-y-3">
+          <p className="font-display font-bold">Nova sala</p>
+          <div className="flex gap-2">
+            {(Object.keys(GAME_META) as GameId[]).map((id) => (
+              <button
+                key={id}
+                onClick={() => setGame(id)}
+                className={`h-11 flex-1 rounded-2xl text-xs font-bold ${
+                  game === id ? "bg-primary text-primary-foreground" : "bg-secondary"
+                }`}
+              >
+                {GAME_META[id].name}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {[0, 25, 50, 100].map((b) => (
+              <button
+                key={b}
+                onClick={() => setBet(b)}
+                className={`h-11 flex-1 rounded-2xl text-xs font-bold ${
+                  bet === b ? "bg-accent text-accent-foreground" : "bg-secondary"
+                }`}
+              >
+                {b === 0 ? "Grátis" : b}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-center justify-between rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
+            Sala privada
+            <input
+              type="checkbox"
+              checked={isPrivate}
+              onChange={(e) => setIsPrivate(e.target.checked)}
+              className="h-5 w-5 accent-[oklch(0.79_0.17_78)]"
+            />
+          </label>
+          <Button size="lg" className="w-full" onClick={submitCreate}>
+            Criar sala
+          </Button>
+        </Card>
+      ) : null}
+
+      {visible.map((room) => {
+        const full = room.players.length >= room.capacity;
+        const joined = room.players.some((p) => p.id === app.profile.id);
+        return (
+          <Card key={room.id} className="space-y-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-display text-base font-bold">{GAME_META[room.game].name}</p>
+                  {room.isPrivate ? (
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </div>
+                <p className="mt-1 font-mono text-xs tracking-widest text-primary">{room.code}</p>
+              </div>
+              <div className="text-right">
+                <Pill tone={STATUS_TONE[room.status]}>{room.status}</Pill>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {room.players.length}/{room.capacity} · {room.bet === 0 ? "grátis" : `${room.bet} moedas`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1">
+              {room.players.map((p) => (
+                <Pill key={p.id} tone={p.bot ? "muted" : "primary"}>
+                  {p.bot ? <Bot className="h-3 w-3" /> : null}
+                  {p.name}
+                </Pill>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              {!joined ? (
+                <Button variant="ghost" className="flex-1" onClick={() => joinRoom(room.id)} disabled={full}>
+                  {full ? "Cheia" : "Entrar"}
+                </Button>
+              ) : null}
+              {!full ? (
+                <Button variant="outline" className="flex-1" onClick={() => fillWithBots(room.id)}>
+                  <Bot className="h-4 w-4" /> Preencher
+                </Button>
+              ) : null}
+              <Button className="flex-1" onClick={() => enter(room)}>
+                <Play className="h-4 w-4" /> Jogar
+              </Button>
+            </div>
+          </Card>
+        );
+      })}
+    </main>
+  );
+}

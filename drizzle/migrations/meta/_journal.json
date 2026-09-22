@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789968674613,
+      "tag": "0000_mozaplay_real_money_core",
+      "breakpoints": true
+    }
+  ]
+}
