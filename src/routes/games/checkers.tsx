@@ -1,0 +1,140 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { MatchShell, ResultOverlay } from "@/components/MatchShell";
+import { CheckersBoard } from "@/components/boards/CheckersBoard";
+import { Card, Pill } from "@/components/ui/primitives";
+import {
+  checkersBotMove,
+  checkersEngine,
+  legalMoves,
+  type CheckersMove,
+} from "@/lib/games/checkers";
+import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+
+export const Route = createFileRoute("/games/checkers")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    bet: Number(search["bet"] ?? 0) || 0,
+    timer: Number(search["timer"] ?? 10) || 10,
+  }),
+  head: () => ({
+    meta: [
+      { title: "Damas online — MozaPlay" },
+      {
+        name: "description",
+        content: "Damas 8x8 com capturas obrigatórias, coroação e timer por turno.",
+      },
+      { property: "og:title", content: "Damas online — MozaPlay" },
+      { property: "og:description", content: "Damas competitivas no telemóvel, capturas obrigatórias." },
+    ],
+  }),
+  component: CheckersMatch,
+});
+
+function CheckersMatch() {
+  const { bet, timer } = Route.useSearch();
+  const app = useApp();
+  const [state, setState] = useState(() => checkersEngine.createGame());
+  const [seconds, setSeconds] = useState(timer);
+  const [opponent] = useState(() => botName());
+  const settled = useRef(false);
+  const staked = useRef(false);
+  const [moveCount, setMoveCount] = useState(0);
+
+  useEffect(() => {
+    if (!staked.current) {
+      staked.current = true;
+      placeBet(bet, "checkers");
+    }
+  }, [bet]);
+
+  useEffect(() => {
+    setSeconds(timer);
+    if (state.over) return;
+    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [state.turn, state.over, timer, moveCount]);
+
+  useEffect(() => {
+    if (seconds > 0 || state.over || state.turn !== 0) return;
+    const moves = legalMoves(state);
+    if (moves.length) play(moves[0]!);
+  }, [seconds, state]);
+
+  useEffect(() => {
+    if (state.over || state.turn !== 1) return;
+    const id = setTimeout(() => {
+      const move = checkersBotMove(state);
+      if (move) play(move);
+    }, 650);
+    return () => clearTimeout(id);
+  }, [state]);
+
+  useEffect(() => {
+    if (!state.over || settled.current) return;
+    settled.current = true;
+    recordMatch({
+      game: "checkers",
+      result: state.winner === 0 ? "win" : "loss",
+      opponents: [opponent],
+      bet,
+    });
+  }, [state, bet, opponent]);
+
+  function play(move: CheckersMove) {
+    setState((s) => checkersEngine.applyMove(s, move));
+    setMoveCount((c) => c + 1);
+  }
+
+  const result = state.over ? (state.winner === 0 ? "win" : "loss") : null;
+  const mine = state.board.filter((p) => p && p.p === 0).length;
+  const theirs = state.board.filter((p) => p && p.p === 1).length;
+
+  return (
+    <>
+      <MatchShell
+        title="Damas"
+        seconds={seconds}
+        limit={timer}
+        seats={[
+          {
+            name: app.profile.name,
+            avatar: app.profile.avatar,
+            bot: false,
+            active: state.turn === 0,
+            label: `Claras (${mine})`,
+          },
+          { name: opponent, avatar: "🤖", bot: true, active: state.turn === 1, label: `Escuras (${theirs})` },
+        ]}
+        statusText={
+          state.over
+            ? "Partida terminada"
+            : state.turn === 0
+              ? state.chain !== null
+                ? "Continua a captura!"
+                : "A tua vez"
+              : "O adversário joga..."
+        }
+        footer={
+          <Card className="flex items-center justify-between p-3 text-xs">
+            <Pill tone="primary">Aposta {bet} moedas</Pill>
+            <span className="text-muted-foreground">Capturas obrigatórias ativas</span>
+          </Card>
+        }
+      >
+        <CheckersBoard state={state} disabled={state.turn !== 0 || state.over} onMove={play} />
+      </MatchShell>
+      {result ? (
+        <ResultOverlay
+          result={result}
+          coins={result === "win" ? bet * 2 : 0}
+          onRematch={() => {
+            settled.current = false;
+            placeBet(bet, "checkers");
+            setState(checkersEngine.createGame());
+            setSeconds(timer);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
