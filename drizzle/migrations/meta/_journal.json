@@ -29,6 +29,13 @@
       "when": 1790137346780,
       "tag": "0003_mozaplay_economy_rake_rollover",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790137403192,
+      "tag": "0004_mozaplay_test_mode_deposit",
+      "breakpoints": true
     }
   ]
 }

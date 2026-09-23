@@ -318,6 +318,7 @@ export type Database = {
           real_money_enabled: boolean
           rollover_enabled: boolean
           rollover_multiplier: number
+          test_mode_enabled: boolean
           updated_at: string
           withdrawal_fee_fixed_cents: number
           withdrawal_fee_percent: number
@@ -333,6 +334,7 @@ export type Database = {
           real_money_enabled?: boolean
           rollover_enabled?: boolean
           rollover_multiplier?: number
+          test_mode_enabled?: boolean
           updated_at?: string
           withdrawal_fee_fixed_cents?: number
           withdrawal_fee_percent?: number
@@ -348,6 +350,7 @@ export type Database = {
           real_money_enabled?: boolean
           rollover_enabled?: boolean
           rollover_multiplier?: number
+          test_mode_enabled?: boolean
           updated_at?: string
           withdrawal_fee_fixed_cents?: number
           withdrawal_fee_percent?: number
@@ -640,6 +643,7 @@ export type Database = {
         Args: { _blocked: boolean; _user_id: string }
         Returns: undefined
       }
+      admin_set_test_mode: { Args: { _enabled: boolean }; Returns: undefined }
       admin_settle_payout: {
         Args: {
           _error?: string
@@ -674,6 +678,7 @@ export type Database = {
           real_money_enabled: boolean
           rollover_enabled: boolean
           rollover_multiplier: number
+          test_mode_enabled: boolean
           updated_at: string
           withdrawal_fee_fixed_cents: number
           withdrawal_fee_percent: number
@@ -747,6 +752,10 @@ export type Database = {
           _status: Database["public"]["Enums"]["tx_status"]
           _token: string
         }
+        Returns: string
+      }
+      settle_own_test_deposit: {
+        Args: { _idempotency_key: string }
         Returns: string
       }
       start_deposit: {
