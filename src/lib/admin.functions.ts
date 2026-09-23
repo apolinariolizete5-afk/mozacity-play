@@ -79,8 +79,8 @@ export const settlePayout = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("admin_settle_payout", {
       _payout_id: data.payout_id,
       _status: data.status,
-      _provider_ref: data.provider_ref ?? null,
-      _error: data.error ?? null,
+      _provider_ref: data.provider_ref ?? "",
+      ...(data.error ? { _error: data.error } : {}),
     });
     if (error) throw new Error(error.message);
     return { ok: true };
