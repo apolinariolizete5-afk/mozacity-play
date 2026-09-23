@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -448,9 +448,3 @@ function depositError(message: string): string {
   for (const key of Object.keys(map)) if (message.includes(key)) return map[key]!;
   return message;
 }
-
-/** mantém o tipo usado pelos painéis mesmo quando o resumo ainda está a carregar */
-export type { WalletSummary };
-
-// evita avisos de importação não usada em builds futuros
-void useEffect;
