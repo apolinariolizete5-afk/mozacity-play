@@ -316,6 +316,8 @@ export type Database = {
           min_deposit_cents: number
           min_withdrawal_cents: number
           real_money_enabled: boolean
+          rollover_enabled: boolean
+          rollover_multiplier: number
           updated_at: string
           withdrawal_fee_fixed_cents: number
           withdrawal_fee_percent: number
@@ -329,6 +331,8 @@ export type Database = {
           min_deposit_cents?: number
           min_withdrawal_cents?: number
           real_money_enabled?: boolean
+          rollover_enabled?: boolean
+          rollover_multiplier?: number
           updated_at?: string
           withdrawal_fee_fixed_cents?: number
           withdrawal_fee_percent?: number
@@ -342,6 +346,8 @@ export type Database = {
           min_deposit_cents?: number
           min_withdrawal_cents?: number
           real_money_enabled?: boolean
+          rollover_enabled?: boolean
+          rollover_multiplier?: number
           updated_at?: string
           withdrawal_fee_fixed_cents?: number
           withdrawal_fee_percent?: number
@@ -355,6 +361,7 @@ export type Database = {
           display_name: string
           id: string
           is_blocked: boolean
+          last_seen_at: string
           phone: string | null
           updated_at: string
         }
@@ -364,6 +371,7 @@ export type Database = {
           display_name?: string
           id: string
           is_blocked?: boolean
+          last_seen_at?: string
           phone?: string | null
           updated_at?: string
         }
@@ -373,8 +381,39 @@ export type Database = {
           display_name?: string
           id?: string
           is_blocked?: boolean
+          last_seen_at?: string
           phone?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_seen_at: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_seen_at?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_seen_at?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -452,6 +491,45 @@ export type Database = {
         }
         Relationships: []
       }
+      solo_matches: {
+        Row: {
+          bet_cents: number
+          created_at: string
+          finished_at: string | null
+          game: string
+          id: string
+          payout_cents: number
+          rake_cents: number
+          result: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          bet_cents?: number
+          created_at?: string
+          finished_at?: string | null
+          game: string
+          id?: string
+          payout_cents?: number
+          rake_cents?: number
+          result?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          bet_cents?: number
+          created_at?: string
+          finished_at?: string | null
+          game?: string
+          id?: string
+          payout_cents?: number
+          rake_cents?: number
+          result?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount_cents: number
@@ -523,22 +601,28 @@ export type Database = {
           balance_cents: number
           currency: string
           locked_cents: number
+          rollover_required_cents: number
           updated_at: string
           user_id: string
+          wagered_cents: number
         }
         Insert: {
           balance_cents?: number
           currency?: string
           locked_cents?: number
+          rollover_required_cents?: number
           updated_at?: string
           user_id: string
+          wagered_cents?: number
         }
         Update: {
           balance_cents?: number
           currency?: string
           locked_cents?: number
+          rollover_required_cents?: number
           updated_at?: string
           user_id?: string
+          wagered_cents?: number
         }
         Relationships: []
       }
@@ -565,6 +649,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_update_settings: {
+        Args: {
+          _house_fee_percent: number
+          _min_deposit_cents: number
+          _min_withdrawal_cents: number
+          _rollover_enabled: boolean
+          _rollover_multiplier: number
+          _withdrawal_fee_fixed_cents: number
+          _withdrawal_fee_percent: number
+        }
+        Returns: undefined
+      }
       app_settings: {
         Args: never
         Returns: {
@@ -576,6 +672,8 @@ export type Database = {
           min_deposit_cents: number
           min_withdrawal_cents: number
           real_money_enabled: boolean
+          rollover_enabled: boolean
+          rollover_multiplier: number
           updated_at: string
           withdrawal_fee_fixed_cents: number
           withdrawal_fee_percent: number
@@ -619,6 +717,10 @@ export type Database = {
         Returns: string
       }
       ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
+      finish_solo_match: {
+        Args: { _match_id: string; _result: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -658,6 +760,11 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      start_solo_match: {
+        Args: { _bet_cents: number; _game: string }
+        Returns: string
+      }
+      wallet_summary: { Args: never; Returns: Json }
       withdrawal_quote: {
         Args: { _amount_cents: number }
         Returns: {
