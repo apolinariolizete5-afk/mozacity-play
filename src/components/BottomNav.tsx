@@ -1,18 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Gamepad2, Users, Trophy, User } from "lucide-react";
+import { Home, Gamepad2, Wallet, Users, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { to: "/", label: "Início", icon: Home },
   { to: "/play", label: "Jogar", icon: Gamepad2 },
+  { to: "/wallet", label: "Carteira", icon: Wallet },
   { to: "/rooms", label: "Salas", icon: Users },
-  { to: "/ranking", label: "Ranking", icon: Trophy },
   { to: "/profile", label: "Perfil", icon: User },
 ] as const;
 
 export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const hidden = pathname.startsWith("/games/");
+  const hidden = pathname.startsWith("/games/") || pathname.startsWith("/auth");
   if (hidden) return null;
 
   return (
