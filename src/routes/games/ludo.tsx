@@ -4,6 +4,7 @@ import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Button, Card, Pill } from "@/components/ui/primitives";
 import {
+  LUDO_COLORS,
   LUDO_NAMES,
   ludoBotMove,
   ludoEngine,
@@ -11,22 +12,23 @@ import {
   type LudoMove,
 } from "@/lib/games/ludo";
 import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+import { ArrowDown, Dice5, Flame } from "lucide-react";
 
 export const Route = createFileRoute("/games/ludo")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,
+    timer: Number(search["timer"] ?? 15) || 15,
     players: Math.min(4, Math.max(2, Number(search["players"] ?? 4) || 4)),
   }),
   head: () => ({
     meta: [
-      { title: "Ludo online 2-4 jogadores — MozaPlay" },
+      { title: "Ludo Profissional — MozaPlay" },
       {
         name: "description",
-        content: "Ludo para 2 a 4 jogadores com dados validados, capturas e corrida ao centro.",
+        content: "Ludo com dados validados, 4 cores oficiais, capturas, casas seguras e corrida ao centro.",
       },
-      { property: "og:title", content: "Ludo online 2-4 jogadores — MozaPlay" },
-      { property: "og:description", content: "Lança os dados e corre até ao centro no Ludo da MozaPlay." },
+      { property: "og:title", content: "Ludo Profissional — MozaPlay" },
+      { property: "og:description", content: "Lança os dados e joga Ludo online na MozaPlay." },
     ],
   }),
   component: LudoMatch,
@@ -37,18 +39,19 @@ function LudoMatch() {
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players }));
   const [seconds, setSeconds] = useState(timer);
-  const [bots] = useState(() => Array.from({ length: 3 }, () => botName()));
+  const [bots] = useState(() => ["Simba", "Nito", "Chivambo"]);
   const settled = useRef(false);
   const staked = useRef(false);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (!staked.current) {
+    if (!staked.current && bet > 0) {
       staked.current = true;
       placeBet(bet, "ludo");
     }
   }, [bet]);
 
+  // Temporizador de 15 segundos
   useEffect(() => {
     setSeconds(timer);
     if (state.over) return;
@@ -61,23 +64,24 @@ function LudoMatch() {
     setTick((t) => t + 1);
   };
 
-  // timeout: auto-play for the human seat
+  // Jogada automática do jogador em caso de esgotar o tempo
   useEffect(() => {
     if (seconds > 0 || state.over || state.turn !== 0) return;
     const auto = ludoBotMove(state);
     if (auto) play(auto);
   }, [seconds, state]);
 
-  // bot seats
+  // Jogadas automáticas dos adversários (bots)
   useEffect(() => {
     if (state.over || state.turn === 0) return;
     const id = setTimeout(() => {
       const move = ludoBotMove(state);
       if (move) play(move);
-    }, 650);
+    }, 750);
     return () => clearTimeout(id);
   }, [state]);
 
+  // Finalização e liquidação da partida
   useEffect(() => {
     if (!state.over || settled.current) return;
     settled.current = true;
@@ -97,12 +101,12 @@ function LudoMatch() {
   return (
     <>
       <MatchShell
-        title="Ludo"
+        title="Ludo MozaPlay"
         seconds={seconds}
         limit={timer}
         seats={Array.from({ length: players }, (_, i) => ({
-          name: i === 0 ? app.profile.name : bots[i - 1]!,
-          avatar: i === 0 ? app.profile.avatar : "🤖",
+          name: i === 0 ? (app.profile?.name ?? "Tu") : bots[i - 1]!,
+          avatar: i === 0 ? (app.profile?.avatar ?? "👤") : "🤖",
           bot: i !== 0,
           active: state.turn === i,
           label: LUDO_NAMES[i] ?? "",
@@ -112,59 +116,100 @@ function LudoMatch() {
             ? "Partida terminada"
             : myTurn
               ? canRoll
-                ? "Lança o dado"
+                ? "Lança o dado!"
                 : pickable.length
-                  ? "Escolhe a peça a mover"
-                  : "Sem jogadas"
-              : `Vez de ${bots[state.turn - 1] ?? "adversário"}`
+                  ? "Escolhe a peça que pisca para mover"
+                  : "Sem jogadas disponíveis"
+              : `A aguardar por ${bots[state.turn - 1] ?? "adversário"}...`
         }
         footer={
           <div className="space-y-3">
-            <Card className="flex items-center gap-3 p-3">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary font-display text-3xl font-extrabold">
-                {state.dice ?? "–"}
+            <Card className="relative flex items-center justify-between gap-4 p-3 bg-card/90 backdrop-blur-md border-border/80 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-white shadow-md text-sm"
+                  style={{ backgroundColor: LUDO_COLORS[state.turn] }}
+                >
+                  {state.turn + 1}º
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                    {state.turn === 0 ? "Tua vez" : bots[state.turn - 1]}
+                  </div>
+                  <div className="font-bold text-sm text-foreground">
+                    {LUDO_NAMES[state.turn]}
+                  </div>
+                </div>
               </div>
-              <Button
-                size="lg"
-                className="flex-1"
-                disabled={!canRoll}
-                onClick={() => play({ type: "roll" })}
-              >
-                Lançar dado
-              </Button>
-            </Card>
-            <Card className="p-3 text-xs">
-              <div className="mb-2 flex items-center justify-between">
-                <Pill tone="primary">Aposta {bet} moedas</Pill>
-                <span className="text-muted-foreground">{players} jogadores</span>
+
+              {canRoll && (
+                <div className="absolute right-28 -top-8 animate-bounce flex flex-col items-center">
+                  <span className="text-[10px] font-black uppercase text-amber-500 bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded-full shadow">
+                    Lança Aqui!
+                  </span>
+                  <ArrowDown className="h-5 w-5 text-amber-500" />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary border border-border/60 font-black text-2xl shadow-inner text-foreground">
+                  {state.dice ? (
+                    <span className="text-3xl text-primary animate-in zoom-in-50">{state.dice}</span>
+                  ) : (
+                    <Dice5 className="h-8 w-8 text-muted-foreground/60" />
+                  )}
+                  {state.sixStreak > 1 && (
+                    <span className="absolute -top-2 -right-2 flex items-center gap-0.5 bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                      <Flame className="h-3 w-3" /> {state.sixStreak}x
+                    </span>
+                  )}
+                </div>
+
+                <Button
+                  size="lg"
+                  className="h-14 px-6 font-bold text-base shadow-md"
+                  disabled={!canRoll}
+                  onClick={() => play({ type: "roll" })}
+                >
+                  Lançar Dado
+                </Button>
               </div>
-              <ul className="space-y-1 text-muted-foreground">
-                {state.log.slice(0, 3).map((line, i) => (
-                  <li key={i}>• {line}</li>
-                ))}
-              </ul>
             </Card>
+
+            <div className="flex items-center justify-between text-xs px-2 text-muted-foreground">
+              <span className="truncate max-w-[280px]">
+                {state.log[0] ?? "Partida em andamento"}
+              </span>
+              {bet > 0 && (
+                <Pill className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border-emerald-500/20">
+                  Prémio: {Math.round(bet * players * 0.92)} MT
+                </Pill>
+              )}
+            </div>
           </div>
         }
       >
-        <LudoBoard
-          state={state}
-          disabled={!myTurn || state.dice == null}
-          onPick={(token) => play({ type: "move", token })}
-        />
+        <div className="mx-auto max-w-md">
+          <LudoBoard
+            state={state}
+            disabled={!myTurn || state.dice == null}
+            onPick={(token) => play({ type: "move", token })}
+          />
+        </div>
       </MatchShell>
-      {result ? (
+
+      {result && (
         <ResultOverlay
           result={result}
-          coins={result === "win" ? bet * 2 : 0}
-          onRematch={() => {
+          prize={Math.round(bet * players * 0.92)}
+          onLeave={() => window.history.back()}
+          onPlayAgain={() => {
             settled.current = false;
-            placeBet(bet, "ludo");
             setState(ludoEngine.createGame({ players }));
-            setSeconds(timer);
+            setTick((t) => t + 1);
           }}
         />
-      ) : null}
+      )}
     </>
   );
-}
+    }
