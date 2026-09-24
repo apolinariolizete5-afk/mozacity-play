@@ -9,10 +9,11 @@ export type LudoMove = { type: "roll"; value?: number } | { type: "move"; token:
 
 export interface LudoState {
   players: number;
-  tokens: number[][];
+  tokens: number[][]; // tokens[player][tokenIndex] = position
   turn: number;
   dice: number | null;
   sixStreak: number;
+  bonusRoll: boolean;
   over: boolean;
   winner: number | null;
   log: string[];
@@ -20,67 +21,23 @@ export interface LudoState {
 
 /** Base ring path for player 0 on a 15x15 grid, rotated for the other seats. */
 const BASE_PATH: [number, number][] = [
-  [6, 1],
-  [6, 2],
-  [6, 3],
-  [6, 4],
-  [6, 5],
-  [5, 6],
-  [4, 6],
-  [3, 6],
-  [2, 6],
-  [1, 6],
-  [0, 6],
+  [6, 1], [6, 2], [6, 3], [6, 4], [6, 5],
+  [5, 6], [4, 6], [3, 6], [2, 6], [1, 6], [0, 6],
   [0, 7],
-  [0, 8],
-  [1, 8],
-  [2, 8],
-  [3, 8],
-  [4, 8],
-  [5, 8],
-  [6, 9],
-  [6, 10],
-  [6, 11],
-  [6, 12],
-  [6, 13],
-  [6, 14],
+  [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8],
+  [6, 9], [6, 10], [6, 11], [6, 12], [6, 13], [6, 14],
   [7, 14],
-  [8, 14],
-  [8, 13],
-  [8, 12],
-  [8, 11],
-  [8, 10],
-  [8, 9],
-  [9, 8],
-  [10, 8],
-  [11, 8],
-  [12, 8],
-  [13, 8],
-  [14, 8],
+  [8, 14], [8, 13], [8, 12], [8, 11], [8, 10], [8, 9],
+  [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8],
   [14, 7],
-  [14, 6],
-  [13, 6],
-  [12, 6],
-  [11, 6],
-  [10, 6],
-  [9, 6],
-  [8, 5],
-  [8, 4],
-  [8, 3],
-  [8, 2],
-  [8, 1],
-  [8, 0],
+  [14, 6], [13, 6], [12, 6], [11, 6], [10, 6], [9, 6],
+  [8, 5], [8, 4], [8, 3], [8, 2], [8, 1], [8, 0],
   [7, 0],
   [6, 0],
 ];
 
 const BASE_HOME: [number, number][] = [
-  [7, 1],
-  [7, 2],
-  [7, 3],
-  [7, 4],
-  [7, 5],
-  [7, 6],
+  [7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6],
 ];
 
 const rot = ([r, c]: [number, number], times: number): [number, number] => {
@@ -98,14 +55,21 @@ export function cellFor(player: number, pos: number): [number, number] | null {
   if (pos < 0) return null;
   if (pos < RING) return ringCell(player, pos);
   if (pos < FINISHED) return rot(BASE_HOME[pos - RING]!, player);
-  return [7, 7];
+  return [7, 7]; // Centro da vitória
 }
 
-/** Shared ring index so collisions across players can be compared. */
+/** Shared ring index (0..51) so collisions across players can be compared. */
 export const absoluteRing = (player: number, pos: number) =>
   pos >= 0 && pos < RING ? (player * 13 + pos) % RING : -1;
 
+/** Safe squares: 4 starting squares + 4 star squares (imunes a captura) */
 export const SAFE_STEPS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
+
+export function isSafeCell(player: number, pos: number): boolean {
+  if (pos < 0 || pos >= RING) return true;
+  const abs = absoluteRing(player, pos);
+  return SAFE_STEPS.has(abs);
+}
 
 function clone(s: LudoState): LudoState {
   return { ...s, tokens: s.tokens.map((t) => [...t]), log: [...s.log] };
@@ -121,7 +85,9 @@ export function movableTokens(s: LudoState): number[] {
       if (s.dice === 6) out.push(i);
       return;
     }
-    if (pos + (s.dice ?? 0) <= FINISHED) out.push(i);
+    if (pos + s.dice <= FINISHED) {
+      out.push(i);
+    }
   });
   return out;
 }
@@ -139,9 +105,10 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
       turn: 0,
       dice: null,
       sixStreak: 0,
+      bonusRoll: false,
       over: false,
       winner: null,
-      log: [],
+      log: ["Jogo iniciado. Boa sorte!"],
     };
   },
   validateMove(state, move) {
@@ -152,64 +119,99 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
   applyMove(state, move) {
     if (!ludoEngine.validateMove(state, move)) return state;
     const n = clone(state);
+
     if (move.type === "roll") {
       const value = move.value ?? 1 + Math.floor(Math.random() * 6);
       n.dice = value;
-      n.log.unshift(`Jogador ${n.turn + 1} lançou ${value}`);
-      if (movableTokens(n).length === 0) {
+      const isSix = value === 6;
+
+      if (isSix) {
+        n.sixStreak += 1;
+      } else {
+        n.sixStreak = 0;
+      }
+
+      // Penalidade de 3 seis consecutivos: anula e passa a vez
+      if (n.sixStreak === 3) {
+        n.log.unshift(`${LUDO_NAMES[n.turn]} tirou 3 seis consecutivos! Perde a vez.`);
         n.dice = null;
         n.sixStreak = 0;
+        n.bonusRoll = false;
         n.turn = (n.turn + 1) % n.players;
-        n.log.unshift("Sem jogadas possíveis — passa a vez");
+        return n;
+      }
+
+      n.log.unshift(`${LUDO_NAMES[n.turn]} lançou o dado: ${value}${isSix ? " (jogada extra!)" : ""}`);
+
+      const valid = movableTokens(n);
+      if (valid.length === 0) {
+        n.log.unshift(`Nenhuma peça válida para mover com ${value}. Passa a vez.`);
+        n.dice = null;
+        n.sixStreak = 0;
+        n.bonusRoll = false;
+        n.turn = (n.turn + 1) % n.players;
       }
       return n;
     }
 
+    // Mover peão
     const dice = n.dice!;
     const mine = n.tokens[n.turn]!;
     const from = mine[move.token]!;
     let captured = false;
-    if (from === -1) mine[move.token] = 0;
-    else {
+    let reachedCenter = false;
+
+    if (from === -1) {
+      mine[move.token] = 0;
+      n.log.unshift(`${LUDO_NAMES[n.turn]} tirou um peão da base!`);
+    } else {
       const target = from + dice;
       mine[move.token] = target;
-      const abs = absoluteRing(n.turn, target);
-      if (abs >= 0 && !SAFE_STEPS.has(target)) {
-        for (let p = 0; p < n.players; p++) {
-          if (p === n.turn) continue;
-          n.tokens[p] = n.tokens[p]!.map((pos) => {
-            if (absoluteRing(p, pos) === abs) {
-              captured = true;
-              return -1;
-            }
-            return pos;
-          });
+
+      if (target === FINISHED) {
+        reachedCenter = true;
+        n.log.unshift(`🎉 ${LUDO_NAMES[n.turn]} levou um peão ao centro!`);
+      } else {
+        const abs = absoluteRing(n.turn, target);
+        if (abs >= 0 && !SAFE_STEPS.has(abs)) {
+          for (let p = 0; p < n.players; p++) {
+            if (p === n.turn) continue;
+            n.tokens[p]!.forEach((opos, oi) => {
+              if (opos >= 0 && opos < RING && absoluteRing(p, opos) === abs) {
+                n.tokens[p]![oi] = -1;
+                captured = true;
+                n.log.unshift(`💥 ${LUDO_NAMES[n.turn]} comeu o peão de ${LUDO_NAMES[p]}! Bónus de jogada extra!`);
+              }
+            });
+          }
         }
       }
     }
-    if (captured) n.log.unshift(`Jogador ${n.turn + 1} capturou uma peça!`);
 
-    if (mine.every((p) => p === FINISHED)) {
+    // Verificar vencedor: todos os 4 peões no centro
+    if (mine.every((pos) => pos === FINISHED)) {
       n.over = true;
       n.winner = n.turn;
       n.dice = null;
-      n.log.unshift(`Jogador ${n.turn + 1} venceu!`);
+      n.log.unshift(`🏆 ${LUDO_NAMES[n.turn]} venceu a partida! Parabéns!`);
       return n;
     }
 
-    const extra = dice === 6 || captured;
+    const getsExtraRoll = dice === 6 || captured || reachedCenter;
+
     n.dice = null;
-    if (extra && n.sixStreak < 2) n.sixStreak += 1;
-    else {
+    if (getsExtraRoll) {
+      n.bonusRoll = true;
+    } else {
       n.sixStreak = 0;
+      n.bonusRoll = false;
       n.turn = (n.turn + 1) % n.players;
     }
+
     return n;
   },
-  getState: (s) => s,
-  isGameOver: (s) => s.over,
-  getWinner: (s) => s.winner,
   legalMoves(state) {
+    if (state.over) return [];
     if (state.dice == null) return [{ type: "roll" } as LudoMove];
     return movableTokens(state).map((token) => ({ type: "move", token }) as LudoMove);
   },
@@ -218,17 +220,40 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
 export function ludoBotMove(s: LudoState): LudoMove | null {
   if (s.over) return null;
   if (s.dice == null) return { type: "roll" };
-  const options = movableTokens(s);
-  if (!options.length) return null;
-  const mine = s.tokens[s.turn]!;
-  // prefer finishing, then leaving base, then the furthest token
-  const finishing = options.find((t) => mine[t]! + s.dice! === FINISHED);
-  if (finishing !== undefined) return { type: "move", token: finishing };
-  const leaving = options.find((t) => mine[t] === -1);
-  if (leaving !== undefined && s.dice === 6) return { type: "move", token: leaving };
-  const best = options.reduce((a, b) => (mine[a]! >= mine[b]! ? a : b));
-  return { type: "move", token: best };
+  const tokens = movableTokens(s);
+  if (!tokens.length) return null;
+
+  for (const t of tokens) {
+    const pos = s.tokens[s.turn]![t]!;
+    if (pos >= 0 && pos + s.dice! < RING) {
+      const abs = absoluteRing(s.turn, pos + s.dice!);
+      if (abs >= 0 && !SAFE_STEPS.has(abs)) {
+        for (let p = 0; p < s.players; p++) {
+          if (p === s.turn) continue;
+          if (s.tokens[p]!.some((op) => op >= 0 && op < RING && absoluteRing(p, op) === abs)) {
+            return { type: "move", token: t };
+          }
+        }
+      }
+    }
+  }
+
+  for (const t of tokens) {
+    if (s.tokens[s.turn]![t]! + s.dice! === FINISHED) {
+      return { type: "move", token: t };
+    }
+  }
+
+  const outBase = tokens.find((t) => s.tokens[s.turn]![t] === -1);
+  if (outBase !== undefined && s.dice === 6) {
+    return { type: "move", token: outBase };
+  }
+
+  tokens.sort((a, b) => (s.tokens[s.turn]![b] ?? -1) - (s.tokens[s.turn]![a] ?? -1));
+  return { type: "move", token: tokens[0]! };
 }
 
-export const LUDO_COLORS = ["#f97316", "#22d3ee", "#a3e635", "#f472b6"];
-export const LUDO_NAMES = ["Laranja", "Ciano", "Lima", "Rosa"];
+// 4 Cores clássicas oficiais: Verde (0), Amarelo (1), Azul (2), Vermelho (3)
+export const LUDO_COLORS = ["#16a34a", "#eab308", "#2563eb", "#dc2626"];
+export const LUDO_BG_COLORS = ["#dcfce7", "#fef9c3", "#dbeafe", "#fee2e2"];
+export const LUDO_NAMES = ["Verde", "Amarelo", "Azul", "Vermelho"];
