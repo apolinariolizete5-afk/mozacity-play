@@ -86,11 +86,3 @@ export const settlePayout = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const setTestMode = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ enabled: z.boolean() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("admin_set_test_mode", { _enabled: data.enabled });
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
