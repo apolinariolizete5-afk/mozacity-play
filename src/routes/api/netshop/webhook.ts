@@ -186,87 +186,55 @@ export const Route = createFileRoute(
           );
         }
 
-        const rpcToken =
-          process.env.WALLET_RPC_TOKEN;
-
-        if (!rpcToken) {
-          console.error(
-            "[NetShop webhook] WALLET_RPC_TOKEN is not configured",
-          );
-
-          return new Response(
-            JSON.stringify({
-              ok: false,
-              error: "server_not_configured",
-            }),
-            {
-              status: 503,
-              headers: {
-                "content-type":
-                  "application/json",
-              },
-            },
-          );
-        }
-
         try {
-          const {
-            supabaseAdmin,
-          } = await import(
-            "@/integrations/supabase/client.server"
-          );
+          const { paymentDatabase } = await import("@/lib/payments/database.server");
+          const sql = paymentDatabase();
 
-          const {
-            data,
-            error,
-          } =
-            await supabaseAdmin.rpc(
-              "settle_deposit",
-              {
-                _idempotency_key:
-                  idempotencyKey,
-                _status: status,
-                _provider_ref:
-                  providerRef ?? null,
-                _token: rpcToken,
-              },
-            );
+          const result = await sql.begin(async (tx) => {
+            const rows = await tx`
+              select id, user_id, amount_cents, status
+              from public.transactions
+              where idempotency_key = ${idempotencyKey}
+              for update
+            `;
+            const transaction = rows[0] as {
+              id: string;
+              user_id: string;
+              amount_cents: number;
+              status: string;
+            } | undefined;
 
-          if (error) {
-            console.error(
-              "[NetShop webhook] settlement failed:",
-              error.message,
-            );
+            if (!transaction) throw new Error("unknown_transaction");
+            if (transaction.status !== "pending") return "already_settled";
 
-            return new Response(
-              JSON.stringify({
-                ok: false,
-                error: "settlement_failed",
-              }),
-              {
-                status: 500,
-                headers: {
-                  "content-type":
-                    "application/json",
-                },
-              },
-            );
-          }
+            await tx`
+              update public.transactions
+              set status = ${status}::public.tx_status,
+                  provider_ref = coalesce(${providerRef ?? null}, provider_ref)
+              where id = ${transaction.id}
+            `;
 
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              result: data ?? null,
-            }),
-            {
-              status: 200,
-              headers: {
-                "content-type":
-                  "application/json",
-              },
-            },
-          );
-        } catch (error) {
+            if (status === "completed") {
+              await tx`
+                insert into public.wallets (user_id)
+                values (${transaction.user_id})
+                on conflict (user_id) do nothing
+              `;
+              await tx`
+                update public.wallets
+                set balance_cents = balance_cents + ${transaction.amount_cents},
+                    updated_at = now()
+                where user_id = ${transaction.user_id}
+              `;
+            }
+            return "settled";
+          });
+
+          return new Response(JSON.stringify({ ok: true, result }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }        } catch (error) {
           console.error(
             "[NetShop webhook] internal error:",
             error instanceof Error
