@@ -115,7 +115,7 @@ export function defaultState(): AppState {
       avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)]!,
       joinedAt: new Date().toISOString(),
     },
-    coins: 1000,
+    coins: 0,
     timer: 10,
     stats: {
       total: emptyStats(),
@@ -129,7 +129,7 @@ export function defaultState(): AppState {
       {
         id: uid(),
         title: "Bem-vindo à MozaPlay",
-        body: "Recebeste 1000 moedas de demonstração para começar.",
+        body: "A tua carteira é alimentada por depósitos reais confirmados.",
         kind: "system",
         read: false,
         createdAt: new Date().toISOString(),
@@ -382,29 +382,8 @@ export const winRate = (s: Stats) => {
   return total === 0 ? 0 : Math.round((s.wins / total) * 100);
 };
 
-/** Demo leaderboard opponents; the player is merged in at render time. */
-export const LEADERBOARD_SEED: {
-  name: string;
-  avatar: string;
-  points: Record<GameId, number>;
-}[] = [
-  { name: "Nito", avatar: "🦁", points: { ludo: 1820, checkers: 940, chess: 1510 } },
-  { name: "Amina", avatar: "🦅", points: { ludo: 1640, checkers: 1320, chess: 1180 } },
-  { name: "Tembe", avatar: "🐘", points: { ludo: 1410, checkers: 1580, chess: 860 } },
-  { name: "Salim", avatar: "🦈", points: { ludo: 1250, checkers: 760, chess: 1720 } },
-  { name: "Mira", avatar: "🐆", points: { ludo: 1105, checkers: 1090, chess: 990 } },
-  { name: "Zeca", avatar: "🐊", points: { ludo: 880, checkers: 640, chess: 720 } },
-  { name: "Laura", avatar: "🦒", points: { ludo: 720, checkers: 520, chess: 610 } },
-];
-
-
-export function depositDemo(amountMzn: number, method: string): boolean {
-  const cents = Math.round(amountMzn * 100);
-  if (!Number.isFinite(cents) || cents < 5000) return false;
-  addTransaction("deposit", cents / 100, `Depósito de demonstração via ${method}`);
-  return true;
-}
-
+/** Leaderboard entries come from the backend; no seeded players are created locally. */
+export const LEADERBOARD_SEED: never[] = [];
 export function withdrawDemo(amountMzn: number, method: string): boolean {
   const amount = Number(amountMzn);
   if (!Number.isFinite(amount) || amount < 50) return false;
