@@ -20,7 +20,13 @@ if (!url || !key) {
   console.error("[Supabase] Missing Supabase URL or publishable key.");
 }
 
-export const supabase = createClient(url, key, {
+// Keep the client constructible during SSR/build even if Render env vars are
+// temporarily missing. Authenticated server functions still validate their
+// own configuration in auth-middleware.ts.
+const safeUrl = url || "https://placeholder.supabase.co";
+const safeKey = key || "placeholder-anon-key";
+
+export const supabase = createClient(safeUrl, safeKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
