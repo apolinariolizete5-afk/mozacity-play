@@ -1,7 +1,7 @@
 # MozaPlay — Joga. Desafia. Compete.
 
 Plataforma mobile-first de jogos competitivos (Ludo, Damas e Xadrez) com estética de app
-Android nativa, dark mode, salas com código curto, carteira de moedas de demonstração,
+Android nativa, dark mode, salas com código curto, carteira em meticais,
 ranking e suporte PWA.
 
 ## Stack
@@ -9,7 +9,7 @@ ranking e suporte PWA.
 - TanStack Start (React 19 + Vite 7, SSR)
 - TypeScript
 - Tailwind CSS v4 (tokens semânticos em `src/styles.css`)
-- Estado local persistente (`localStorage`) — pronto para trocar por backend
+- Supabase para autenticação e carteira; estado local apenas para preferências e partidas locais
 
 ## Instalação
 
@@ -50,26 +50,11 @@ Partida rápida procura jogadores e permite preencher vagas com bots.
 
 ## Pagamentos
 
-`src/lib/payments.ts` define a camada desacoplada: `PaymentProvider`, `Deposit`,
-`Withdrawal`, `Transaction`, `Wallet`, `WebhookEvent` e `PaymentService` com
-processamento idempotente de webhooks. O provedor ativo é `demoProvider`
-(moedas virtuais, sem valor real). Para integrar um provedor real:
-`paymentService.register(meuProvider)` e receber webhooks em
-`src/routes/api/public/*`.
+A carteira usa Supabase e as server functions para operações financeiras.
+Depósitos passam pelo gateway NetShop quando configurado; sem gateway configurado,
+o depósito é recusado e nenhum saldo é criado artificialmente.
 
-## Variáveis de ambiente
-
-A demo funciona sem configuração. Para integrações futuras:
-
-```
-# servidor (nunca com prefixo VITE_)
-PAYMENT_PROVIDER=demo
-PAYMENT_API_KEY=
-PAYMENT_WEBHOOK_SECRET=
-
-# cliente
-VITE_APP_NAME=MozaPlay
-```
+Não existe provedor de pagamento demo nem crédito virtual inicial.
 
 ## PWA
 
