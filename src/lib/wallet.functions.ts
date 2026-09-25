@@ -26,7 +26,7 @@ export const getWalletSummary = createServerFn({ method: "GET" })
     return data as unknown as WalletSummary;
   });
 
-/** Inicia um depósito. Em modo de teste a Netshop é simulada e o valor integral é creditado. */
+/** Inicia um depósito real. O saldo só é creditado após confirmação assinada da gateway. */
 export const startDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -52,26 +52,23 @@ export const startDeposit = createServerFn({ method: "POST" })
     const { netshopStatus, requestDeposit } = await import("./payments/netshop.server");
     const status = netshopStatus();
 
-    if (status.configured) {
-      const result = await requestDeposit({
-        method: data.method,
-        msisdn: data.msisdn,
-        amountCents: data.amount_cents,
-        reference: key,
-      });
-      return {
-        mode: "live" as const,
-        status: result.status,
-        reference: key,
-        error: result.error ?? null,
-      };
+    if (!status.configured) {
+      throw new Error("payment_provider_not_configured");
     }
 
-    const { error: settleError } = await context.supabase.rpc("settle_own_test_deposit", {
-      _idempotency_key: key,
+    const result = await requestDeposit({
+      method: data.method,
+      msisdn: data.msisdn,
+      amountCents: data.amount_cents,
+      reference: key,
     });
-    if (settleError) throw new Error(settleError.message);
-    return { mode: "test" as const, status: "completed" as const, reference: key, error: null };
+
+    return {
+      mode: "live" as const,
+      status: result.status,
+      reference: key,
+      error: result.error ?? null,
+    };
   });
 
 export const quoteWithdrawal = createServerFn({ method: "GET" })
