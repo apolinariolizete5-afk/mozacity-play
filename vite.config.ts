@@ -12,4 +12,12 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    preview: {
+      // Domínios autorizados a servir o preview (Render incluído)
+      allowedHosts: ["mozaplay.onrender.com"],
+      host: "0.0.0.0",
+      port: Number(process.env.PORT) || 10000,
+    },
+  },
 });
