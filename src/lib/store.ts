@@ -396,3 +396,20 @@ export const LEADERBOARD_SEED: {
   { name: "Zeca", avatar: "🐊", points: { ludo: 880, checkers: 640, chess: 720 } },
   { name: "Laura", avatar: "🦒", points: { ludo: 720, checkers: 520, chess: 610 } },
 ];
+
+
+export function depositDemo(amountMzn: number, method: string): boolean {
+  const cents = Math.round(amountMzn * 100);
+  if (!Number.isFinite(cents) || cents < 5000) return false;
+  addTransaction("deposit", cents / 100, `Depósito de demonstração via ${method}`);
+  return true;
+}
+
+export function withdrawDemo(amountMzn: number, method: string): boolean {
+  const amount = Number(amountMzn);
+  if (!Number.isFinite(amount) || amount < 50) return false;
+  const current = read();
+  if (current.coins < amount) return false;
+  addTransaction("withdrawal", -amount, `Levantamento de demonstração via ${method}`);
+  return true;
+}
