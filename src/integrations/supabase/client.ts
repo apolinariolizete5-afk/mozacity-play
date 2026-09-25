@@ -32,8 +32,9 @@ export const supabase = createClient(safeUrl, safeKey, {
     autoRefreshToken: true,
   },
   realtime: {
-    // The server-side SSR runtime on Render does not need Realtime.
-    // Disabling it prevents supabase-js from requiring a native WebSocket.
+    // Realtime is a browser feature for this app. Do not initialize it
+    // during SSR, because Render's server runtime may not expose WebSocket.
+    transport: typeof window !== "undefined" ? WebSocket : undefined,
     params: { eventsPerSecond: 10 },
   },
 });
