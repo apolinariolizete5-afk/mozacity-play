@@ -273,12 +273,10 @@ export function recordMatch(input: {
   });
 }
 
-export function placeBet(amount: number, game: GameId) {
-  if (amount <= 0) return true;
-  const current = read();
-  if (current.coins < amount) return false;
-  addTransaction("bet", -amount, `Aposta em ${game}`);
-  return true;
+export function placeBet(amount: number, _game: GameId) {
+  // Real-money bets are authorized and settled by Supabase RPCs.
+  // The client-side store never creates, debits or credits money.
+  return amount <= 0;
 }
 
 export function createRoom(input: {
