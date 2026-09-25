@@ -443,7 +443,13 @@ function depositError(message: string): string {
     destination_required: "Indica o número que vai receber o dinheiro.",
     account_blocked: "A tua conta está bloqueada. Fala com o suporte.",
     method_disabled: "Este método está temporariamente indisponível.",
-    test_mode_disabled: "O pagamento está a ser processado pela gateway.",
+    test_mode_disabled: "Os pagamentos de teste estão desativados.",
+    payment_provider_not_configured:
+      "Os pagamentos ainda não estão configurados. Tenta novamente mais tarde.",
+    provider_not_configured:
+      "O serviço de pagamento ainda não está configurado.",
+    wallet_not_configured:
+      "Este método de pagamento ainda não está configurado.",
   };
   for (const key of Object.keys(map)) if (message.includes(key)) return map[key]!;
   return message;
