@@ -10,7 +10,6 @@ import { useAuth, useIsAdmin } from "@/lib/auth";
 import {
   claimAdmin,
   getAdminOverview,
-  setTestMode,
   settlePayout,
   updateSettings,
 } from "@/lib/admin.functions";
@@ -39,7 +38,6 @@ interface Settings {
   min_withdrawal_cents: number;
   rollover_enabled: boolean;
   rollover_multiplier: number;
-  test_mode_enabled: boolean;
 }
 
 interface PayoutRow {
@@ -132,7 +130,6 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
   const overviewFn = useServerFn(getAdminOverview);
   const saveFn = useServerFn(updateSettings);
   const settleFn = useServerFn(settlePayout);
-  const testFn = useServerFn(setTestMode);
 
   const overview = useQuery({ queryKey: ["admin-overview"], queryFn: () => overviewFn() });
 
@@ -142,7 +139,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
       const { data, error } = await supabase
         .from("platform_settings")
         .select(
-          "house_fee_percent, withdrawal_fee_percent, withdrawal_fee_fixed_cents, min_deposit_cents, min_withdrawal_cents, rollover_enabled, rollover_multiplier, test_mode_enabled",
+          "house_fee_percent, withdrawal_fee_percent, withdrawal_fee_fixed_cents, min_deposit_cents, min_withdrawal_cents, rollover_enabled, rollover_multiplier",
         )
         .eq("id", 1)
         .maybeSingle();
@@ -191,10 +188,6 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
     onSuccess: onRefresh,
   });
 
-  const toggleTest = useMutation({
-    mutationFn: (enabled: boolean) => testFn({ data: { enabled } }),
-    onSuccess: onRefresh,
-  });
 
   const o = overview.data;
 
@@ -293,23 +286,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
               {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Guardar configuração
             </Button>
-            <label className="flex items-center justify-between rounded-2xl bg-secondary/70 p-3 text-sm">
-              <span>
-                Modo de teste Netshop
-                <span className="block text-[11px] text-muted-foreground">
-                  Depósitos confirmados sem gateway real.
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                className="h-5 w-5 accent-primary"
-                checked={form.test_mode_enabled}
-                onChange={(e) => {
-                  setForm({ ...form, test_mode_enabled: e.target.checked });
-                  toggleTest.mutate(e.target.checked);
-                }}
-              />
-            </label>
+
           </>
         ) : (
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
