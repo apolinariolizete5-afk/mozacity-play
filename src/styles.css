@@ -1,84 +1,433 @@
-/* Animação de balançar dinâmico para os peões válidos */
-@keyframes ludo-token-wobble {
-  0%, 100% {
-    transform: translate(-50%, -50%) rotate(0deg) scale(1.1);
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-board-light: var(--board-light);
+  --color-board-dark: var(--board-dark);
+
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 1.1rem;
+
+  --background: oklch(0.16 0.02 258);
+  --foreground: oklch(0.97 0.01 250);
+
+  --card: oklch(0.21 0.023 259);
+  --card-foreground: oklch(0.97 0.01 250);
+
+  --popover: oklch(0.21 0.023 259);
+  --popover-foreground: oklch(0.97 0.01 250);
+
+  --primary: oklch(0.79 0.17 78);
+  --primary-foreground: oklch(0.19 0.03 60);
+
+  --secondary: oklch(0.27 0.026 259);
+  --secondary-foreground: oklch(0.95 0.01 250);
+
+  --muted: oklch(0.25 0.024 259);
+  --muted-foreground: oklch(0.7 0.02 258);
+
+  --accent: oklch(0.83 0.2 135);
+  --accent-foreground: oklch(0.2 0.04 140);
+
+  --destructive: oklch(0.63 0.21 20);
+  --destructive-foreground: oklch(0.98 0.01 250);
+
+  --success: oklch(0.78 0.17 150);
+  --success-foreground: oklch(0.18 0.03 150);
+
+  --border: oklch(0.3 0.025 259);
+  --input: oklch(0.3 0.025 259);
+  --ring: oklch(0.79 0.17 78);
+
+  --board-light: oklch(0.86 0.03 85);
+  --board-dark: oklch(0.42 0.05 40);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
   }
-  20% {
-    transform: translate(-50%, -50%) rotate(-14deg) scale(1.22);
+
+  html {
+    background-color: var(--color-background);
+    -webkit-tap-highlight-color: transparent;
   }
-  40% {
-    transform: translate(-50%, -50%) rotate(12deg) scale(1.22);
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    overscroll-behavior-y: none;
   }
-  60% {
-    transform: translate(-50%, -50%) rotate(-8deg) scale(1.18);
-  }
-  80% {
-    transform: translate(-50%, -50%) rotate(6deg) scale(1.15);
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
   }
 }
+
+@utility glow-primary {
+  box-shadow:
+    0 10px 30px -12px
+    color-mix(in oklab, var(--primary) 70%, transparent);
+}
+
+@utility surface {
+  background-image: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--card) 96%, white 4%),
+    var(--card)
+  );
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+}
+
+
+/* =========================================================
+   LUDO - ANIMAÇÕES MODERNIZADAS
+   ========================================================= */
+
+@keyframes ludo-token-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes ludo-dice-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  35% {
+    transform: rotate(120deg) scale(0.9);
+  }
+
+  70% {
+    transform: rotate(250deg) scale(1.05);
+  }
+
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes ludo-arrow-bounce {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+    opacity: 0.75;
+  }
+
+  50% {
+    transform: translate(-50%, 5px);
+    opacity: 1;
+  }
+}
+
+
+/* =========================================================
+   TABULEIRO
+   ========================================================= */
 
 .ludo-board-wrap {
   position: relative;
+
   width: 100%;
-  max-width: min(88vw, 520px);
   aspect-ratio: 1;
-  margin: 0 auto;
-  border-radius: 12px;
+
   overflow: hidden;
-  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.65), 0 0 0 2px rgba(255, 255, 255, 0.12);
+
+  border-radius: 5%;
+
+  box-shadow:
+    0 20px 45px -24px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+
   isolation: isolate;
+
   user-select: none;
+
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Pinos 3D com alto contraste */
-.ludo-pawn {
+
+/* =========================================================
+   PEÕES
+   ========================================================= */
+
+.ludo-token {
   position: absolute;
-  width: clamp(22px, 5.8vw, 30px);
-  height: clamp(22px, 5.8vw, 30px);
+
+  width: clamp(20px, 5.3vw, 27px);
+
+  aspect-ratio: 0.88;
+
   transform: translate(-50%, -50%);
+
+  border: 2px solid rgba(255, 255, 255, 0.9);
+
   border-radius: 50%;
-  border: 2.5px solid #ffffff;
-  cursor: pointer;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.7);
-  transition: transform 0.18s ease-out;
+
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.5),
+    0 5px 10px rgba(0, 0, 0, 0.3);
+
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Núcleo brilhante interior do peão */
-.ludo-pawn::after {
+
+/* Parte superior do peão */
+
+.ludo-token::before {
   content: "";
-  display: block;
-  width: 44%;
-  height: 44%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+
+  position: absolute;
+
+  left: 50%;
+  top: -27%;
+
+  width: 64%;
+
+  aspect-ratio: 1;
+
+  transform: translateX(-50%);
+
+  border-radius: 999px;
+
+  border: inherit;
+
+  background: inherit;
+
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.5);
+
+  pointer-events: none;
 }
 
-/* Cores de alto contraste */
-.ludo-pawn-green {
-  background: radial-gradient(circle at 35% 35%, #2eff7b, #009933 75%, #004d1a);
+
+/* =========================================================
+   CORES DOS PEÕES
+   ========================================================= */
+
+.ludo-token-green {
+  background:
+    linear-gradient(
+      145deg,
+      #54e889 0%,
+      #19b957 45%,
+      #078c3c 100%
+    );
 }
 
-.ludo-pawn-yellow {
-  background: radial-gradient(circle at 35% 35%, #fff266, #ffcc00 75%, #997a00);
+.ludo-token-yellow {
+  background:
+    linear-gradient(
+      145deg,
+      #fff58a 0%,
+      #ffd52e 45%,
+      #e6a900 100%
+    );
 }
 
-.ludo-pawn-blue {
-  background: radial-gradient(circle at 35% 35%, #4de1ff, #0077ff 75%, #003399);
+.ludo-token-blue {
+  background:
+    linear-gradient(
+      145deg,
+      #79e8ff 0%,
+      #319be8 45%,
+      #1169ba 100%
+    );
 }
 
-.ludo-pawn-red {
-  background: radial-gradient(circle at 35% 35%, #ff5c5c, #e60000 75%, #800000);
+.ludo-token-red {
+  background:
+    linear-gradient(
+      145deg,
+      #ff8580 0%,
+      #f0443d 45%,
+      #c7282d 100%
+    );
 }
 
-/* Peão com jogada válida balança para atrair a atenção */
-.ludo-pawn-movable {
-  animation: ludo-token-wobble 0.9s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
-  z-index: 35;
-  filter: drop-shadow(0 0 8px #ffffff);
-  border-color: #ffffff;
+
+/* =========================================================
+   PEÃO COM JOGADA DISPONÍVEL
+   ========================================================= */
+
+.ludo-token-movable {
+  cursor: pointer;
+
+  animation:
+    ludo-token-pulse 1.15s ease-in-out infinite;
+
+  outline:
+    2px solid
+    color-mix(
+      in oklab,
+      var(--primary) 75%,
+      transparent
+    );
+
+  outline-offset: 3px;
+
+  z-index: 20;
+
+  filter:
+    drop-shadow(
+      0 0 5px
+      color-mix(
+        in oklab,
+        var(--primary) 45%,
+        transparent
+      )
+    );
 }
+
+
+/* =========================================================
+   INTERAÇÃO
+   ========================================================= */
+
+.ludo-token:hover {
+  transform:
+    translate(-50%, -50%)
+    scale(1.06);
+
+  filter: brightness(1.08);
+
+  z-index: 25;
+}
+
+.ludo-token:active {
+  transform:
+    translate(-50%, -50%)
+    scale(0.94);
+}
+
+
+/* =========================================================
+   DADO
+   ========================================================= */
+
+.ludo-dice-rolling {
+  animation:
+    ludo-dice-roll 520ms ease-out;
+}
+
+
+/* =========================================================
+   INDICADOR DE MOVIMENTO
+   ========================================================= */
+
+.ludo-dice-arrow {
+  animation:
+    ludo-arrow-bounce 700ms ease-in-out infinite;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .ludo-board-wrap {
+    width: 94vw;
+
+    max-width: 94vw;
+
+    border-radius: 18px;
+
+    box-shadow:
+      0 16px 34px -20px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .ludo-token {
+    width: clamp(19px, 5.8vw, 26px);
+  }
+}
+
+
+/* =========================================================
+   ECRÃS PEQUENOS
+   ========================================================= */
+
+@media (max-width: 380px) {
+  .ludo-board-wrap {
+    border-radius: 16px;
+  }
+
+  .ludo-token {
+    width: 20px;
+    border-width: 1.5px;
+  }
+}
+
+
+/* =========================================================
+   REDUÇÃO DE MOVIMENTO
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .ludo-token-movable,
+  .ludo-dice-rolling,
+  .ludo-dice-arrow {
+    animation: none;
+  }
+
+  .ludo-token {
+    transition: none;
+  }
+  }
