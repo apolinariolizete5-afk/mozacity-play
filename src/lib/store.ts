@@ -384,11 +384,3 @@ export const winRate = (s: Stats) => {
 
 /** Leaderboard entries come from the backend; no seeded players are created locally. */
 export const LEADERBOARD_SEED: never[] = [];
-export function withdrawDemo(amountMzn: number, method: string): boolean {
-  const amount = Number(amountMzn);
-  if (!Number.isFinite(amount) || amount < 50) return false;
-  const current = read();
-  if (current.coins < amount) return false;
-  addTransaction("withdrawal", -amount, `Levantamento de demonstração via ${method}`);
-  return true;
-}
