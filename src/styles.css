@@ -1,179 +1,84 @@
-@import "tailwindcss" source(none);
-@source "../src";
-@import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-board-light: var(--board-light);
-  --color-board-dark: var(--board-dark);
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-}
-
-:root {
-  --radius: 1.1rem;
-  --background: oklch(0.16 0.02 258);
-  --foreground: oklch(0.97 0.01 250);
-  --card: oklch(0.21 0.023 259);
-  --card-foreground: oklch(0.97 0.01 250);
-  --popover: oklch(0.21 0.023 259);
-  --popover-foreground: oklch(0.97 0.01 250);
-  --primary: oklch(0.79 0.17 78);
-  --primary-foreground: oklch(0.19 0.03 60);
-  --secondary: oklch(0.27 0.026 259);
-  --secondary-foreground: oklch(0.95 0.01 250);
-  --muted: oklch(0.25 0.024 259);
-  --muted-foreground: oklch(0.7 0.02 258);
-  --accent: oklch(0.83 0.2 135);
-  --accent-foreground: oklch(0.2 0.04 140);
-  --destructive: oklch(0.63 0.21 20);
-  --destructive-foreground: oklch(0.98 0.01 250);
-  --success: oklch(0.78 0.17 150);
-  --success-foreground: oklch(0.18 0.03 150);
-  --border: oklch(0.3 0.025 259);
-  --input: oklch(0.3 0.025 259);
-  --ring: oklch(0.79 0.17 78);
-  --board-light: oklch(0.86 0.03 85);
-  --board-dark: oklch(0.42 0.05 40);
-}
-
-@layer base {
-  * {
-    border-color: var(--color-border);
+/* Animação de balançar dinâmico para os peões válidos */
+@keyframes ludo-token-wobble {
+  0%, 100% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1.1);
   }
-
-  html {
-    background-color: var(--color-background);
-    -webkit-tap-highlight-color: transparent;
+  20% {
+    transform: translate(-50%, -50%) rotate(-14deg) scale(1.22);
   }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    overscroll-behavior-y: none;
+  40% {
+    transform: translate(-50%, -50%) rotate(12deg) scale(1.22);
   }
-
-  h1,
-  h2,
-  h3,
-  .font-display {
-    font-family: var(--font-display);
-    letter-spacing: -0.02em;
+  60% {
+    transform: translate(-50%, -50%) rotate(-8deg) scale(1.18);
   }
-}
-
-@utility glow-primary {
-  box-shadow: 0 10px 30px -12px color-mix(in oklab, var(--primary) 70%, transparent);
-}
-
-@utility surface {
-  background-image: linear-gradient(
-    160deg,
-    color-mix(in oklab, var(--card) 96%, white 4%),
-    var(--card)
-  );
-}
-
-@utility no-scrollbar {
-  scrollbar-width: none;
-}
-
-@keyframes ludo-token-pulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
-  50% { transform: translate(-50%, -50%) scale(1.24); filter: brightness(1.18); }
-}
-
-@keyframes ludo-dice-roll {
-  0% { transform: rotate(0deg) scale(1); }
-  35% { transform: rotate(120deg) scale(0.88); }
-  70% { transform: rotate(250deg) scale(1.08); }
-  100% { transform: rotate(360deg) scale(1); }
-}
-
-@keyframes ludo-arrow-bounce {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, 7px); }
+  80% {
+    transform: translate(-50%, -50%) rotate(6deg) scale(1.15);
+  }
 }
 
 .ludo-board-wrap {
   position: relative;
   width: 100%;
+  max-width: min(88vw, 520px);
   aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 12px;
   overflow: hidden;
-  border-radius: 5%;
-  box-shadow: 0 18px 38px -22px color-mix(in oklab, var(--foreground) 42%, transparent);
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.65), 0 0 0 2px rgba(255, 255, 255, 0.12);
   isolation: isolate;
+  user-select: none;
 }
 
-.ludo-token {
-  width: clamp(18px, 5.3vw, 25px);
-  aspect-ratio: 0.82;
-  transform: translate(-50%, -50%);
-  border: 2px solid color-mix(in oklab, var(--foreground) 85%, transparent);
-  box-shadow: inset 0 3px 3px color-mix(in oklab, white 70%, transparent), 0 4px 5px color-mix(in oklab, black 48%, transparent);
-}
-
-.ludo-token::before {
-  content: "";
+/* Pinos 3D com alto contraste */
+.ludo-pawn {
   position: absolute;
-  left: 50%;
-  top: -32%;
-  width: 64%;
-  aspect-ratio: 1;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  border: inherit;
-  background: inherit;
-  box-shadow: inset 0 2px 2px color-mix(in oklab, white 68%, transparent);
-}
-
-.ludo-token-green { background: #17a84b; }
-.ludo-token-yellow { background: #ffd21c; }
-.ludo-token-blue { background: #2778dc; }
-.ludo-token-red { background: #ef382f; }
-
-.ludo-token-movable {
+  width: clamp(22px, 5.8vw, 30px);
+  height: clamp(22px, 5.8vw, 30px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2.5px solid #ffffff;
   cursor: pointer;
-  animation: ludo-token-pulse 1s ease-in-out infinite;
-  outline: 3px solid color-mix(in oklab, var(--primary) 78%, transparent);
-  outline-offset: 3px;
   z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 255, 255, 0.7);
+  transition: transform 0.18s ease-out;
 }
 
-.ludo-dice-rolling { animation: ludo-dice-roll 520ms ease-out; }
-.ludo-dice-arrow { animation: ludo-arrow-bounce 700ms ease-in-out infinite; }
+/* Núcleo brilhante interior do peão */
+.ludo-pawn::after {
+  content: "";
+  display: block;
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.9);
+}
 
-@media (prefers-reduced-motion: reduce) {
-  .ludo-token-movable,
-  .ludo-dice-rolling,
-  .ludo-dice-arrow { animation: none; }
+/* Cores de alto contraste */
+.ludo-pawn-green {
+  background: radial-gradient(circle at 35% 35%, #2eff7b, #009933 75%, #004d1a);
+}
+
+.ludo-pawn-yellow {
+  background: radial-gradient(circle at 35% 35%, #fff266, #ffcc00 75%, #997a00);
+}
+
+.ludo-pawn-blue {
+  background: radial-gradient(circle at 35% 35%, #4de1ff, #0077ff 75%, #003399);
+}
+
+.ludo-pawn-red {
+  background: radial-gradient(circle at 35% 35%, #ff5c5c, #e60000 75%, #800000);
+}
+
+/* Peão com jogada válida balança para atrair a atenção */
+.ludo-pawn-movable {
+  animation: ludo-token-wobble 0.9s cubic-bezier(0.36, 0.07, 0.19, 0.97) infinite;
+  z-index: 35;
+  filter: drop-shadow(0 0 8px #ffffff);
+  border-color: #ffffff;
 }
