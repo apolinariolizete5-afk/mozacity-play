@@ -39,22 +39,27 @@ export const startDeposit = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: started, error } = await context.supabase.rpc("start_deposit", {
-      _amount_cents: data.amount_cents,
-      _method: data.method,
-      _msisdn: data.msisdn,
-    });
-    if (error) throw new Error(error.message);
-    const row = Array.isArray(started) ? started[0] : started;
-    const key = (row as { idempotency_key: string } | null)?.idempotency_key;
-    if (!key) throw new Error("deposit_not_created");
-
     const { netshopStatus, requestDeposit } = await import("./payments/netshop.server");
     const status = netshopStatus();
 
     if (!status.configured) {
       throw new Error("payment_provider_not_configured");
     }
+
+    if (!status.methods[data.method]) {
+      throw new Error("wallet_not_configured");
+    }
+
+    const { data: started, error } = await context.supabase.rpc("start_deposit", {
+      _amount_cents: data.amount_cents,
+      _method: data.method,
+      _msisdn: data.msisdn,
+    });
+    if (error) throw new Error(error.message);
+
+    const row = Array.isArray(started) ? started[0] : started;
+    const key = (row as { idempotency_key: string } | null)?.idempotency_key;
+    if (!key) throw new Error("deposit_not_created");
 
     const result = await requestDeposit({
       method: data.method,
@@ -67,6 +72,7 @@ export const startDeposit = createServerFn({ method: "POST" })
       mode: "live" as const,
       status: result.status,
       reference: key,
+      providerRef: result.providerRef ?? null,
       error: result.error ?? null,
     };
   });
