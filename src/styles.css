@@ -106,3 +106,75 @@
 @utility no-scrollbar {
   scrollbar-width: none;
 }
+
+@keyframes ludo-token-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
+  50% { transform: translate(-50%, -50%) scale(1.24); filter: brightness(1.18); }
+}
+
+@keyframes ludo-dice-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  35% { transform: rotate(120deg) scale(0.88); }
+  70% { transform: rotate(250deg) scale(1.08); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes ludo-arrow-bounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 7px); }
+}
+
+.ludo-board-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 5%;
+  box-shadow: 0 18px 38px -22px color-mix(in oklab, var(--foreground) 42%, transparent);
+  isolation: isolate;
+}
+
+.ludo-token {
+  width: clamp(18px, 5.3vw, 25px);
+  aspect-ratio: 0.82;
+  transform: translate(-50%, -50%);
+  border: 2px solid color-mix(in oklab, var(--foreground) 85%, transparent);
+  box-shadow: inset 0 3px 3px color-mix(in oklab, white 70%, transparent), 0 4px 5px color-mix(in oklab, black 48%, transparent);
+}
+
+.ludo-token::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -32%;
+  width: 64%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  border: inherit;
+  background: inherit;
+  box-shadow: inset 0 2px 2px color-mix(in oklab, white 68%, transparent);
+}
+
+.ludo-token-green { background: #17a84b; }
+.ludo-token-yellow { background: #ffd21c; }
+.ludo-token-blue { background: #2778dc; }
+.ludo-token-red { background: #ef382f; }
+
+.ludo-token-movable {
+  cursor: pointer;
+  animation: ludo-token-pulse 1s ease-in-out infinite;
+  outline: 3px solid color-mix(in oklab, var(--primary) 78%, transparent);
+  outline-offset: 3px;
+  z-index: 20;
+}
+
+.ludo-dice { stable-dimensions: 1; }
+.ludo-dice-rolling { animation: ludo-dice-roll 520ms ease-out; }
+.ludo-dice-arrow { animation: ludo-arrow-bounce 700ms ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ludo-token-movable,
+  .ludo-dice-rolling,
+  .ludo-dice-arrow { animation: none; }
+}
