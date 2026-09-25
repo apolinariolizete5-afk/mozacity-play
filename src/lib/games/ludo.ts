@@ -68,12 +68,13 @@ function clone(state: LudoState): LudoState {
 
 export function movableTokens(state: LudoState): number[] {
   if (state.dice == null || state.over) return [];
+  const dice = state.dice;
   const mine = state.tokens[state.turn];
   if (!mine) return [];
   return mine.flatMap((position, token) => {
     if (position === FINISHED) return [];
     if (position === -1) return state.dice === 6 ? [token] : [];
-    return position + state.dice <= FINISHED ? [token] : [];
+    return position + dice <= FINISHED ? [token] : [];
   });
 }
 
@@ -189,11 +190,21 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
     if (state.dice == null) return [{ type: "roll" } as LudoMove];
     return movableTokens(state).map((token) => ({ type: "move", token }) as LudoMove);
   },
+  getState(state) {
+    return state;
+  },
+  isGameOver(state) {
+    return state.over;
+  },
+  getWinner(state) {
+    return state.winner;
+  },
 };
 
 export function ludoBotMove(state: LudoState): LudoMove | null {
   if (state.over) return null;
   if (state.dice == null) return { type: "roll" };
+  const dice = state.dice;
   const candidates = movableTokens(state);
   if (candidates.length === 0) return null;
   const mine = state.tokens[state.turn];
@@ -201,18 +212,18 @@ export function ludoBotMove(state: LudoState): LudoMove | null {
 
   const capture = candidates.find((token) => {
     const position = mine[token];
-    if (position == null || position < 0 || position + state.dice >= RING) return false;
-    const destination = absoluteRing(state.turn, position + state.dice);
+    if (position == null || position < 0 || position + dice >= RING) return false;
+    const destination = absoluteRing(state.turn, position + dice);
     return !SAFE_STEPS.has(destination) && state.tokens.some((tokens, player) =>
       player !== state.turn && tokens.some((other) => other >= 0 && other < RING && absoluteRing(player, other) === destination),
     );
   });
   if (capture != null) return { type: "move", token: capture };
 
-  const finishing = candidates.find((token) => (mine[token] ?? -1) + state.dice === FINISHED);
+  const finishing = candidates.find((token) => (mine[token] ?? -1) + dice === FINISHED);
   if (finishing != null) return { type: "move", token: finishing };
   const leavingBase = candidates.find((token) => mine[token] === -1);
-  if (leavingBase != null && state.dice === 6) return { type: "move", token: leavingBase };
+  if (leavingBase != null && dice === 6) return { type: "move", token: leavingBase };
 
   const ordered = [...candidates].sort((a, b) => (mine[b] ?? -1) - (mine[a] ?? -1));
   const token = ordered[0];

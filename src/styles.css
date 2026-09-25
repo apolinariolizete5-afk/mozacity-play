@@ -169,7 +169,6 @@
   z-index: 20;
 }
 
-.ludo-dice { stable-dimensions: 1; }
 .ludo-dice-rolling { animation: ludo-dice-roll 520ms ease-out; }
 .ludo-dice-arrow { animation: ludo-arrow-bounce 700ms ease-in-out infinite; }
 

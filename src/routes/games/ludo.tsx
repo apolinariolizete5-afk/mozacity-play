@@ -60,7 +60,7 @@ function LudoMatch() {
   const [opponents] = useState(() => Array.from({ length: players - 1 }, () => botName()));
   const settled = useRef(false);
   const staked = useRef(false);
-  const rollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rollTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!staked.current) {
