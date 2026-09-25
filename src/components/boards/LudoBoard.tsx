@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { FINISHED, SAFE_STEPS, cellFor, movableTokens, type LudoState } from "@/lib/games/ludo";
 import { cn } from "@/lib/utils";
 
@@ -51,16 +52,103 @@ interface PawnView {
 
 const keyOf = (row: number, col: number) => `${row}-${col}`;
 
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+function stepSound(step: number) {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+    const context = new AudioContextCtor();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(190 + (step % 3) * 35, context.currentTime);
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.055, context.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.075);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.08);
+    oscillator.addEventListener("ended", () => void context.close());
+  } catch {
+    // O jogo continua sem áudio em navegadores que bloqueiam Web Audio.
+  }
+}
+
 export function LudoBoard({
   state,
   disabled,
   onMove,
+  onAnimatingChange,
+  requestedToken,
 }: {
   state: LudoState;
   disabled?: boolean;
   onMove: (token: number) => void;
+  onAnimatingChange?: (animating: boolean) => void;
+  requestedToken?: number | null;
 }) {
   const legal = new Set(movableTokens(state));
+  const [animatingToken, setAnimatingToken] = useState<number | null>(null);
+  const [animatedPoint, setAnimatedPoint] = useState<[number, number] | null>(null);
+  const animationId = useRef(0);
+
+  useEffect(() => () => {
+    animationId.current += 1;
+  }, []);
+
+  const animateMove = async (token: number) => {
+    if (animatingToken != null || state.turn < 0 || state.dice == null) return;
+    const position = state.tokens[state.turn]?.[token];
+    if (position == null) return;
+    const dice = state.dice;
+    const target = position === -1 ? 0 : position + dice;
+    if (position !== -1 && target > FINISHED) return;
+
+    const id = ++animationId.current;
+    const player = state.turn;
+    const positions: number[] = position === -1
+      ? [0]
+      : Array.from({ length: target - position }, (_, index) => position + index + 1);
+
+    setAnimatingToken(token);
+    onAnimatingChange?.(true);
+
+    for (let index = 0; index < positions.length; index += 1) {
+      if (animationId.current !== id) return;
+      const stepPosition = positions[index];
+      const point = cellFor(player, stepPosition);
+      if (!point) continue;
+      setAnimatedPoint(point);
+      stepSound(index);
+      await sleep(115);
+    }
+
+    if (animationId.current !== id) return;
+    if (target === FINISHED) {
+      setAnimatedPoint([7, 7]);
+      stepSound(99);
+      await sleep(170);
+    }
+    onMove(token);
+    setAnimatedPoint(null);
+    setAnimatingToken(null);
+    onAnimatingChange?.(false);
+  };
+
+  const lastRequestedToken = useRef<number | null>(null);
+  useEffect(() => {
+    if (requestedToken == null) {
+      lastRequestedToken.current = null;
+      return;
+    }
+    if (requestedToken === lastRequestedToken.current) return;
+    lastRequestedToken.current = requestedToken;
+    void animateMove(requestedToken);
+  }, [requestedToken, state.dice, state.turn]);
+
   const occupied = new Map<string, number>();
   const pawns: PawnView[] = [];
   const ringSet = new Set(RING_PATH.map(([row, col]) => keyOf(row, col)));
@@ -166,16 +254,16 @@ export function LudoBoard({
           key={`${pawn.player}-${pawn.token}`}
           type="button"
           aria-label={`Peão ${pawn.token + 1} do Jogador ${pawn.player + 1}`}
-          disabled={disabled || !pawn.movable}
-          onClick={() => onMove(pawn.token)}
+          disabled={disabled || !pawn.movable || animatingToken != null}
+          onClick={() => void animateMove(pawn.token)}
           className={cn(
             "ludo-pawn",
             PAWN_COLOR_CLASSES[pawn.player],
             pawn.movable && "ludo-pawn-movable",
           )}
           style={{
-            left: `${((pawn.col + 0.5) / 15) * 100}%`,
-            top: `${((pawn.row + 0.5) / 15) * 100}%`,
+            left: `${((((animatingToken === pawn.token && pawn.player === state.turn && animatedPoint) ? animatedPoint[1] : pawn.col) + 0.5) / 15) * 100}%`,
+            top: `${((((animatingToken === pawn.token && pawn.player === state.turn && animatedPoint) ? animatedPoint[0] : pawn.row) + 0.5) / 15) * 100}%`,
           }}
         />
       ))}
