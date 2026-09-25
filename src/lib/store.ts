@@ -86,26 +86,6 @@ const BOT_NAMES = [
 ];
 export const botName = () => BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]!;
 
-function seedRooms(): Room[] {
-  const games: GameId[] = ["ludo", "chess", "checkers"];
-  return games.map((game, i) => ({
-    id: uid(),
-    code: roomCode(),
-    game,
-    isPrivate: false,
-    bet: [0, 50, 100][i]!,
-    timer: 10,
-    capacity: game === "ludo" ? 4 : 2,
-    status: "WAITING" as RoomStatus,
-    players: Array.from({ length: game === "ludo" ? 2 : 1 }, () => ({
-      id: uid(),
-      name: botName(),
-      bot: true,
-    })),
-    hostId: "seed",
-    createdAt: new Date().toISOString(),
-  }));
-}
 
 export function defaultState(): AppState {
   return {
@@ -135,7 +115,7 @@ export function defaultState(): AppState {
         createdAt: new Date().toISOString(),
       },
     ],
-    rooms: seedRooms(),
+    rooms: [],
   };
 }
 
@@ -252,7 +232,7 @@ export function recordMatch(input: {
   opponents: string[];
   bet: number;
 }) {
-  const coins = input.result === "win" ? input.bet * 2 : input.result === "draw" ? input.bet : 0;
+  const coins = 0;
   update((s) => {
     const bump = (st: Stats): Stats => ({
       wins: st.wins + (input.result === "win" ? 1 : 0),
