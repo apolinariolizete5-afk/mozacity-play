@@ -7,6 +7,7 @@ import { Card, Pill } from "@/components/ui/primitives";
 import { LUDO_NAMES, ludoBotMove, ludoEngine, type LudoMove } from "@/lib/games/ludo";
 import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import "@/styles/ludo-motion.css";
 
 const TURN_SECONDS = 15;
 
@@ -55,6 +56,35 @@ export const Route = createFileRoute("/games/ludo")({
   component: LudoMatch,
 });
 
+function playUiTone(kind: "dice" | "move" | "finish") {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+    const context = new AudioContextCtor();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const settings = kind === "dice"
+      ? { start: 160, end: 480, duration: 0.16, volume: 0.07, type: "square" as OscillatorType }
+      : kind === "finish"
+        ? { start: 420, end: 760, duration: 0.28, volume: 0.08, type: "sine" as OscillatorType }
+        : { start: 210, end: 150, duration: 0.075, volume: 0.045, type: "triangle" as OscillatorType };
+    oscillator.type = settings.type;
+    oscillator.frequency.setValueAtTime(settings.start, context.currentTime);
+    oscillator.frequency.linearRampToValueAtTime(settings.end, context.currentTime + settings.duration);
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(settings.volume, context.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + settings.duration);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + settings.duration + 0.01);
+    oscillator.addEventListener("ended", () => void context.close());
+  } catch {
+    // O jogo continua sem áudio se o navegador bloquear Web Audio.
+  }
+}
+
 function playAudio(url?: string) {
   if (typeof window === "undefined" || !url) return;
   try {
@@ -72,6 +102,8 @@ function LudoMatch() {
   const [state, setState] = useState(() => ludoEngine.createGame({ players }));
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [rolling, setRolling] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [pendingMoveToken, setPendingMoveToken] = useState<number | null>(null);
   const [dicePreview, setDicePreview] = useState(1);
   const [turnSequence, setTurnSequence] = useState(0);
   const [opponents] = useState(() => Array.from({ length: players - 1 }, () => botName()));
@@ -105,12 +137,15 @@ function LudoMatch() {
   const play = useCallback(
     (move: LudoMove) => {
       if (move.type === "move") {
-        applyMove(move);
+        if (moving) return;
+        setMoving(true);
+        setPendingMoveToken(move.token);
         return;
       }
       if (rolling) return;
 
       setRolling(true);
+      playUiTone("dice");
       let frame = 0;
       const animation = window.setInterval(() => {
         frame += 1;
@@ -126,23 +161,23 @@ function LudoMatch() {
         applyMove({ type: "roll", value });
       }, 560);
     },
-    [applyMove, rolling],
+    [applyMove, moving, rolling],
   );
 
   useEffect(() => {
-    if (seconds > 0 || state.over || rolling) return;
+    if (seconds > 0 || state.over || rolling || moving) return;
     const move = state.turn === 0 ? ludoEngine.legalMoves(state)[0] : ludoBotMove(state);
     if (move) play(move);
-  }, [play, rolling, seconds, state]);
+  }, [moving, play, rolling, seconds, state]);
 
   useEffect(() => {
-    if (state.over || state.turn === 0 || rolling) return;
+    if (state.over || state.turn === 0 || rolling || moving) return;
     const timer = window.setTimeout(() => {
       const move = ludoBotMove(state);
       if (move) play(move);
     }, state.dice == null ? 700 : 850);
     return () => window.clearTimeout(timer);
-  }, [play, rolling, state]);
+  }, [moving, play, rolling, state]);
 
   useEffect(() => {
     if (!state.over || settled.current) return;
@@ -235,8 +270,14 @@ function LudoMatch() {
         <div className="my-1 py-1">
           <LudoBoard
             state={state}
-            disabled={state.turn !== 0 || state.over || rolling}
-            onMove={(token) => play({ type: "move", token })}
+            disabled={state.turn !== 0 || state.over || rolling || moving}
+            onMove={(token) => {
+              applyMove({ type: "move", token });
+              setPendingMoveToken(null);
+              setMoving(false);
+            }}
+            onAnimatingChange={setMoving}
+            requestedToken={pendingMoveToken}
           />
         </div>
 
