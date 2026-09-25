@@ -73,25 +73,35 @@ async function callCharge(input: {
   }
 
   try {
-    const response = await fetch(
-      `${apiUrl().replace(/\/$/, "")}/charges`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "X-Wallet-ID": walletId,
-          "Idempotency-Key": input.reference,
-          "Content-Type": "application/json",
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${apiUrl().replace(/\/$/, "")}/charges`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "X-Wallet-ID": walletId,
+            "Idempotency-Key": input.reference,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            amount: input.amountCents / 100,
+            currency: "MZN",
+            method: input.method,
+            msisdn: input.msisdn,
+            reference: input.reference,
+          }),
         },
-        body: JSON.stringify({
-          amount: input.amountCents / 100,
-          currency: "MZN",
-          method: input.method,
-          msisdn: input.msisdn,
-          reference: input.reference,
-        }),
-      },
-    );
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const raw = await response.text();
 
