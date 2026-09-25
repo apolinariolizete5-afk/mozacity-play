@@ -234,7 +234,7 @@ export const Route = createFileRoute(
             status: 200,
             headers: { "content-type": "application/json" },
           });
-        }        } catch (error) {
+        } catch (error) {
           console.error(
             "[NetShop webhook] internal error:",
             error instanceof Error
