@@ -1,0 +1,13 @@
+/* Ludo: movimento visível casa-a-casa e sincronizado com o som. */
+.ludo-pawn {
+  transition: left 105ms linear, top 105ms linear, filter 105ms ease, transform 105ms ease;
+  will-change: left, top, transform;
+}
+
+.ludo-pawn-movable {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ludo-pawn { transition-duration: 105ms; }
+}
