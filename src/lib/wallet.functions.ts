@@ -50,16 +50,66 @@ export const startDeposit = createServerFn({ method: "POST" })
       throw new Error("wallet_not_configured");
     }
 
-    const { data: started, error } = await context.supabase.rpc("start_deposit", {
-      _amount_cents: data.amount_cents,
-      _method: data.method,
-      _msisdn: data.msisdn,
-    });
-    if (error) throw new Error(error.message);
+    const { paymentDatabase } = await import("./payments/database.server");
+    const sql = paymentDatabase();
 
-    const row = Array.isArray(started) ? started[0] : started;
-    const key = (row as { idempotency_key: string } | null)?.idempotency_key;
-    if (!key) throw new Error("deposit_not_created");
+    const key = await sql.begin(async (tx) => {
+      const [settings] = await tx<{
+        min_deposit_cents: number;
+        methods_enabled: Record<string, boolean> | null;
+      }[]>\`
+        select min_deposit_cents, methods_enabled
+        from public.platform_settings
+        where id = 1
+        for share
+      \`;
+
+      if (!settings) throw new Error("platform_not_configured");
+
+      if (data.amount_cents < Number(settings.min_deposit_cents)) {
+        throw new Error("below_min_deposit");
+      }
+
+      if (settings.methods_enabled?.[data.method] !== true) {
+        throw new Error("method_disabled");
+      }
+
+      const [profile] = await tx<{ is_blocked: boolean | null }[]>\`
+        select is_blocked
+        from public.profiles
+        where id = ${context.userId}
+      \`;
+
+      if (profile?.is_blocked) {
+        throw new Error("account_blocked");
+      }
+
+      await tx\`
+        insert into public.wallets (user_id)
+        values (${context.userId})
+        on conflict (user_id) do nothing
+      \`;
+
+      const idempotencyKey = "dep_" + crypto.randomUUID().replaceAll("-", "");
+
+      await tx\`
+        insert into public.transactions
+          (user_id, kind, amount_cents, status, method, idempotency_key, description, metadata)
+        values
+          (
+            ${context.userId},
+            'deposit'::public.tx_kind,
+            ${data.amount_cents},
+            'pending'::public.tx_status,
+            ${data.method}::public.wallet_method,
+            ${idempotencyKey},
+            ${"Depósito via " + data.method},
+            jsonb_build_object('msisdn', ${data.msisdn})
+          )
+      \`;
+
+      return idempotencyKey;
+    });
 
     const result = await requestDeposit({
       method: data.method,
