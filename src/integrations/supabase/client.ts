@@ -26,15 +26,37 @@ if (!url || !key) {
 const safeUrl = url || "https://placeholder.supabase.co";
 const safeKey = key || "placeholder-anon-key";
 
+// TanStack Start also evaluates this module during SSR. Supabase Realtime
+// constructs its WebSocket transport immediately, so give SSR a no-op transport
+// and keep the real browser WebSocket for client-side Realtime.
+class NoopWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+  readyState = NoopWebSocket.CLOSED;
+  onopen: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  addEventListener() {}
+  removeEventListener() {}
+  send() {}
+  close() {
+    this.readyState = NoopWebSocket.CLOSED;
+  }
+}
+
 export const supabase = createClient(safeUrl, safeKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
   },
   realtime: {
-    // Realtime is a browser feature for this app. Do not initialize it
-    // during SSR, because Render's server runtime may not expose WebSocket.
-    transport: typeof window !== "undefined" ? WebSocket : undefined,
+    transport:
+      typeof window !== "undefined"
+        ? WebSocket
+        : (NoopWebSocket as unknown as typeof WebSocket),
     params: { eventsPerSecond: 10 },
   },
 });
