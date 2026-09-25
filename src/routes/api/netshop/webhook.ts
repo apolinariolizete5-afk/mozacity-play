@@ -160,6 +160,8 @@ export const Route = createFileRoute(
             payload,
             "transaction_id",
           ),
+          findValue(payload, "provider_ref"),
+          findValue(payload, "provider_id"),
           findValue(payload, "id"),
         );
 
