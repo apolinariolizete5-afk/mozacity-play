@@ -16,7 +16,7 @@
 - [ ] Fila de moderação de levantamentos + métricas
 
 ## Fase 4 — Jogos verdadeiros
-- [ ] Ludo: visual das referências, 6 para sair, jogada extra, 3x6 anula, captura + bónus, casas seguras, corredor final exacto, cronómetro 15s, seta animada, peças válidas com brilho
+- [x] Ludo: tabuleiro clássico LudoVerse, dados e sons próprios, 6 para sair, jogada extra, 3x6 anula, captura + bónus, casas seguras, corredor final exacto, cronómetro 15s, seta animada, peças válidas com brilho
 - [ ] Damas: captura obrigatória + lei da maioria, cadeias, tabuleiro madeira, drag-and-drop
 - [ ] Xadrez: en passant, roque, diálogo de promoção, painel de capturas/vantagem/notação
 
