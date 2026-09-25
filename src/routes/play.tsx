@@ -101,7 +101,7 @@ function Play() {
 
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            Aposta amigável (moedas demo)
+            Aposta
           </p>
           <div className="mt-2 flex gap-2">
             {BETS.map((b) => (
@@ -162,7 +162,7 @@ function Play() {
             <Users2 className="h-5 w-5" /> Partida rápida
           </Button>
           <Button size="lg" variant="ghost" className="w-full" onClick={start}>
-            <Bot className="h-5 w-5" /> Jogar contra bots
+            <Bot className="h-5 w-5" /> Jogar
           </Button>
         </div>
       )}
