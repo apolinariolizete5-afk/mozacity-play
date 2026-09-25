@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useApp } from "./store";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Profile {
   id: string;
@@ -9,50 +10,70 @@ export interface Profile {
   is_blocked: boolean;
 }
 
-const AUTH_KEY = "mozaplay:logged-in";
-
 export function useAuth() {
-  const app = useApp();
+  const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [logged, setLogged] = useState(false);
 
   useEffect(() => {
-    setLogged(localStorage.getItem(AUTH_KEY) === "1");
-    setReady(true);
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setReady(true);
+    });
+    supabase.auth.getSession().then(({ data: d }) => {
+      setSession(d.session);
+      setReady(true);
+    });
+    return () => data.subscription.unsubscribe();
   }, []);
 
-  if (!logged) return { user: null, ready };
-  return {
-    user: { id: app.profile.id, email: "jogador@mozaplay.local" },
-    ready,
-  };
+  return { session, user: session?.user ?? null, ready };
 }
 
-export function loginLocal() {
-  localStorage.setItem(AUTH_KEY, "1");
-  window.dispatchEvent(new Event("mozaplay-auth"));
-}
+export function useProfile(user: User | null) {
+  const [profile, setProfile] = useState<Profile | null>(null);
 
-export function logoutLocal() {
-  localStorage.removeItem(AUTH_KEY);
-  window.dispatchEvent(new Event("mozaplay-auth"));
-}
-
-export function useProfile() {
-  const app = useApp();
-  return {
-    id: app.profile.id,
-    display_name: app.profile.name,
-    avatar: app.profile.avatar,
-    phone: null,
-    is_blocked: false,
-  } satisfies Profile;
-}
-
-export function useIsAdmin() {
-  const [admin, setAdmin] = useState(false);
   useEffect(() => {
-    setAdmin(localStorage.getItem("mozaplay:admin") === "1");
-  }, []);
-  return admin;
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar, phone, is_blocked")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (alive) setProfile((data as Profile | null) ?? null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  return profile;
+}
+
+export function useIsAdmin(user: User | null) {
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (alive) setIsAdmin(Boolean(data));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+  return isAdmin;
 }
