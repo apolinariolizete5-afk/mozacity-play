@@ -26,7 +26,7 @@ export const getWalletSummary = createServerFn({ method: "GET" })
     return data as unknown as WalletSummary;
   });
 
-/** Inicia um depósito. Em modo de teste a Netshop é simulada e o valor integral é creditado. */
+/** Inicia um depósito real através do gateway configurado. */
 export const startDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -67,11 +67,7 @@ export const startDeposit = createServerFn({ method: "POST" })
       };
     }
 
-    const { error: settleError } = await context.supabase.rpc("settle_own_test_deposit", {
-      _idempotency_key: key,
-    });
-    if (settleError) throw new Error(settleError.message);
-    return { mode: "test" as const, status: "completed" as const, reference: key, error: null };
+    throw new Error("payment_provider_not_configured");
   });
 
 export const quoteWithdrawal = createServerFn({ method: "GET" })
