@@ -50,5 +50,9 @@ export function useProfile() {
 }
 
 export function useIsAdmin() {
-  return localStorage.getItem("mozaplay:admin") === "1";
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    setAdmin(localStorage.getItem("mozaplay:admin") === "1");
+  }, []);
+  return admin;
 }
