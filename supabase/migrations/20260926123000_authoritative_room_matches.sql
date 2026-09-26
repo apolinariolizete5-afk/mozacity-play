@@ -144,7 +144,7 @@ BEGIN
 
   IF (_user_id = v_match.player_one_id AND v_match.player_one_locked)
      OR (_user_id = v_match.player_two_id AND v_match.player_two_locked) THEN
-    RETURN jsonb_build_object('ok', true, 'locked', _amount_cents, 'already', true);
+    RETURN jsonb_build_object('ok', true, 'locked', _amount_cents, 'already', true, 'status', v_match.status);
   END IF;
 
   SELECT balance_cents INTO v_balance
@@ -186,9 +186,11 @@ BEGIN
       END
   WHERE id = v_match.id;
 
-  RETURN jsonb_build_object('ok', true, 'locked', _amount_cents, 'already', false);
+  SELECT status INTO v_match.status FROM public.multiplayer_matches WHERE id = v_match.id;
+
+  RETURN jsonb_build_object('ok', true, 'locked', _amount_cents, 'already', false, 'status', v_match.status);
 END;
-$$;
+$;
 
 CREATE OR REPLACE FUNCTION public.settle_room_match(
   _room_code text,
