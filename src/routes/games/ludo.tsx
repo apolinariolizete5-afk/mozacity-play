@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, Flame, Trophy } from "lucide-react";
 import { ResultOverlay } from "@/components/MatchShell";
+import { VoiceChat } from "@/components/VoiceChat";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import { LUDO_NAMES, ludoBotMove, ludoEngine, type LudoMove } from "@/lib/games/ludo";
@@ -282,7 +283,7 @@ function LudoMatch() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 my-2">
+        {room && players === 2 ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}\n\n        <div className="grid grid-cols-2 gap-2 my-2">
           <div>{renderPlayerCorner(0)}</div>
           <div>{players >= 2 ? renderPlayerCorner(1) : null}</div>
         </div>
