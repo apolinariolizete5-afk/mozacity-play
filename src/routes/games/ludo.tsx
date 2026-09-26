@@ -7,6 +7,7 @@ import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import { LUDO_NAMES, ludoEngine, ludoTimeout, type LudoMove } from "@/lib/games/ludo";
 import { recordMatch, useApp } from "@/lib/store";
+import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { cn } from "@/lib/utils";
 import { useRealtimeRoom } from "@/lib/realtime";
 import "@/styles/ludo-motion.css";
@@ -135,6 +136,33 @@ function LudoMatch() {
   }, []);
 
   const ready = Boolean(room && realtime.players.length >= 2);
+  const roomRegistered = useRef(false);
+  const wagerLocked = useRef(false);
+
+  useEffect(() => {
+    if (!ready || !room || realtime.players.length < 2 || roomRegistered.current) return;
+    const playerIds = realtime.players.map((player) => player.playerId);
+    if (playerIds.length < 2) return;
+    roomRegistered.current = true;
+    void registerRoomMatch({ data: {
+      room_code: room,
+      game: "ludo",
+      player_one_id: playerIds[0],
+      player_two_id: playerIds[1],
+      bet_cents: Math.max(0, Math.round(bet * 100)),
+    }}).then(() => {
+      if (bet > 0 && !wagerLocked.current) {
+        wagerLocked.current = true;
+        return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } });
+      }
+      return null;
+    }).catch((error) => {
+      roomRegistered.current = false;
+      wagerLocked.current = false;
+      console.error("[MozaPlay] Falha ao preparar aposta:", error);
+    });
+  }, [bet, ready, room, realtime.players]);
+
 
   const applyMove = useCallback((move: LudoMove) => {
     setState((current) => ludoEngine.applyMove(current, move));
@@ -178,6 +206,18 @@ function LudoMatch() {
   useEffect(() => {
     if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
+    const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
+    const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
+    const loserIndex = winnerIndex === null ? null : winnerIndex === 0 ? 1 : 0;
+    const loserId = loserIndex === null ? null : realtime.players[loserIndex]?.playerId ?? null;
+    if (room && bet > 0 && winnerId && loserId) {
+      void settleRoomMatch({ data: {
+        room_code: room,
+        winner_id: winnerId,
+        loser_id: loserId,
+        bet_cents: Math.round(bet * 100),
+      }}).catch((error) => console.error("[MozaPlay] Falha na liquidação:", error));
+    }
     void recordMatch({
       game: "ludo",
       result: realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.winner === realtime.playerIndex ? "win" : "loss",
