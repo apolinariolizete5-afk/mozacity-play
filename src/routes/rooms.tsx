@@ -229,8 +229,8 @@ function Rooms() {
                 </Button>
               ) : null}
               {!full ? <Button variant="outline" className="flex-1" onClick={() => shareRoom(room)}><Share2 className="h-4 w-4" /> Partilhar</Button> : null}
-              <Button className="flex-1" onClick={() => enter(room)}>
-                <Play className="h-4 w-4" /> Jogar
+              <Button className="flex-1" onClick={() => enter(room)} disabled={!joined}>
+                <Play className="h-4 w-4" /> {joined ? "Jogar" : "Entra primeiro"}
               </Button>
             </div>
           </Card>
