@@ -19,6 +19,7 @@ import { Button, Card, PageHeader } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { setProfile, setTimerPreference, useApp, winRate } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
+import { disablePushNotifications, enablePushNotifications, getPushState, type PushState } from "@/lib/push";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -47,6 +48,9 @@ function Profile() {
   const [saving, setSaving] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [pushState, setPushState] = useState<PushState>("off");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
   const [gameStats, setGameStats] = useState<Record<GameId, { wins: number; losses: number }>>({
     ludo: { wins: 0, losses: 0 },
     checkers: { wins: 0, losses: 0 },
@@ -102,6 +106,38 @@ function Profile() {
       }
     });
   }, []);
+
+  const togglePush = async () => {
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) throw new Error("auth_required");
+
+      if (pushState === "on") {
+        await disablePushNotifications(data.user.id);
+        setPushState("off");
+        setPushMessage("Notificações push desativadas.");
+      } else {
+        await enablePushNotifications(data.user.id);
+        setPushState("on");
+        setPushMessage("Notificações push ativadas.");
+      }
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (code === "push_permission_denied") {
+        setPushState("blocked");
+        setPushMessage("As notificações estão bloqueadas no navegador. Ativa-as nas definições do site.");
+      } else if (code === "notification_unavailable") {
+        setPushState("unsupported");
+        setPushMessage("Este navegador não suporta notificações push.");
+      } else {
+        setPushMessage("Não foi possível alterar as notificações agora.");
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
