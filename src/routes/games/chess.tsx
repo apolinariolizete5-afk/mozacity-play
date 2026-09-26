@@ -102,8 +102,8 @@ function ChessMatch() {
         }
         footer={
           <Card className="flex items-center justify-between p-3 text-xs">
-            <Pill tone="primary">{room ? `Sala ${room}` : "Jogo livre"}</Pill>
-            <span className="text-muted-foreground">Lances: {state.history.length}</span>
+            <Pill tone="primary">Xadrez · {room ? `Sala ${room}` : "Jogo livre"}</Pill>
+            <span className="text-muted-foreground">{state.history.length} lances</span>
           </Card>
         }
       >
