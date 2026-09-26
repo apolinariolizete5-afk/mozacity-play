@@ -12,7 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
-import { subscribeToRealtimeNotifications } from "@/lib/push";
+import { registerAppServiceWorker, subscribeToRealtimeNotifications } from "@/lib/push";
 import { update, useApp } from "@/lib/store";
 
 function NotFoundComponent() {
@@ -217,6 +217,9 @@ type BeforeInstallPromptEvent = Event & {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    void registerAppServiceWorker();
+  }, []);
   const app = useApp();
 
   useEffect(() => {
