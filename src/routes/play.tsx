@@ -77,8 +77,8 @@ function Play() {
     } catch (err) {
       setSearching(false);
       setRoomCode("");
-      setSearchStartedAt(null);
-      setError(err instanceof Error && err.message === "matchmaking_timeout"\n        ? "A procura terminou sem encontrar um adversário. Toca novamente para continuar."\n        : err instanceof Error ? err.message : "Não foi possível procurar uma partida.");
+      if (err instanceof Error && err.message === "matchmaking_cancelled") return;
+      setError(err instanceof Error ? err.message : "Não foi possível procurar uma partida.");
     }
   };
 
