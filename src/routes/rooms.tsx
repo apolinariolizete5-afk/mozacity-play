@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Bot, Lock, Globe, Plus, Play } from "lucide-react";
+import { Lock, Globe, Plus, Play, Share2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import {
@@ -78,7 +78,7 @@ function Rooms() {
     setMessage(`Sala ${room.code} criada.`);
   };
 
-  const joinByCode = () => {
+  const shareRoom = async (room: Room) => {\n    const path = room.game === "ludo" ? `/games/ludo?room=${room.code}&players=2&bet=0` : room.game === "checkers" ? `/games/checkers?room=${room.code}&bet=0` : `/games/chess?room=${room.code}&bet=0`;\n    const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;\n    try { await navigator.clipboard.writeText(url); setMessage("Link da sala copiado."); } catch { setMessage(url); }\n  };\n\n  const joinByCode = () => {
     const room = findRoomByCode(code);
     if (!room) {
       setMessage("Código não encontrado.");
