@@ -39,7 +39,7 @@ function Rooms() {
     }
   };
 
-  const submitCreate = async () => {
+  const submitCreate = async () => {\n    if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     try {
       const room = await createRoom({
         game,
@@ -55,7 +55,7 @@ function Rooms() {
     }
   };
 
-  const join = async (roomCode: string) => {
+  const join = async (roomCode: string) => {\n    if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     try {
       const room = await joinRoom(roomCode, { playerId: app.profile.id, name: app.profile.name });
       setMessage(`Entraste na sala ${room.code}.`);
