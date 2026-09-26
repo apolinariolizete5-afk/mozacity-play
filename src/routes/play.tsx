@@ -48,20 +48,9 @@ function Play() {
     );
   }, [realtime.players.length, searching, roomCode, selected, navigate]);
 
-  useEffect(() => {
-    if (!searching || !searchStartedAt || realtime.players.length >= 2) return;
-    const timerId = window.setTimeout(() => {
-      if (realtime.players.length < 2) {
-        setSearching(false);
-        setRoomCode("");
-        setSearchStartedAt(null);
-        void leaveLobbyRoom();
-        setError("Não encontrámos outro jogador online. Tenta novamente em alguns segundos.");
-      }
-    }, 30_000);
-    return () => window.clearTimeout(timerId);
-  }, [searching, searchStartedAt, realtime.players.length]);
-
+  // Quick Match stays active until a real opponent is found or the player
+  // explicitly cancels. We must not report "no players online" after 30s
+  // while another player may still be connecting or searching.
   const startQuickMatch = async () => {
     if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     setSearching(true);
@@ -86,7 +75,7 @@ function Play() {
       setSearching(false);
       setRoomCode("");
       setSearchStartedAt(null);
-      setError(err instanceof Error ? err.message : "Não foi possível procurar uma partida.");
+      setError(err instanceof Error && err.message === "matchmaking_timeout"\n        ? "A procura terminou sem encontrar um adversário. Toca novamente para continuar."\n        : err instanceof Error ? err.message : "Não foi possível procurar uma partida.");
     }
   };
 
