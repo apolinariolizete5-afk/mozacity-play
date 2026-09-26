@@ -36,7 +36,7 @@ function Rooms() {
     true,
   );
 
-  const goToRoom = (room: { game: GameId; code: string; bet?: number }) => {
+  const goToRoom = (room: { game: GameId; code: string; bet?: number; capacity?: number }) => {
     const wager = Math.max(20, Math.round(Number(room.bet ?? bet) || 20));
     if (room.game === "ludo") {
       void navigate({ to: "/games/ludo", search: { bet: wager, timer: 15, players: room.game === "ludo" ? Math.min(4, Math.max(2, room.capacity ?? 2)) : 2, room: room.code } });
@@ -133,14 +133,15 @@ function Rooms() {
             </div>
             <span className="mt-1 block text-[11px] text-muted-foreground">Mínimo: 20 MT por jogador.</span>
           </label>
-          <label className="flex items-center justify-between rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
-            {game === "ludo" ? <div className="rounded-2xl bg-secondary px-4 py-3">
+          <div className="rounded-2xl bg-secondary px-4 py-3">
+            {game === "ludo" ? <>
               <span className="text-sm font-semibold">Máximo de jogadores</span>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {[2, 3, 4].map((count) => <button key={count} type="button" onClick={() => setCapacity(count)} className={`rounded-xl py-3 text-xs font-extrabold ${capacity === count ? "bg-primary text-primary-foreground" : "bg-background"}`}>{count} jogadores</button>)}
               </div>
               <span className="mt-1 block text-[11px] text-muted-foreground">O jogo só começa quando a sala atingir este número.</span>
-            </div> : null}
+            </> : <span className="text-sm text-muted-foreground">Esta modalidade aceita 2 jogadores.</span>}
+          </div>
           <label className="flex items-center justify-between rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
             Sala privada
             <input type="checkbox" checked={isPrivate} onChange={(event) => setIsPrivate(event.target.checked)} className="h-5 w-5" />
