@@ -37,7 +37,7 @@ function CheckersMatch() {
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
-  const [opponent] = useState(() => botName());
+  const [opponent, setOpponent] = useState(() => botName());
   const settled = useRef(false);
   const staked = useRef(false);
   const [moveCount, setMoveCount] = useState(0);
@@ -74,6 +74,11 @@ function CheckersMatch() {
   }, [state]);
 
   useEffect(() => {
+    const other = realtime.players.find((p) => p.playerId !== app.profile.id);
+    if (other) setOpponent(other.name);
+  }, [app.profile.id, realtime.players]);
+
+  useEffect(() => {
     if (!state.over || settled.current) return;
     settled.current = true;
     recordMatch({
@@ -85,9 +90,19 @@ function CheckersMatch() {
   }, [state, bet, opponent]);
 
   function play(move: CheckersMove) {
-    setState((s) => checkersEngine.applyMove(s, move));
+    setState((s) => {
+      const next = checkersEngine.applyMove(s, move);
+      if (room) realtime.broadcastState(next);
+      return next;
+    });
     setMoveCount((c) => c + 1);
   }
+
+  useEffect(() => {
+    if (!room || !realtime.remoteState) return;
+    const remote = realtime.remoteState as any;
+    if (remote?.type === "state" && remote.state) setState(remote.state);
+  }, [room, realtime.remoteState]);
 
   const result = state.over ? (state.winner === 0 ? "win" : "loss") : null;
   const mine = state.board.filter((p) => p && p.p === 0).length;
