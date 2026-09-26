@@ -57,7 +57,7 @@ function NotificationsPage() {
       } else {
         await enablePushNotifications(app.profile.id);
         setPushState("on");
-        setMessage("Notificações ativadas através do Lovable Cloud/Realtime.");
+        setMessage("Notificações ativadas neste dispositivo. A subscrição Push foi guardada na tua conta.");
       }
     } catch (error) {
       const code = error instanceof Error ? error.message : "push_error";
@@ -67,6 +67,10 @@ function NotificationsPage() {
         setMessage("A permissão foi recusada. Ativa as notificações do MozaPlay nas definições do navegador/Android e tenta novamente.");
       } else if (code === "notification_unavailable") {
         setMessage("As notificações do Lovable Cloud ainda não estão disponíveis neste navegador.");
+      } else if (code === "push_not_configured") {
+        setMessage("As notificações Push ainda não estão configuradas no servidor. É necessária a variável VITE_VAPID_PUBLIC_KEY no ambiente online.");
+      } else if (code === "push_subscription_save_failed") {
+        setMessage("Não foi possível guardar a subscrição Push. Confirma se a migration 0006_push_subscriptions.sql já foi aplicada.");
       } else if (code === "push_invalid_subscription") {
         setMessage("A subscrição do dispositivo ficou inválida. Tenta desativar e ativar novamente.");
       } else {
