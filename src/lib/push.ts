@@ -3,6 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 export type PushState = "on" | "off" | "unsupported" | "blocked";
 const PREF_KEY = "mozaplay:notifications-enabled:v3";
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+export const SERVICE_WORKER_PATH = "/sw.js";
+export const NOTIFICATION_ICON_PATH = "/icons/notification-badge.svg";
+
+export async function registerAppServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
+  try {
+    return await navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: "/" });
+  } catch (error) {
+    console.warn("[PWA] Não foi possível registar o service worker:", error);
+    return null;
+  }
+}
 
 export function pushSupported(): boolean {
   return typeof window !== "undefined"
@@ -44,7 +56,7 @@ export async function enablePushNotifications(userId: string) {
   if (permission === "denied") throw new Error("push_permission_denied");
   if (permission !== "granted") throw new Error("push_permission_dismissed");
 
-  const reg = await navigator.serviceWorker.register("/sw.js");
+  const reg = await registerAppServiceWorker();
   const ready = await navigator.serviceWorker.ready;
 
   let subscription = await ready.pushManager.getSubscription();
@@ -127,7 +139,9 @@ export function subscribeToRealtimeNotifications(
           try {
             new Notification(notification.title, {
               body: notification.body,
-              icon: "/apple-touch-icon.png",
+              icon: NOTIFICATION_ICON_PATH,
+              badge: NOTIFICATION_ICON_PATH,
+              tag: "mozaplay-" + notification.id,
             });
           } catch (e) {
             console.debug("[Notification] Visualização nativa indisponível:", e);
