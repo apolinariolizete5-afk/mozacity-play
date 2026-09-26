@@ -17,7 +17,8 @@ export function useRealtimeRoom<T>(
 ) {
   const [remoteState, setRemoteState] = useState<T | null>(null);
   const [players, setPlayers] = useState<RoomPresence[]>([]);
-  const [connected, setConnected] = useState(false);\n  const channelRef = useRef<RealtimeChannel | null>(null);
+  const [connected, setConnected] = useState(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const channelName = useMemo(
     () => (roomCode ? `mozaplay:room:${roomCode.toUpperCase()}` : ""),
@@ -30,6 +31,8 @@ export function useRealtimeRoom<T>(
     const channel: RealtimeChannel = supabase.channel(channelName, {
       config: { presence: { key: player.playerId } },
     });
+
+    channelRef.current = channel;
 
     const refreshPresence = () => {
       const state = channel.presenceState<RoomPresence>();
@@ -65,6 +68,7 @@ export function useRealtimeRoom<T>(
 
     return () => {
       active = false;
+      channelRef.current = null;
       void supabase.removeChannel(channel);
     };
   }, [channelName, enabled, game, player.playerId, player.name]);
