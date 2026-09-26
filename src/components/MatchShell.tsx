@@ -21,6 +21,8 @@ export function MatchShell({
   statusText,
   children,
   footer,
+  voiceRoomId,
+  voiceUserId,
 }: {
   title: string;
   seats: Seat[];
@@ -29,6 +31,8 @@ export function MatchShell({
   statusText: string;
   children: ReactNode;
   footer?: ReactNode;
+  voiceRoomId?: string;
+  voiceUserId?: string;
 }) {
   const pct = Math.max(0, Math.min(100, (seconds / limit) * 100));
   const low = seconds <= 3;
@@ -91,6 +95,11 @@ export function MatchShell({
       </div>
 
       {children}
+      {voiceRoomId && voiceUserId ? (
+        <div className="sticky bottom-2 z-20">
+          <VoiceChat roomId={voiceRoomId} userId={voiceUserId} />
+        </div>
+      ) : null}
       {footer}
     </div>
   );
