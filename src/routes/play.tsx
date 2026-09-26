@@ -45,7 +45,7 @@ function Play() {
         ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players: 2, room: code } }
         : selected === "checkers"
           ? { to: "/games/checkers", search: { bet, timer: TURN_SECONDS, room: code } }
-          : { to: "/games/chess", search: { bet: 0, timer: TURN_SECONDS, room: code } },
+          : { to: "/games/chess", search: { bet, timer: TURN_SECONDS, room: code } },
     );
   }, [realtime.players.length, searching, roomCode, selected, navigate]);
 
