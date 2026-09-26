@@ -275,10 +275,12 @@ export async function recordMatch(input: {
     ended_at: new Date().toISOString(),
   };
 
-  const { error: matchError } = await supabase.from("matches").insert(matchRow);
-  if (matchError) {
-    console.error("[Match]", matchError.message);
-    throw new Error(matchError.message);
+  if (input.persistMatch !== false) {
+    const { error: matchError } = await supabase.from("matches").insert(matchRow);
+    if (matchError) {
+      console.error("[Match]", matchError.message);
+      throw new Error(matchError.message);
+    }
   }
 
   const { data: currentStats } = await supabase
