@@ -7,7 +7,6 @@ export type RoomStatus = "WAITING" | "READY" | "STARTING" | "PLAYING" | "FINISHE
 export interface RoomPlayer {
   id: string;
   name: string;
-  bot: boolean;
 }
 
 export interface Room {
@@ -70,21 +69,6 @@ export const roomCode = () => {
   for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 };
-
-const BOT_NAMES = [
-  "Nito",
-  "Chico",
-  "Amina",
-  "Dino",
-  "Rui",
-  "Tembe",
-  "Laura",
-  "Zeca",
-  "Mira",
-  "Salim",
-];
-export const botName = () => BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]!;
-
 
 export function defaultState(): AppState {
   return {
@@ -295,7 +279,7 @@ export function createRoom(input: {
     timer: input.timer,
     capacity: input.capacity,
     status: "WAITING",
-    players: [{ id: s.profile.id, name: s.profile.name, bot: false }],
+    players: [{ id: s.profile.id, name: s.profile.name }],
     hostId: s.profile.id,
     createdAt: new Date().toISOString(),
   };
@@ -309,20 +293,8 @@ export function joinRoom(roomId: string) {
     rooms: s.rooms.map((r) => {
       if (r.id !== roomId) return r;
       if (r.players.some((p) => p.id === s.profile.id) || r.players.length >= r.capacity) return r;
-      const players = [...r.players, { id: s.profile.id, name: s.profile.name, bot: false }];
+      const players = [...r.players, { id: s.profile.id, name: s.profile.name }];
       return { ...r, players, status: players.length >= r.capacity ? "READY" : "WAITING" };
-    }),
-  }));
-}
-
-export function fillWithBots(roomId: string) {
-  update((s) => ({
-    ...s,
-    rooms: s.rooms.map((r) => {
-      if (r.id !== roomId) return r;
-      const players = [...r.players];
-      while (players.length < r.capacity) players.push({ id: uid(), name: botName(), bot: true });
-      return { ...r, players, status: "READY" };
     }),
   }));
 }
