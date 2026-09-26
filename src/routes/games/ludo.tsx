@@ -103,9 +103,9 @@ function playAudio(url?: string) {
 
 function LudoMatch() {
   const navigate = useNavigate();
-  const { bet, room } = Route.useSearch();
+  const { bet, room, players } = Route.useSearch();
   const app = useApp();
-  const [state, setState] = useState(() => ludoEngine.createGame({ players: 2 }));
+  const [state, setState] = useState(() => ludoEngine.createGame({ players }));
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [rolling, setRolling] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -119,7 +119,7 @@ function LudoMatch() {
   const settled = useRef(false);
   const rollTimer = useRef<number | null>(null);
 
-  const playersReady = Boolean(room && realtime.players.length >= 2);
+  const playersReady = Boolean(room && realtime.players.length >= players);
   const [escrowReady, setEscrowReady] = useState(bet <= 0);
   const ready = playersReady && escrowReady;
   useEffect(() => {
@@ -155,15 +155,15 @@ function LudoMatch() {
       game: "ludo",
       player_one_id: playerIds[0],
       player_two_id: playerIds[1],
-      bet_cents: Math.max(0, Math.round(bet * 100)),
+      bet_cents: Math.round(bet * 100),
     }}).then(() => {
-      if (bet > 0 && !wagerLocked.current) {
+      if (players === 2 && bet > 0 && !wagerLocked.current) {
         return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } }).then((result) => {
           wagerLocked.current = true;
           setEscrowReady(result.status === "playing");
         });
       }
-      setEscrowReady(true);
+      setEscrowReady(players !== 2 || bet >= 20);
       return null;
     }).catch((error) => {
       roomRegistered.current = false;
@@ -171,7 +171,7 @@ function LudoMatch() {
       setEscrowReady(false);
       console.error("[MozaPlay] Falha ao preparar aposta:", error);
     });
-  }, [bet, playersReady, room, realtime.players]);
+  }, [bet, players, playersReady, room, realtime.players]);
 
 
   const handleAnimatingChange = useCallback((animating: boolean) => {
@@ -224,7 +224,7 @@ function LudoMatch() {
     const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
     const loserIndex = winnerIndex === null ? null : winnerIndex === 0 ? 1 : 0;
     const loserId = loserIndex === null ? null : realtime.players[loserIndex]?.playerId ?? null;
-    if (room && bet > 0 && winnerId && loserId) {
+    if (room && players === 2 && bet > 0 && winnerId && loserId) {
       void settleRoomMatch({ data: {
         room_code: room,
         winner_id: winnerId,
@@ -242,7 +242,7 @@ function LudoMatch() {
       bet,
       persistMatch: realtime.forfeitWinner !== null ? realtime.forfeitWinner === realtime.playerIndex : realtime.playerIndex === 0,
     });
-  }, [bet, opponents, state.over, state.winner, realtime.forfeitWinner, realtime.players]);
+  }, [bet, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players]);
 
   useEffect(() => {
     if (!room) return;
@@ -267,7 +267,7 @@ function LudoMatch() {
   // The board player index comes from the same stable UUID-sorted Presence
   // list on every device. Do not use "me = player 0": that caused names/colors
   // to change places between phones.
-  const playersList = Array.from({ length: 2 }, (_, index) => {
+  const playersList = Array.from({ length: players }, (_, index) => {
     const remotePlayer = realtime.players[index];
     const isUser = index === realtime.playerIndex;
     return {
@@ -378,7 +378,7 @@ function LudoMatch() {
 
         <Card className="p-2 text-center text-xs text-muted-foreground mt-1">
           {!ready
-            ? "A aguardar outro jogador real..." 
+            ? "A aguardar ${players - realtime.players.length} jogador(es) para completar a sala..." 
             : state.over
             ? "Partida terminada!"
             : state.turn === 0
@@ -394,7 +394,7 @@ function LudoMatch() {
             coins={0}
             onRematch={() => {
               settled.current = false;
-              setState(ludoEngine.createGame({ players: 2 }));
+              setState(ludoEngine.createGame({ players }));
               setSeconds(TURN_SECONDS);
               setTurnSequence((value) => value + 1);
             }}
