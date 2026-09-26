@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Check, Loader2, Mail, Phone } from "lucide-react";
+import { Loader2, Mail, Phone } from "lucide-react";
 import { Button, Card } from "@/components/ui/primitives";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -135,7 +135,18 @@ function AuthPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {mode === "signup" ? (\n            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-secondary/60 p-3 text-xs leading-5">\n              <input\n                type="checkbox"\n                checked={acceptedTerms}\n                onChange={(e) => setAcceptedTerms(e.target.checked)}\n                className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"\n              />\n              <span>\n                <span className="font-semibold">Li e aceito os </span>\n                <a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-primary underline">Termos e Condições</a>\n                <span className="font-semibold"> e a </span>\n                <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-primary underline">Política de Privacidade</a>.\n              </span>\n            </label>\n          ) : null}\n          {error ? <p className="text-xs font-semibold text-destructive">{error}</p> : null}
+          {mode === "signup" ? (\n            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-secondary/60 p-3 text-xs leading-5">
+              <input\n                type="checkbox"\n                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"
+              />\n              <span>
+                <span className="font-semibold">Li e aceito os </span>
+                <a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-primary underline">Termos e Condições</a>
+                <span className="font-semibold"> e a </span>
+                <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-primary underline">Política de Privacidade</a>.
+              </span>
+            </label>
+          ) : null}\n          {error ? <p className="text-xs font-semibold text-destructive">{error}</p> : null}
           {info ? <p className="text-xs font-semibold text-success">{info}</p> : null}
           <Button className="w-full" size="lg" disabled={busy} type="submit">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
