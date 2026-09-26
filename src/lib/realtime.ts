@@ -229,9 +229,6 @@ export function useRealtimeLobby(player?: RoomPresence, enabled = true) {
 
     return () => {
       active = false;
-      channel.off("presence", { event: "sync" }, sync);
-      channel.off("presence", { event: "join" }, sync);
-      channel.off("presence", { event: "leave" }, sync);
     };
   }, [enabled, playerId]);
 
@@ -333,12 +330,12 @@ export function useRealtimeRoom<T>(
       else setForfeitWinner(playerIndexRef.current === 0 ? 1 : 0);
     };
 
-    channel.on("presence", { event: "sync" }, syncPresence);
-    channel.on("presence", { event: "join" }, syncPresence);
-    channel.on("presence", { event: "leave" }, syncPresence);
-    channel.on("broadcast", { event: "state" }, onState);
-    channel.on("broadcast", { event: "request_state" }, onRequestState);
-    channel.on("broadcast", { event: "forfeit" }, onForfeit);
+    (channel as any).on("presence", { event: "sync" }, syncPresence);
+    (channel as any).on("presence", { event: "join" }, syncPresence);
+    (channel as any).on("presence", { event: "leave" }, syncPresence);
+    (channel as any).on("broadcast", { event: "state" }, onState);
+    (channel as any).on("broadcast", { event: "request_state" }, onRequestState);
+    (channel as any).on("broadcast", { event: "forfeit" }, onForfeit);
 
     const start = async () => {
       try {

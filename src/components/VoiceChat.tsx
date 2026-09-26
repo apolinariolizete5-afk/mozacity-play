@@ -137,7 +137,7 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
       setConnecting(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
-      const peer = peerRef.current ?? new RTCPeerConnection(rtcConfig);
+      const peer = peerRef.current ?? new RTCPeerConnection(getRtcConfig());
       peerRef.current = peer;
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       await channelRef.current.send({

@@ -115,6 +115,9 @@ function LudoMatch() {
   const settled = useRef(false);
   const rollTimer = useRef<number | null>(null);
 
+  const playersReady = Boolean(room && realtime.players.length >= 2);
+  const [escrowReady, setEscrowReady] = useState(bet <= 0);
+  const ready = playersReady && escrowReady;
   useEffect(() => {
     if (!ready || state.over) return;
     const deadline = realtime.turnDeadlineAt ?? Date.now() + TURN_SECONDS * 1000;
@@ -135,9 +138,6 @@ function LudoMatch() {
     if (rollTimer.current) window.clearTimeout(rollTimer.current);
   }, []);
 
-  const playersReady = Boolean(room && realtime.players.length >= 2);
-  const [escrowReady, setEscrowReady] = useState(bet <= 0);
-  const ready = playersReady && escrowReady;
   const roomRegistered = useRef(false);
   const wagerLocked = useRef(false);
 

@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1789968674613,
-      "tag": "0000_mozaplay_real_money_core",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1790063691839,
-      "tag": "0001_mozaplay_real_money_core",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1790063770240,
-      "tag": "0002_wallet_rpcs_no_service_role",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1790137346780,
-      "tag": "0003_mozaplay_economy_rake_rollover",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1790137403192,
-      "tag": "0004_mozaplay_test_mode_deposit",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1790410000000,
-      "tag": "0005_remove_legacy_test_mode",
+      "when": 1790418274055,
+      "tag": "0000_room_escrow_notifications_reminders",
       "breakpoints": true
     }
   ]

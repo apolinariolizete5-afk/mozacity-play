@@ -173,7 +173,7 @@ function Profile() {
                 <p className="mt-1 text-xs text-muted-foreground">{accountEmail || "Conta MozaPlay"}</p>
               </div>
             </div>
-            <Button variant={editing ? "outline" : "default"} onClick={() => setEditing((v) => !v)} className="gap-2">
+            <Button variant={editing ? "outline" : "primary"} onClick={() => setEditing((v) => !v)} className="gap-2">
               {editing ? <ChevronRight className="h-4 w-4 rotate-90" /> : <Edit3 className="h-4 w-4" />}
               {editing ? "Fechar edição" : "Editar perfil"}
             </Button>

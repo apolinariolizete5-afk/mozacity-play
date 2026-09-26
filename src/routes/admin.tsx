@@ -207,7 +207,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
         <PageHeader title="Administração" subtitle="Banca, taxas e pagamentos" />
         <Button
           size="sm"
-          variant="secondary"
+          variant="outline"
           className="mt-1 shrink-0"
           disabled={overview.isFetching || settings.isFetching || payouts.isFetching}
           onClick={() => {
