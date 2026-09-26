@@ -12,6 +12,7 @@ type Room = {
   players: Player[];
   hostId: string;
   createdAt: string;
+  lastActivityAt: number;
   state?: unknown;
   stateUpdatedAt?: number;
 };
@@ -26,6 +27,13 @@ function code() {
     for (let i = 0; i < 4; i++) value += chars[Math.floor(Math.random() * chars.length)];
   } while ([...rooms.values()].some((r) => r.code === value));
   return value;
+}
+
+function cleanupRooms() {
+  const cutoff = Date.now() - 10 * 60 * 1000;
+  for (const [key, room] of rooms) {
+    if (room.lastActivityAt < cutoff) rooms.delete(key);
+  }
 }
 
 function cleanRoom(room: Room) {
@@ -44,6 +52,7 @@ export const Route = createFileRoute("/api/multiplayer")({
   server: {
     handlers: {
       GET: async ({ request }) => {
+        cleanupRooms();
         const url = new URL(request.url);
         const roomCode = (url.searchParams.get("room") ?? "").trim().toUpperCase();
 
@@ -67,6 +76,7 @@ export const Route = createFileRoute("/api/multiplayer")({
       },
 
       POST: async ({ request }) => {
+        cleanupRooms();
         const body = await request.json().catch(() => ({}));
         const action = String(body?.action ?? "");
         const player = body?.player as { id?: string; name?: string } | undefined;
@@ -90,6 +100,7 @@ export const Route = createFileRoute("/api/multiplayer")({
             players: [{ id: playerId, name: playerName }],
             hostId: playerId,
             createdAt: new Date().toISOString(),
+            lastActivityAt: Date.now(),
           };
           rooms.set(room.code, room);
           return json({ room: cleanRoom(room) }, 201);
@@ -102,6 +113,7 @@ export const Route = createFileRoute("/api/multiplayer")({
           if (room.players.some((p) => p.id === playerId)) return json({ room: cleanRoom(room), state: room.state ?? null });
           if (room.players.length >= room.capacity) return json({ error: "Sala cheia." }, 409);
           room.players.push({ id: playerId, name: playerName });
+          room.lastActivityAt = Date.now();
           if (room.players.length >= room.capacity) room.status = "READY";
           return json({ room: cleanRoom(room), state: room.state ?? null });
         }
@@ -121,6 +133,7 @@ export const Route = createFileRoute("/api/multiplayer")({
 
           if (existing) {
             existing.players.push({ id: playerId, name: playerName });
+            existing.lastActivityAt = Date.now();
             if (existing.players.length >= existing.capacity) existing.status = "READY";
             return json({ room: cleanRoom(existing), matched: true, state: existing.state ?? null });
           }
@@ -148,6 +161,7 @@ export const Route = createFileRoute("/api/multiplayer")({
           if (!room.players.some((p) => p.id === playerId)) return json({ error: "Jogador não pertence à sala." }, 403);
           room.state = body?.state ?? null;
           room.stateUpdatedAt = Date.now();
+          room.lastActivityAt = Date.now();
           if (room.players.length >= room.capacity) room.status = "PLAYING";
           return json({ ok: true });
         }
