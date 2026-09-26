@@ -15,7 +15,7 @@ import { useRealtimeRoom } from "@/lib/realtime";
 export const Route = createFileRoute("/games/checkers")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
-    bet: Number(search["bet"] ?? 0) || 0,
+    bet: Math.max(20, Number(search["bet"] ?? 20) || 20),
     timer: 15,
     room: String(search["room"] ?? ""),
   }),
