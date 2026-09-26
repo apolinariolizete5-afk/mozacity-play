@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
+import { registerPushServiceWorker } from "@/lib/push";
 
 function NotFoundComponent() {
   return (
@@ -159,6 +160,12 @@ function LegalFooter() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    registerPushServiceWorker().catch((error) => {
+      console.warn("[Push] Service worker registration failed:", error);
+    });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
