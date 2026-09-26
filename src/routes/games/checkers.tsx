@@ -56,13 +56,13 @@ function CheckersMatch() {
   }, [state.turn, state.over, timer, moveCount]);
 
   useEffect(() => {
-    if (room || seconds > 0 || state.over || state.turn !== 0) return;
+    if (room || seconds > 0 || state.over || state.turn !== realtime.playerIndex) return;
     const moves = legalMoves(state);
     if (moves.length) play(moves[0]!);
   }, [seconds, state]);
 
   useEffect(() => {
-    if (room || state.over || state.turn !== 1) return;
+    if (room || state.over || state.turn !== (realtime.playerIndex === 0 ? 1 : 0)) return;
     const id = setTimeout(() => {
       const move = checkersBotMove(state);
       if (move) play(move);
@@ -101,7 +101,7 @@ function CheckersMatch() {
             name: app.profile.name,
             avatar: app.profile.avatar,
             bot: false,
-            active: state.turn === 0,
+            active: state.turn === realtime.playerIndex,
             label: `Claras (${mine})`,
           },
           { name: opponent, avatar: "🤖", bot: true, active: state.turn === 1, label: `Escuras (${theirs})` },
@@ -109,7 +109,7 @@ function CheckersMatch() {
         statusText={
           state.over
             ? "Partida terminada"
-            : state.turn === 0
+            : state.turn === realtime.playerIndex
               ? state.chain !== null
                 ? "Continua a captura!"
                 : "A tua vez"
@@ -122,7 +122,7 @@ function CheckersMatch() {
           </Card>
         }
       >
-        <CheckersBoard state={state} disabled={state.turn !== 0 || state.over} onMove={play} />
+        <CheckersBoard state={state} disabled={state.turn !== realtime.playerIndex || state.over} onMove={play} />
       </MatchShell>
       {result ? (
         <ResultOverlay
