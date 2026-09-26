@@ -60,7 +60,6 @@ export interface AppState {
   rooms: Room[];
 }
 
-const KEY = "mozaplay:state:v1";
 const AVATARS = ["🦁", "🐆", "🦅", "🐘", "🦈", "🐊", "🦒", "🐅"];
 const emptyStats = (): Stats => ({ wins: 0, losses: 0, draws: 0 });
 
@@ -123,27 +122,7 @@ let state: AppState | null = null;
 const listeners = new Set<() => void>();
 
 function read(): AppState {
-  if (state) return state;
-  if (typeof window === "undefined") return defaultState();
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    state = raw ? ({ ...defaultState(), ...(JSON.parse(raw) as AppState) }) : defaultState();
-  } catch {
-    state = defaultState();
-  }
-  return state;
-}
-
-function write(next: AppState) {
-  state = next;
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.setItem(KEY, JSON.stringify(next));
-    } catch {
-      /* storage full or unavailable */
-    }
-  }
-  listeners.forEach((l) => l());
+  return state ?? (state = defaultState());
 }
 
 export function update(fn: (s: AppState) => AppState) {
