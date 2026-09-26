@@ -269,7 +269,9 @@ function LudoMatch() {
           </div>
         </div>
 
-        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}\n\n        <div className="grid grid-cols-2 gap-2 my-2">
+        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}
+
+        <div className="grid grid-cols-2 gap-2 my-2">
           <div>{renderPlayerCorner(0)}</div>
           <div>{renderPlayerCorner(1)}</div>
         </div>
