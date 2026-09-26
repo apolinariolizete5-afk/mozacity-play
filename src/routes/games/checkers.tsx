@@ -1,15 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { CheckersBoard } from "@/components/boards/CheckersBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import {
-  checkersBotMove,
   checkersEngine,
   legalMoves,
   type CheckersMove,
 } from "@/lib/games/checkers";
-import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+import { placeBet, recordMatch, useApp } from "@/lib/store";
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/checkers")({
@@ -37,7 +36,7 @@ function CheckersMatch() {
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
-  const [opponent, setOpponent] = useState(() => botName());
+  const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
   const staked = useRef(false);
   const [moveCount, setMoveCount] = useState(0);
@@ -58,20 +57,7 @@ function CheckersMatch() {
     return () => clearInterval(id);
   }, [state.turn, state.over, timer, moveCount]);
 
-  useEffect(() => {
-    if (room || seconds > 0 || state.over || state.turn !== realtime.playerIndex) return;
-    const moves = legalMoves(state);
-    if (moves.length) play(moves[0]!);
-  }, [seconds, state]);
 
-  useEffect(() => {
-    if (room || state.over || state.turn !== (realtime.playerIndex === 0 ? 1 : 0)) return;
-    const id = setTimeout(() => {
-      const move = checkersBotMove(state);
-      if (move) play(move);
-    }, 650);
-    return () => clearTimeout(id);
-  }, [state]);
 
   useEffect(() => {
     const other = realtime.players.find((p) => p.playerId !== app.profile.id);
@@ -83,13 +69,14 @@ function CheckersMatch() {
     settled.current = true;
     recordMatch({
       game: "checkers",
-      result: state.winner === 0 ? "win" : "loss",
+      result: state.winner === realtime.playerIndex ? "win" : "loss",
       opponents: [opponent],
       bet,
     });
   }, [state, bet, opponent]);
 
   function play(move: CheckersMove) {
+    if (!room || realtime.players.length < 2) return;
     setState((s) => {
       const next = checkersEngine.applyMove(s, move);
       if (room) realtime.broadcastState(next);
@@ -104,7 +91,8 @@ function CheckersMatch() {
     if (remote?.type === "state" && remote.state) setState(remote.state);
   }, [room, realtime.remoteState]);
 
-  const result = state.over ? (state.winner === 0 ? "win" : "loss") : null;
+  const result = state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
+  const ready = Boolean(room && realtime.players.length >= 2);
   const mine = state.board.filter((p) => p && p.p === 0).length;
   const theirs = state.board.filter((p) => p && p.p === 1).length;
 
@@ -118,16 +106,17 @@ function CheckersMatch() {
           {
             name: app.profile.name,
             avatar: app.profile.avatar,
-            bot: false,
             active: state.turn === realtime.playerIndex,
             label: `Claras (${mine})`,
           },
-          { name: opponent, avatar: "🤖", bot: true, active: state.turn === 1, label: `Escuras (${theirs})` },
+          { name: opponent, avatar: "🙂", active: state.turn === 1, label: `Escuras (${theirs})` },
         ]}
         statusText={
           state.over
             ? "Partida terminada"
-            : state.turn === realtime.playerIndex
+            : !ready
+              ? "A aguardar outro jogador..." 
+              : state.turn === realtime.playerIndex
               ? state.chain !== null
                 ? "Continua a captura!"
                 : "A tua vez"
@@ -140,7 +129,7 @@ function CheckersMatch() {
           </Card>
         }
       >
-        <CheckersBoard state={state} disabled={state.turn !== realtime.playerIndex || state.over} onMove={play} />
+        {ready ? <CheckersBoard state={state} disabled={state.turn !== realtime.playerIndex || state.over} onMove={play} /> : <Card className="p-8 text-center"><p className="font-bold">Sala online</p><p className="mt-2 text-sm text-muted-foreground">Código: {room || "—"}. A aguardar um jogador real para começar.</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
       </MatchShell>
       {result ? (
         <ResultOverlay
@@ -148,7 +137,7 @@ function CheckersMatch() {
           coins={result === "win" ? bet * 2 : 0}
           onRematch={() => {
             settled.current = false;
-            if (!room) placeBet(bet, "checkers");
+            
             setState(checkersEngine.createGame());
             setSeconds(timer);
           }}
