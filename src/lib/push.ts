@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export async function registerPushServiceWorker() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   return navigator.serviceWorker.register("/sw.js", { scope: "/" });
@@ -14,9 +16,8 @@ export async function enablePushNotifications(playerId?: string) {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("push_permission_denied");
 
-  const configResponse = await fetch("/api/push", { cache: "no-store" });
-  const config = await configResponse.json();
-  if (!config.publicKey) throw new Error("push_not_configured");
+  const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  if (!publicKey) throw new Error("push_not_configured");
 
   const registration =
     (await navigator.serviceWorker.getRegistration("/")) ??
@@ -28,37 +29,39 @@ export async function enablePushNotifications(playerId?: string) {
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
     });
   }
 
-  if (playerId) {
-    const response = await fetch("/api/push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "subscribe",
-        playerId,
-        subscription: subscription.toJSON(),
-      }),
-    });
-    if (!response.ok) throw new Error("push_subscription_failed");
-  }
+  const userId = playerId || (await supabase.auth.getUser()).data.user?.id;
+  if (!userId) throw new Error("auth_required");
+
+  const json = subscription.toJSON();
+  const { error } = await supabase.from("push_subscriptions").upsert(
+    {
+      user_id: userId,
+      endpoint: json.endpoint,
+      p256dh: json.keys?.p256dh,
+      auth: json.keys?.auth,
+      expiration_time: json.expirationTime ?? null,
+    },
+    { onConflict: "endpoint" },
+  );
+  if (error) throw new Error(error.message);
 
   return subscription;
 }
 
 export async function disablePushNotifications(playerId?: string) {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-  if (playerId) {
-    await fetch("/api/push", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "unsubscribe", playerId }),
-    }).catch(() => undefined);
-  }
+  const userId = playerId || (await supabase.auth.getUser()).data.user?.id;
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
+
+  if (userId && subscription?.endpoint) {
+    await supabase.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", subscription.endpoint);
+  }
+
   if (subscription) await subscription.unsubscribe();
 }
 
