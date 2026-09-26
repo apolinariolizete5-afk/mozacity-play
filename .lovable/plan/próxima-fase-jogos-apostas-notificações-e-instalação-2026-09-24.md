@@ -37,4 +37,4 @@ Substituir os comportamentos demonstrativos por partidas completas, ligar as apo
 
 ## Limites operacionais
 - O envio push real depende das credenciais VAPID configuradas no ambiente de produção.
-- As partidas contra bots serão financeiramente liquidadas pelo servidor; salas multiplayer continuam a usar a estrutura atual até existir sincronização em tempo real entre dispositivos.
+- As partidas online usam apenas jogadores reais. A sala deve confirmar dois jogadores reais antes de iniciar e os movimentos são sincronizados pelo servidor.
