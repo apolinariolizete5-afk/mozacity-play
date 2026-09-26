@@ -79,21 +79,21 @@ function NotificationsPage() {
 
   const title =
     pushState === "on"
-      ? "Push ativado"
+      ? "Notificações ativadas"
       : pushState === "blocked"
-        ? "Push bloqueado"
+        ? "Notificações indisponíveis"
         : pushState === "unsupported"
           ? "Push indisponível"
-          : "Push desativado";
+          : "Notificações desativadas";
 
   const description =
     pushState === "on"
-      ? "Este dispositivo pode receber avisos reais do MozaPlay."
+      ? "Os avisos reais da tua conta aparecem em tempo real através do Lovable Cloud."
       : pushState === "blocked"
         ? "A permissão foi bloqueada pelo navegador. Altera a permissão nas definições do site."
         : pushState === "unsupported"
-          ? "O navegador atual não suporta notificações push."
-          : "Ativa para receber os avisos da tua conta enquanto o MozaPlay estiver aberto.";
+          ? "As notificações do Lovable Cloud funcionam através do Realtime."
+          : "Ativa para mostrar os avisos reais da tua conta dentro do MozaPlay.";
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-28 pt-5">
@@ -113,7 +113,7 @@ function NotificationsPage() {
         <button
           type="button"
           onClick={() => void togglePush()}
-          disabled={busy || pushState === "unsupported" || pushState === "blocked"}
+          disabled={busy}
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-extrabold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Aguarda..." : pushState === "on" ? "Desativar notificações" : "Ativar notificações"}
@@ -138,8 +138,8 @@ function NotificationsPage() {
 
       <Card className="space-y-2 text-xs text-muted-foreground">
         <p className="font-bold text-foreground">Como funciona</p>
-        <p>• Ao ativar, o dispositivo é registado para receber push.</p>
-        <p>• Ao desativar, a subscrição deste dispositivo é removida.</p>
+        <p>• Ao ativar, o MozaPlay mostra eventos reais em tempo real.</p>
+        <p>• Ao desativar, os avisos em tempo real ficam ocultos neste dispositivo.</p>
         <p>• Só serão enviados avisos quando existir um evento real da tua conta ou partida.</p>
       </Card>
     </main>
