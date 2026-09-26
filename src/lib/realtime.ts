@@ -159,27 +159,63 @@ export async function quickMatch(input: {
 }) {
   const channel = getLobbyChannel();
   await ensureSubscribed(channel);
-  const rooms = presenceToRooms(channel.presenceState() as Record<string, unknown[]>);
-  const room = rooms.find(
-    (item) =>
-      item.game === input.game &&
-      !item.isPrivate &&
-      item.players.length < item.capacity &&
-      !item.players.some((itemPlayer) => itemPlayer.id === input.player.playerId),
-  );
-  if (room) {
-    await channel.track({
-      ...input.player,
-      roomCode: room.code,
-      game: room.game,
-      isPrivate: room.isPrivate,
-      capacity: room.capacity,
-      hostId: room.hostId,
-      createdAt: room.createdAt,
-    });
-    return { ...room, players: [...room.players, { id: input.player.playerId, name: input.player.name }] };
+
+  const findCandidate = () => {
+    const rooms = presenceToRooms(channel.presenceState() as Record<string, unknown[]>)
+      .filter((item) =>
+        item.game === input.game &&
+        !item.isPrivate &&
+        item.players.length < item.capacity &&
+        !item.players.some((itemPlayer) => itemPlayer.id === input.player.playerId),
+      )
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    if (rooms.length === 0) return null;
+    return rooms[Math.floor(Math.random() * rooms.length)] ?? null;
+  };
+
+  // Presence can arrive a few milliseconds after the websocket sync. Give
+  // an already-waiting player a short window before creating another room.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const room = findCandidate();
+    if (room) {
+      try {
+        await channel.track({
+          ...input.player,
+          roomCode: room.code,
+          game: room.game,
+          isPrivate: room.isPrivate,
+          capacity: room.capacity,
+          hostId: room.hostId,
+          createdAt: room.createdAt,
+        });
+
+        // Confirm the join using the latest presence snapshot. This avoids
+        // returning a match based only on a stale lobby snapshot.
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        const confirmed = presenceToRooms(channel.presenceState() as Record<string, unknown[]>)
+          .find((item) => item.code === room.code);
+
+        if (confirmed?.players.some((item) => item.id === input.player.playerId)) {
+          return confirmed;
+        }
+      } catch {
+        // Another client may have filled the room while we were joining.
+      }
+    }
+
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 180 + attempt * 140));
+    }
   }
+
   return createRoom({ game: input.game, player: input.player, isPrivate: false, capacity: 2 });
+}
+
+export async function leaveLobbyRoom() {
+  const channel = lobbyChannels.get("lobby");
+  if (!channel || channel.state !== "joined") return;
+  await channel.untrack();
 }
 
 export function makeRoomCode() {
