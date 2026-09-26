@@ -3,14 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { ChessBoard } from "@/components/boards/ChessBoard";
 import { Card, Pill } from "@/components/ui/primitives";
-import { chessEngine, inCheck, type ChessMove } from "@/lib/games/chess";
+import { chessEngine, chessTimeout, inCheck, type ChessMove } from "@/lib/games/chess";
 import { recordMatch, useApp } from "@/lib/store";
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/chess")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,
+    timer: 15,
     room: String(search["room"] ?? ""),
   }),
   head: () => ({
@@ -28,7 +28,7 @@ function ChessMatch() {
   const { bet, timer, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
-  const [seconds, setSeconds] = useState(timer);
+  const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
@@ -40,18 +40,31 @@ function ChessMatch() {
 
   useEffect(() => {
     if (!room || !realtime.remoteState) return;
-    const remote = realtime.remoteState as any;
-    if (remote?.type === "state" && remote.state) setState(remote.state);
+    setState(realtime.remoteState);
   }, [room, realtime.remoteState]);
 
-  // per-turn timer
-  useEffect(() => {
-    setSeconds(timer);
-    if (state.over) return;
-    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, [state.turn, state.over, timer, state.history.length]);
+  const ready = Boolean(room && realtime.players.length >= 2);
 
+  useEffect(() => {
+    if (!ready || state.over) return;
+    const deadline = realtime.turnDeadlineAt ?? Date.now() + 15000;
+    const tick = () => setSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [ready, realtime.turnDeadlineAt, state.turn, state.over]);
+
+  useEffect(() => {
+    if (!ready || state.over || seconds > 0 || state.turn !== (realtime.playerIndex === 0 ? "w" : "b")) return;
+    const next = chessTimeout(state);
+    setState(next);
+    void realtime.broadcastState(next);
+  }, [ready, seconds, state, realtime.playerIndex]);
+
+  useEffect(() => {
+    if (!ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
+    void realtime.broadcastState(state);
+  }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   useEffect(() => {
     if (!state.over || settled.current) return;
@@ -61,12 +74,14 @@ function ChessMatch() {
       game: "chess",
       result: state.draw ? "draw" : winner === realtime.playerIndex ? "win" : "loss",
       opponents: [opponent],
+      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
+      playerIds: realtime.players.map((p) => p.playerId),
+      winnerId: winner === null ? null : realtime.players[winner]?.playerId ?? null,
       bet,
     });
   }, [state, bet, opponent]);
 
-  const result = state.over ? (state.draw ? "draw" : state.winner === realtime.playerIndex ? "win" : "loss") : null;
-  const ready = Boolean(room && realtime.players.length >= 2);
+  const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.draw ? "draw" : state.winner === realtime.playerIndex ? "win" : "loss") : null;
 
   return (
     <>
@@ -99,7 +114,7 @@ function ChessMatch() {
         {ready ? <ChessBoard
           state={state}
           disabled={state.turn !== (realtime.playerIndex === 0 ? "w" : "b") || state.over}
-          onMove={(m: ChessMove) => setState((s) => { const next = chessEngine.applyMove(s, m); if (room) realtime.broadcastState({ type: "state", state: next }); return next; })}
+          onMove={(m: ChessMove) => setState((s) => { const next = chessEngine.applyMove(s, m); if (room) void realtime.broadcastState(next); return next; })}
         /> : <Card className="p-8 text-center"><p className="font-bold">Sala online</p><p className="mt-2 text-sm text-muted-foreground">Código: {room || "—"}. A aguardar um jogador real para começar.</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
       </MatchShell>
       {result ? (
