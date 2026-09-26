@@ -1,42 +1,102 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type PushState = "on" | "off" | "unsupported" | "blocked";
-const PREF_KEY = "mozaplay:notifications-enabled:v2";
+const PREF_KEY = "mozaplay:notifications-enabled:v3";
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
 export function pushSupported(): boolean {
-  return typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window;
+  return typeof window !== "undefined"
+    && "serviceWorker" in navigator
+    && "Notification" in window
+    && "PushManager" in window;
 }
 
-export async function getPushState(_userId?: string): Promise<PushState> {
+export async function getPushState(userId?: string): Promise<PushState> {
   if (!pushSupported()) return "unsupported";
   if (Notification.permission === "denied") return "blocked";
+  if (!userId) return "off";
+
   const pref = localStorage.getItem(PREF_KEY) === "1";
-  return pref && Notification.permission === "granted" ? "on" : "off";
+  if (!pref || Notification.permission !== "granted") return "off";
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    return subscription ? "on" : "off";
+  } catch {
+    return "off";
+  }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
 }
 
 export async function enablePushNotifications(userId: string) {
   if (!userId) throw new Error("auth_required");
   if (!pushSupported()) throw new Error("notification_unavailable");
+  if (!VAPID_PUBLIC_KEY) throw new Error("push_not_configured");
 
   const permission = await Notification.requestPermission();
   if (permission === "denied") throw new Error("push_permission_denied");
   if (permission !== "granted") throw new Error("push_permission_dismissed");
 
-  try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
-    await navigator.serviceWorker.ready;
-    localStorage.setItem(PREF_KEY, "1");
-    return { enabled: true, registration: reg };
-  } catch (err) {
-    console.warn("[Push] Registo de Service Worker falhou, fallback activo:", err);
-    localStorage.setItem(PREF_KEY, "1");
-    return { enabled: true };
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  const ready = await navigator.serviceWorker.ready;
+
+  let subscription = await ready.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await ready.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
   }
+
+  const json = subscription.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+    throw new Error("push_subscription_invalid");
+  }
+
+  const { error } = await supabase.from("push_subscriptions").upsert(
+    {
+      user_id: userId,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,endpoint" },
+  );
+
+  if (error) {
+    console.error("[Push] Não foi possível guardar a subscrição:", error);
+    throw new Error("push_subscription_save_failed");
+  }
+
+  localStorage.setItem(PREF_KEY, "1");
+  return { enabled: true, registration: reg, subscription };
 }
 
-export async function disablePushNotifications(_userId: string) {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem(PREF_KEY);
+export async function disablePushNotifications(userId: string) {
+  if (!userId) throw new Error("auth_required");
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      const endpoint = subscription.endpoint;
+      await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("endpoint", endpoint);
+      await subscription.unsubscribe();
+    }
+  } finally {
+    if (typeof window !== "undefined") localStorage.removeItem(PREF_KEY);
   }
 }
 
