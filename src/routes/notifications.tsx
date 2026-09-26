@@ -77,23 +77,12 @@ function NotificationsPage() {
     }
   };
 
-  const title =
-    pushState === "on"
-      ? "Notificações ativadas"
-      : pushState === "blocked"
-        ? "Notificações indisponíveis"
-        : pushState === "unsupported"
-          ? "Push indisponível"
-          : "Notificações desativadas";
+  const title = pushState === "on" ? "Notificações ativadas" : "Notificações desativadas";
 
   const description =
     pushState === "on"
       ? "Os avisos reais da tua conta aparecem em tempo real através do Lovable Cloud."
-      : pushState === "blocked"
-        ? "A permissão foi bloqueada pelo navegador. Altera a permissão nas definições do site."
-        : pushState === "unsupported"
-          ? "As notificações do Lovable Cloud funcionam através do Realtime."
-          : "Ativa para mostrar os avisos reais da tua conta dentro do MozaPlay.";
+      : "Ativa para mostrar os avisos reais da tua conta dentro do MozaPlay.";
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-28 pt-5">
