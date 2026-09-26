@@ -36,4 +36,4 @@ begin
   return jsonb_build_object('ok', true, 'min_deposit_cents', _min_deposit_cents, 'min_bet_cents', _min_bet_cents);
 end $$;
 revoke all on function public.admin_update_settings(numeric,numeric,bigint,bigint,bigint,bigint,boolean,numeric) from public, anon;
-grant execute on function public.admin_update_settings(numeric,numeric,bigint,bigint,bigint,boolean,numeric) to authenticated;
+grant execute on function public.admin_update_settings(numeric,numeric,bigint,bigint,bigint,bigint,boolean,numeric) to authenticated;
