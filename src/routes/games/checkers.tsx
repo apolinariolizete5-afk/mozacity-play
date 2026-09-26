@@ -5,7 +5,7 @@ import { CheckersBoard } from "@/components/boards/CheckersBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import {
   checkersEngine,
-  legalMoves,
+  checkersTimeout,
   type CheckersMove,
 } from "@/lib/games/checkers";
 import { recordMatch, useApp } from "@/lib/store";
@@ -14,7 +14,7 @@ import { useRealtimeRoom } from "@/lib/realtime";
 export const Route = createFileRoute("/games/checkers")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,
+    timer: 15,
     room: String(search["room"] ?? ""),
   }),
   head: () => ({
@@ -35,19 +35,34 @@ function CheckersMatch() {
   const { bet, timer, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
-  const [seconds, setSeconds] = useState(timer);
+  const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
   const [moveCount, setMoveCount] = useState(0);
   const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
-  useEffect(() => {
-    setSeconds(timer);
-    if (state.over) return;
-    const id = setInterval(() => setSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, [state.turn, state.over, timer, moveCount]);
+  const ready = Boolean(room && realtime.players.length >= 2);
 
+  useEffect(() => {
+    if (!ready || state.over) return;
+    const deadline = realtime.turnDeadlineAt ?? Date.now() + 15000;
+    const tick = () => setSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [ready, realtime.turnDeadlineAt, state.turn, state.over]);
+
+  useEffect(() => {
+    if (!ready || state.over || seconds > 0 || state.turn !== realtime.playerIndex) return;
+    const next = checkersTimeout(state);
+    setState(next);
+    void realtime.broadcastState(next);
+  }, [ready, seconds, state, realtime.playerIndex]);
+
+  useEffect(() => {
+    if (!ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
+    void realtime.broadcastState(state);
+  }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
 
   useEffect(() => {
@@ -58,10 +73,13 @@ function CheckersMatch() {
   useEffect(() => {
     if (!state.over || settled.current) return;
     settled.current = true;
-    recordMatch({
+    void recordMatch({
       game: "checkers",
       result: state.winner === realtime.playerIndex ? "win" : "loss",
       opponents: [opponent],
+      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
+      playerIds: realtime.players.map((p) => p.playerId),
+      winnerId: realtime.players[state.winner ?? 0]?.playerId ?? null,
       bet,
     });
   }, [state, bet, opponent]);
@@ -70,7 +88,7 @@ function CheckersMatch() {
     if (!room || realtime.players.length < 2) return;
     setState((s) => {
       const next = checkersEngine.applyMove(s, move);
-      if (room) realtime.broadcastState(next);
+      if (room) void realtime.broadcastState(next);
       return next;
     });
     setMoveCount((c) => c + 1);
@@ -78,12 +96,10 @@ function CheckersMatch() {
 
   useEffect(() => {
     if (!room || !realtime.remoteState) return;
-    const remote = realtime.remoteState as any;
-    if (remote?.type === "state" && remote.state) setState(remote.state);
+    setState(realtime.remoteState);
   }, [room, realtime.remoteState]);
 
-  const result = state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
-  const ready = Boolean(room && realtime.players.length >= 2);
+  const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
   const mine = state.board.filter((p) => p && p.p === 0).length;
   const theirs = state.board.filter((p) => p && p.p === 1).length;
 
