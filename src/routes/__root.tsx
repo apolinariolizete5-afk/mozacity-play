@@ -12,7 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
-import { enablePushNotifications, registerPushServiceWorker } from "@/lib/push";
+import { subscribeToRealtimeNotifications } from "@/lib/push";
 import { useApp } from "@/lib/store";
 
 function NotFoundComponent() {
@@ -159,56 +159,6 @@ function LegalFooter() {
   </footer>;
 }
 
-function PushPrompt() {
-  const app = useApp();
-  const [visible, setVisible] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    setVisible(Notification.permission === "default");
-  }, []);
-
-  if (!visible) return null;
-
-  return (
-    <div className="fixed bottom-24 left-3 right-3 z-50 mx-auto max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl">
-      <p className="font-bold">Ativar notificações</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Recebe avisos de partidas e novidades do MozaPlay mesmo quando não estás com o jogo aberto.
-      </p>
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            try {
-              await enablePushNotifications(app.profile.id);
-              setVisible(false);
-            } catch (error) {
-              console.error("[Push]", error);
-            } finally {
-              setBusy(false);
-            }
-          }}
-          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
-        >
-          {busy ? "A ativar..." : "Ativar"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setVisible(false)}
-          className="rounded-xl border border-input px-4 py-2.5 text-sm font-bold"
-        >
-          Agora não
-        </button>
-      </div>
-    </div>
-  );
-}
-
-
 function InstallPrompt() {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
@@ -263,12 +213,12 @@ type BeforeInstallPromptEvent = Event & {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const app = useApp();
 
   useEffect(() => {
-    registerPushServiceWorker().catch((error) => {
-      console.warn("[Push] Service worker registration failed:", error);
-    });
-  }, []);
+    if (!app.profile.id) return;
+    return subscribeToRealtimeNotifications(app.profile.id);
+  }, [app.profile.id]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -278,7 +228,6 @@ function RootComponent() {
       </div>
       <BottomNav />
       <AgeGate />
-      <PushPrompt />
       <InstallPrompt />
     </QueryClientProvider>
   );
