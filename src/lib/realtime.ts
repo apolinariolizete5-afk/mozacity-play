@@ -1,8 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type RoomPresence = { playerId: string; name: string };
+
+export type LobbyRoom = {
+  id: string;
+  code: string;
+  game: "ludo" | "checkers" | "chess";
+  isPrivate: boolean;
+  bet: number;
+  timer: number;
+  capacity: number;
+  status: string;
+  players: Array<{ id: string; name: string; bot: boolean }>;
+  hostId: string;
+  createdAt: string;
+};
+
+async function getRoom(code: string) {
+  const response = await fetch(`/api/multiplayer?room=${encodeURIComponent(code)}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return (await response.json()) as {
+    room: LobbyRoom;
+    state: unknown;
+    stateUpdatedAt: number;
+  };
+}
 
 export function makeRoomCode(seed = "") {
   const raw = seed.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -18,141 +42,81 @@ export function useRealtimeRoom<T>(
   const [remoteState, setRemoteState] = useState<T | null>(null);
   const [players, setPlayers] = useState<RoomPresence[]>([]);
   const [connected, setConnected] = useState(false);
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const [playerIndex, setPlayerIndex] = useState(0);
+  const lastStateVersion = useRef(0);
 
-  const channelName = useMemo(
-    () => (roomCode ? `mozaplay:room:${roomCode.toUpperCase()}` : ""),
-    [roomCode],
-  );
+  const poll = useCallback(async () => {
+    if (!roomCode) return;
+    const result = await getRoom(roomCode.toUpperCase());
+    if (!result) {
+      setConnected(false);
+      return;
+    }
+    const list = result.room.players.map((p) => ({ playerId: p.id, name: p.name }));
+    const index = result.room.players.findIndex((p) => p.id === player.playerId);
+    setPlayers(list);
+    setPlayerIndex(index >= 0 ? index : 0);
+    setConnected(true);
+
+    if (result.state && result.stateUpdatedAt > lastStateVersion.current) {
+      lastStateVersion.current = result.stateUpdatedAt;
+      setRemoteState(result.state as T);
+    }
+  }, [roomCode, player.playerId]);
 
   useEffect(() => {
-    if (!enabled || !channelName) return;
-    let active = true;
-    const channel: RealtimeChannel = supabase.channel(channelName, {
-      config: { presence: { key: player.playerId } },
-    });
+    if (!enabled || !roomCode) return;
+    void poll();
+    const timer = window.setInterval(() => void poll(), 1000);
+    return () => window.clearInterval(timer);
+  }, [enabled, roomCode, poll]);
 
-    channelRef.current = channel;
-
-    const refreshPresence = () => {
-      const state = channel.presenceState<RoomPresence>();
-      const list = Object.values(state)
-        .flat()
-        .filter((p) => p?.playerId)
-        .slice(0, 4);
-      if (active) setPlayers(list);
-    };
-
-    channel
-      .on("presence", { event: "sync" }, refreshPresence)
-      .on("presence", { event: "join" }, refreshPresence)
-      .on("presence", { event: "leave" }, refreshPresence)
-      .on("broadcast", { event: "game-state" }, ({ payload }) => {
-        if (payload?.game === game && payload?.sender !== player.playerId) {
-          setRemoteState(payload.state as T);
-        }
-      })
-      .on("broadcast", { event: "game-event" }, ({ payload }) => {
-        if (payload?.game === game && payload?.sender !== player.playerId) {
-          setRemoteState(payload.state as T);
-        }
-      })
-      .subscribe(async (status) => {
-        if (!active) return;
-        setConnected(status === "SUBSCRIBED");
-        if (status === "SUBSCRIBED") {
-          await channel.track(player);
-          refreshPresence();
-        }
-      });
-
-    return () => {
-      active = false;
-      channelRef.current = null;
-      void supabase.removeChannel(channel);
-    };
-  }, [channelName, enabled, game, player.playerId, player.name]);
-
-  return {
-    connected,
-    players,
-    broadcastState: (state: T) => {
-      const channel = channelRef.current;
-      if (!channel || !connected) return;
-      void channel.send({
-        type: "broadcast",
-        event: "game-state",
-        payload: { game, sender: player.playerId, state },
+  const broadcastState = useCallback(
+    (state: T) => {
+      if (!roomCode || !connected) return;
+      void fetch("/api/multiplayer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "state",
+          code: roomCode,
+          game,
+          player: { id: player.playerId, name: player.name },
+          state: { type: "state", state },
+        }),
       });
     },
-    remoteState,
-  };
+    [roomCode, connected, game, player.playerId, player.name],
+  );
+
+  return { connected, players, playerIndex, broadcastState, remoteState };
 }
-
-
-import type { Room } from "@/lib/store";
-
-export type LobbyRoom = Pick<
-  Room,
-  "id" | "code" | "game" | "isPrivate" | "bet" | "timer" | "capacity" | "status" | "players" | "hostId" | "createdAt"
->;
 
 export function useRealtimeLobby(localRooms: LobbyRoom[], enabled = true) {
   const [remoteRooms, setRemoteRooms] = useState<LobbyRoom[]>([]);
 
-  const roomsKey = useMemo(
-    () => JSON.stringify(localRooms.filter((room) => room.status !== "CANCELLED")),
-    [localRooms],
-  );
-
   useEffect(() => {
     if (!enabled) return;
     let active = true;
-    const channel = supabase.channel("mozaplay:lobby");
 
-    const publish = (rooms: LobbyRoom[]) => {
-      if (!active) return;
-      for (const room of rooms) {
-        void channel.send({
-          type: "broadcast",
-          event: "room-announcement",
-          payload: { room },
-        });
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/multiplayer", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as { rooms?: LobbyRoom[] };
+        if (active) setRemoteRooms(data.rooms ?? []);
+      } catch {
+        // The local lobby remains usable if the network is temporarily unavailable.
       }
     };
 
-    channel
-      .on("broadcast", { event: "room-announcement" }, ({ payload }) => {
-        const room = payload?.room as LobbyRoom | undefined;
-        if (!room?.code || room.status === "CANCELLED") return;
-        setRemoteRooms((current) => {
-          const next = current.filter((item) => item.code !== room.code);
-          return [...next, room].slice(-50);
-        });
-      })
-      .on("broadcast", { event: "room-query" }, () => {
-        publish(JSON.parse(roomsKey) as LobbyRoom[]);
-      })
-      .subscribe(async (status) => {
-        if (status !== "SUBSCRIBED") return;
-        publish(JSON.parse(roomsKey) as LobbyRoom[]);
-        await channel.send({
-          type: "broadcast",
-          event: "room-query",
-          payload: {},
-        });
-      });
-
-    const timer = window.setInterval(() => {
-      publish(JSON.parse(roomsKey) as LobbyRoom[]);
-    }, 5000);
-
+    void poll();
+    const timer = window.setInterval(() => void poll(), 1500);
     return () => {
       active = false;
       window.clearInterval(timer);
-      void supabase.removeChannel(channel);
     };
-  }, [enabled, roomsKey]);
+  }, [enabled, JSON.stringify(localRooms.map((r) => r.code))]);
 
   const visibleRemoteRooms = remoteRooms.filter(
     (remote) => !localRooms.some((local) => local.code === remote.code),
