@@ -28,10 +28,10 @@ function Profile() {
   const avatars = ["🦁", "🐆", "🦅", "🐘", "🦈", "🐊", "🦒", "🐅"];
 
   return (
-    <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-6 pt-5 sm:px-6">
       <PageHeader title="Perfil" subtitle="O teu desempenho na MozaPlay" />
 
-      <Card className="space-y-3">
+      <Card className="border-border bg-card/95 p-5 shadow-sm space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-secondary text-3xl">
             {app.profile.avatar}
@@ -96,7 +96,7 @@ function Profile() {
         </Card>
       </div>
 
-      <Card className="space-y-2">
+      <Card className="border-border bg-card/95 p-5 shadow-sm space-y-3">
         <p className="font-display font-bold">Por jogo</p>
         {(Object.keys(GAME_META) as GameId[]).map((id) => (
           <div key={id} className="flex items-center justify-between text-sm">
