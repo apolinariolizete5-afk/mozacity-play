@@ -5,7 +5,6 @@ import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import {
   createRoom,
-  fillWithBots,
   findRoomByCode,
   joinRoom,
   notify,
@@ -21,7 +20,7 @@ export const Route = createFileRoute("/rooms")({
       { title: "Salas públicas e privadas — MozaPlay" },
       {
         name: "description",
-        content: "Cria salas com código curto, entra em salas públicas e preenche vagas com bots.",
+        content: "Cria salas gratuitas com código curto e joga com outras pessoas em tempo real.",
       },
       { property: "og:title", content: "Salas públicas e privadas — MozaPlay" },
       { property: "og:description", content: "Salas MozaPlay com código curto tipo MP7K92." },
@@ -45,7 +44,6 @@ function Rooms() {
   const [creating, setCreating] = useState(false);
   const [game, setGame] = useState<GameId>("ludo");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [bet, setBet] = useState(0);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -65,9 +63,9 @@ function Rooms() {
     const room = createRoom({
       game,
       isPrivate,
-      bet,
+      bet: 0,
       timer: app.timer,
-      capacity: game === "ludo" ? 4 : 2,
+      capacity: 2,
     });
     setCreating(false);
     notify({
@@ -140,19 +138,6 @@ function Rooms() {
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            {[0, 25, 50, 100].map((b) => (
-              <button
-                key={b}
-                onClick={() => setBet(b)}
-                className={`h-11 flex-1 rounded-2xl text-xs font-bold ${
-                  bet === b ? "bg-accent text-accent-foreground" : "bg-secondary"
-                }`}
-              >
-                {b === 0 ? "Grátis" : b}
-              </button>
-            ))}
-          </div>
           <label className="flex items-center justify-between rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
             Sala privada
             <input
@@ -188,18 +173,13 @@ function Rooms() {
               <div className="text-right">
                 <Pill tone={STATUS_TONE[room.status]}>{room.status}</Pill>
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  {room.players.length}/{room.capacity} · {room.bet === 0 ? "grátis" : `${room.bet} moedas`}
+                  {room.players.length}/{room.capacity} · grátis
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-1">
-              {room.players.map((p) => (
-                <Pill key={p.id} tone={p.bot ? "muted" : "primary"}>
-                  {p.bot ? <Bot className="h-3 w-3" /> : null}
-                  {p.name}
-                </Pill>
-              ))}
+              {room.players.map((p) => <Pill key={p.id} tone="primary">{p.name}</Pill>)}
             </div>
 
             <div className="flex gap-2">
@@ -208,11 +188,7 @@ function Rooms() {
                   {full ? "Cheia" : "Entrar"}
                 </Button>
               ) : null}
-              {!full ? (
-                <Button variant="outline" className="flex-1" onClick={() => fillWithBots(room.id)}>
-                  <Bot className="h-4 w-4" /> Preencher
-                </Button>
-              ) : null}
+              {!full ? <Button variant="outline" className="flex-1" onClick={() => shareRoom(room)}><Share2 className="h-4 w-4" /> Partilhar</Button> : null}
               <Button className="flex-1" onClick={() => enter(room)}>
                 <Play className="h-4 w-4" /> Jogar
               </Button>
