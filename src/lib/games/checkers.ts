@@ -122,11 +122,3 @@ export const checkersEngine: GameEngine<CheckersState, CheckersMove> = {
   getWinner: (s) => s.winner,
   legalMoves,
 };
-
-export function checkersBotMove(s: CheckersState): CheckersMove | null {
-  const moves = legalMoves(s);
-  if (!moves.length) return null;
-  const caps = moves.filter(isCapture);
-  const pool = caps.length ? caps : moves;
-  return pool[Math.floor(Math.random() * pool.length)]!;
-}
