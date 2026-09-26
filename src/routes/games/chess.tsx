@@ -9,6 +9,7 @@ import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/chess")({
+  ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
     timer: 15,
