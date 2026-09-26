@@ -38,6 +38,7 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || !window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
@@ -63,9 +64,13 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
         }
       };
       peer.ontrack = (event) => {
-        if (remoteAudioRef.current) {
+        if (remoteAudioRef.current && event.streams[0]) {
           remoteAudioRef.current.srcObject = event.streams[0];
-          void remoteAudioRef.current.play().catch(() => {});
+          remoteAudioRef.current.muted = false;
+          remoteAudioRef.current.volume = 1;
+          void remoteAudioRef.current.play().catch(() => {
+            // The audio element will be started again after the next user gesture.
+          });
         }
         setConnected(true);
         setConnecting(false);
@@ -85,6 +90,9 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
     channel
       .on("broadcast", { event: "hello" }, async ({ payload }) => {
         if (payload?.from === userId || !streamRef.current) return;
+        // Only one side creates the offer. This prevents simultaneous-offer glare
+        // when both players press "Ligar" at nearly the same time.
+        if (String(userId) > String(payload.from)) return;
         const peer = peerRef.current ?? createPeer();
         const offer = await peer.createOffer();
         await peer.setLocalDescription(offer);
@@ -100,6 +108,9 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
         await peer.setRemoteDescription(payload.description);
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
+        for (const candidate of pendingCandidatesRef.current.splice(0)) {
+          try { await peer.addIceCandidate(candidate); } catch { /* ignore stale ICE */ }
+        }
         await channel.send({
           type: "broadcast",
           event: "answer",
@@ -113,7 +124,12 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
       .on("broadcast", { event: "ice" }, async ({ payload }) => {
         if (payload?.from === userId || !peerRef.current || !payload?.candidate) return;
         try {
-          await peerRef.current.addIceCandidate(payload.candidate);
+          const peer = peerRef.current;
+          if (!peer.remoteDescription) {
+            pendingCandidatesRef.current.push(payload.candidate);
+          } else {
+            await peer.addIceCandidate(payload.candidate);
+          }
         } catch {
           // The connection may have closed before the candidate arrived.
         }
@@ -126,6 +142,7 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
       channelRef.current = null;
       peerRef.current?.close();
       peerRef.current = null;
+      pendingCandidatesRef.current = [];
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
@@ -137,7 +154,7 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
       setConnecting(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
-      const peer = peerRef.current ?? new RTCPeerConnection(getRtcConfig());
+      const peer = peerRef.current ?? createPeer();
       peerRef.current = peer;
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       await channelRef.current.send({
@@ -156,6 +173,8 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
     streamRef.current = null;
     peerRef.current?.close();
     peerRef.current = null;
+    pendingCandidatesRef.current = [];
+    if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
     setConnected(false);
     setConnecting(false);
   };
@@ -198,7 +217,7 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
           </Button>
         </div>
       )}
-      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+      <audio ref={remoteAudioRef} autoPlay playsInline controls={false} aria-hidden="true" className="sr-only" />
     </div>
   );
 }
