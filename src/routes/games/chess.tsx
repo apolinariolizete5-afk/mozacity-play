@@ -29,7 +29,7 @@ function ChessMatch() {
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
-  const [opponent] = useState(() => botName());
+  const [opponent, setOpponent] = useState(() => botName());
   const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const staked = useRef(false);
@@ -41,6 +41,17 @@ function ChessMatch() {
       placeBet(bet, "chess");
     }
   }, [bet]);
+
+  useEffect(() => {
+    const other = realtime.players.find((p) => p.playerId !== app.profile.id);
+    if (other) setOpponent(other.name);
+  }, [app.profile.id, realtime.players]);
+
+  useEffect(() => {
+    if (!room || !realtime.remoteState) return;
+    const remote = realtime.remoteState as any;
+    if (remote?.type === "state" && remote.state) setState(remote.state);
+  }, [room, realtime.remoteState]);
 
   // per-turn timer
   useEffect(() => {
