@@ -64,17 +64,21 @@ function Play() {
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
       <PageHeader title="Jogar" subtitle="Escolhe o jogo e entra em partida" />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         {(Object.keys(GAME_META) as GameId[]).map((id) => (
           <button
             key={id}
+            type="button"
             onClick={() => setSelected(id)}
-            className={`rounded-2xl border p-3 text-left transition-colors ${
-              selected === id ? "border-primary bg-primary/12" : "border-border bg-card"
-            }`}
+            className={`group overflow-hidden rounded-3xl border text-left transition-all ${selected === id ? "border-primary ring-2 ring-primary/30" : "border-border bg-card"}`}
           >
-            <p className="font-display text-sm font-bold">{GAME_META[id].name}</p>
-            <p className="mt-1 text-[10px] text-muted-foreground">{GAME_META[id].players}</p>
+            <div className="aspect-[1.7] overflow-hidden">
+              <img src={GAME_META[id].cover} alt={`Capa de ${GAME_META[id].name}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            </div>
+            <div className="bg-card p-3">
+              <p className="font-display text-sm font-bold">{GAME_META[id].name}</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">{GAME_META[id].players}</p>
+            </div>
           </button>
         ))}
       </div>
