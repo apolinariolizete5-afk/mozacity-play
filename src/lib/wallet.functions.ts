@@ -146,43 +146,30 @@ export const lockRoomWager = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: result, error } = await context.supabase.rpc("lock_room_wager", {
       _room_code: data.room_code,
-      _user_id: context.user.id,
       _amount_cents: data.bet_cents,
     });
     if (error) throw new Error(error.message);
     return result as { ok: boolean; locked: number; already?: boolean; status: "ready" | "playing" | "finished" | "cancelled" };
   });
 
-/** Liquida a partida multiplayer com a taxa da casa aplicada no pote. */
+/** Reporta o resultado; o servidor liquida quando o perdedor confirma ou ambos concordam. */
 export const settleRoomMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
       .object({
         room_code: z.string().trim().min(4).max(12),
-        winner_id: z.string().uuid(),
-        loser_id: z.string().uuid(),
-        bet_cents: z.number().int().min(0).max(50_000_000),
+        winner_id: z.string().uuid().nullable(),
+        loser_id: z.string().uuid().optional(),
+        bet_cents: z.number().int().min(0).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (data.winner_id === data.loser_id) {
-      throw new Error("invalid_match_participants");
-    }
-
-    // The database function also verifies auth.uid() and idempotency.
-    const { data: result, error } = await context.supabase.rpc("settle_room_match", {
+    const { data: result, error } = await context.supabase.rpc("settle_room_result", {
       _room_code: data.room_code,
-      _winner_id: data.winner_id,
-      _loser_id: data.loser_id,
-      _bet_cents: data.bet_cents,
+      _winner_id: data.winner_id as string,
     });
     if (error) throw new Error(error.message);
-    return result as {
-      ok: boolean;
-      already?: boolean;
-      payout: number;
-      rake: number;
-    };
+    return result as { ok: boolean; already?: boolean; pending?: boolean; payout?: number; rake?: number };
   });

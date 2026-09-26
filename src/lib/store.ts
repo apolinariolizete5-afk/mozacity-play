@@ -247,6 +247,7 @@ export async function setProfile(name: string, avatar: string, phone = "", bio =
   }));
 }
 
+/** Results are written by the server during settlement; this only refreshes local stats. */
 export async function recordMatch(input: {
   game: GameId;
   result: "win" | "loss" | "draw";
@@ -256,63 +257,23 @@ export async function recordMatch(input: {
   bet: number;
   winnerId?: string | null;
   matchId?: string;
+  persistMatch?: boolean;
 }) {
-  const { data } = await supabase.auth.getUser();
-  const userId = data.user?.id;
-  if (!userId) throw new Error("auth_required");
-
-  const playerIds = input.playerIds ?? [userId, ...(input.opponentIds ?? [])].slice(0, 2);
-  const winnerId = input.winnerId ?? (input.result === "win" ? userId : input.result === "draw" ? null : playerIds[1] ?? null);
-
-  const matchRow = {
-    id: input.matchId ?? crypto.randomUUID(),
-    game_type: input.game,
-    player1_id: playerIds[0] ?? userId,
-    player2_id: playerIds[1] ?? null,
-    winner_id: winnerId,
-    status: "finished",
-    created_at: new Date().toISOString(),
-    ended_at: new Date().toISOString(),
-  };
-
-  if (input.persistMatch !== false) {
-    const { error: matchError } = await supabase.from("matches").insert(matchRow);
-    if (matchError) {
-      console.error("[Match]", matchError.message);
-      throw new Error(matchError.message);
-    }
-  }
-
-  const { data: currentStats } = await supabase
-    .from("stats")
-    .select("wins, losses, draws, total_matches")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const nextStats = {
-    user_id: userId,
-    wins: Number(currentStats?.wins ?? 0) + (input.result === "win" ? 1 : 0),
-    losses: Number(currentStats?.losses ?? 0) + (input.result === "loss" ? 1 : 0),
-    draws: Number(currentStats?.draws ?? 0) + (input.result === "draw" ? 1 : 0),
-    total_matches: Number(currentStats?.total_matches ?? 0) + 1,
-  };
-
-  const { error: statsError } = await supabase.from("stats").upsert(nextStats, { onConflict: "user_id" });
-  if (statsError) console.error("[Stats]", statsError.message);
-
-  update((current) => ({
-    ...current,
-    stats: {
-      ...current.stats,
-      total: {
-        wins: nextStats.wins,
-        losses: nextStats.losses,
-        draws: nextStats.draws,
+  update((current) => {
+    const t = current.stats.total;
+    return {
+      ...current,
+      stats: {
+        ...current.stats,
+        total: {
+          wins: t.wins + (input.result === "win" ? 1 : 0),
+          losses: t.losses + (input.result === "loss" ? 1 : 0),
+          draws: t.draws + (input.result === "draw" ? 1 : 0),
+        },
       },
-    },
-  }));
-
-  return { ...matchRow, bet, opponents };
+    };
+  });
+  return input;
 }
 
 export function placeBet(amount: number, _game: GameId) {
