@@ -154,9 +154,9 @@ function LudoMatch() {
       bet_cents: Math.max(0, Math.round(bet * 100)),
     }}).then(() => {
       if (bet > 0 && !wagerLocked.current) {
-        return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } }).then(() => {
+        return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } }).then((result) => {
           wagerLocked.current = true;
-          setEscrowReady(true);
+          setEscrowReady(result.status === "playing");
         });
       }
       setEscrowReady(true);
