@@ -208,6 +208,7 @@ function Rooms() {
           </Card>
         );
       })}
+      </div>
     </main>
   );
 }
