@@ -154,8 +154,35 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
       setConnecting(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
-      const peer = peerRef.current ?? createPeer();
+      const peer = peerRef.current ?? new RTCPeerConnection(getRtcConfig());
       peerRef.current = peer;
+      peer.onicecandidate = (event) => {
+        if (event.candidate && channelRef.current) {
+          void channelRef.current.send({
+            type: "broadcast",
+            event: "ice",
+            payload: { from: userId, candidate: event.candidate },
+          });
+        }
+      };
+      peer.ontrack = (event) => {
+        if (remoteAudioRef.current && event.streams[0]) {
+          remoteAudioRef.current.srcObject = event.streams[0];
+          remoteAudioRef.current.muted = false;
+          remoteAudioRef.current.volume = 1;
+          void remoteAudioRef.current.play().catch(() => {});
+        }
+        setConnected(true);
+        setConnecting(false);
+      };
+      peer.onconnectionstatechange = () => {
+        if (peer.connectionState === "connected") {
+          setConnected(true);
+          setConnecting(false);
+        } else if ([ "failed", "closed", "disconnected" ].includes(peer.connectionState)) {
+          setConnected(false);
+        }
+      };
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       await channelRef.current.send({
         type: "broadcast",
