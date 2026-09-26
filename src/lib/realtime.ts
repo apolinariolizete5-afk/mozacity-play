@@ -257,6 +257,7 @@ export function useRealtimeRoom<T>(
   const lastPresenceRef = useRef<string[]>([]);
   const latestStateRef = useRef<T | null>(null);
   const playerIndexRef = useRef(0);
+  const hadOpponentRef = useRef(false);
   const disconnectTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -290,7 +291,7 @@ export function useRealtimeRoom<T>(
       if (opponentOnline) {
         if (disconnectTimerRef.current) window.clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
-      } else if (nextPlayers.length > 0 && !disconnectTimerRef.current) {
+      } else if (hadOpponentRef.current && nextPlayers.length > 0 && !disconnectTimerRef.current) {
         disconnectTimerRef.current = window.setTimeout(() => {
           if (active) setForfeitWinner(0);
         }, DISCONNECT_GRACE_SECONDS * 1000);
