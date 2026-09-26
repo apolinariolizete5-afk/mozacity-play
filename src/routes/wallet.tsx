@@ -41,8 +41,8 @@ export const Route = createFileRoute("/wallet")({
   component: WalletPage,
 });
 
-type Method = "mpesa" | "mola" | "mcash" | "bank";
-const METHODS: Method[] = ["mpesa", "mola", "mcash", "bank"];
+type Method = "mpesa" | "emola" | "mkesh" | "bank";
+const METHODS: Method[] = ["mpesa", "emola", "mkesh", "bank"];
 
 interface TxRow {
   id: string;
