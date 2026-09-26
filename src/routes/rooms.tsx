@@ -157,7 +157,8 @@ function Rooms() {
 
       {visible.map((room) => {
         const full = room.players.length >= room.capacity;
-        const isRemote = !app.rooms.some((item) => item.id === room.id);\n        const joined = room.players.some((p) => p.id === app.profile.id);
+        const isRemote = !app.rooms.some((item) => item.id === room.id);
+        const joined = room.players.some((p) => p.id === app.profile.id);
         return (
           <Card key={room.id} className="space-y-3">
             <div className="flex items-start justify-between">
