@@ -60,7 +60,7 @@ function Rooms() {
         player: { playerId: app.profile.id, name: app.profile.name },
       });
       setCreating(false);
-      setMessage(`Sala ${room.code} criada com aposta de ${room.bet} MT. A aguardar outro jogador humano.`);
+      setMessage(`Sala ${room.code} criada com aposta de ${room.bet} MT. A aguardar ${room.capacity} jogadores. Partilha o código para eles entrarem.`);
       goToRoom(room);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível criar a sala.");
