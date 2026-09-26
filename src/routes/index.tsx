@@ -94,7 +94,7 @@ function Home() {
           const meta = GAME_META[id];
           return (
             <Link key={id} to="/play" search={{ game: id }}>
-              <Card className="flex items-center gap-3">
+              <Card className="flex items-center gap-3 border-border/90 transition-transform active:scale-[0.99]">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
                   <Icon className="h-7 w-7" />
                 </div>
