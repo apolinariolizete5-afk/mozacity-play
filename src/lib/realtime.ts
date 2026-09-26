@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,7 +17,7 @@ export function useRealtimeRoom<T>(
 ) {
   const [remoteState, setRemoteState] = useState<T | null>(null);
   const [players, setPlayers] = useState<RoomPresence[]>([]);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(false);\n  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const channelName = useMemo(
     () => (roomCode ? `mozaplay:room:${roomCode.toUpperCase()}` : ""),
@@ -73,9 +73,8 @@ export function useRealtimeRoom<T>(
     connected,
     players,
     broadcastState: (state: T) => {
-      if (!channelName) return;
-      const channel = supabase.getChannels().find((c) => c.topic === `realtime:${channelName}`);
-      if (!channel) return;
+      const channel = channelRef.current;
+      if (!channel || !connected) return;
       void channel.send({
         type: "broadcast",
         event: "game-state",
