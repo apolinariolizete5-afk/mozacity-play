@@ -10,7 +10,8 @@ import { useRealtimeRoom } from "@/lib/realtime";
 export const Route = createFileRoute("/games/chess")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,\n    room: String(search["room"] ?? ""),
+    timer: Number(search["timer"] ?? 10) || 10,
+    room: String(search["room"] ?? ""),
   }),
   head: () => ({
     meta: [
@@ -28,12 +29,14 @@ function ChessMatch() {
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
-  const [opponent] = useState(() => botName());\n  const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
+  const [opponent] = useState(() => botName());
+  const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const staked = useRef(false);
 
   useEffect(() => {
-    if (room) return;\n    if (!staked.current) {
+    if (room) return;
+    if (!staked.current) {
       staked.current = true;
       placeBet(bet, "chess");
     }
