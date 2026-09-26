@@ -50,7 +50,7 @@ export interface Stats {
 }
 
 export interface AppState {
-  profile: { id: string; name: string; avatar: string; joinedAt: string };
+  profile: { id: string; name: string; avatar: string; phone: string; joinedAt: string };
   coins: number;
   timer: number;
   stats: Record<GameId | "total", Stats>;
