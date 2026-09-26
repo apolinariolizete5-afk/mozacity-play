@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { formatMzn, METHOD_LABELS } from "@/lib/money";
 import { supabase } from "@/integrations/supabase/client";
@@ -179,21 +179,55 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
           rollover_multiplier: Number(form!.rollover_multiplier),
         },
       }),
-    onSuccess: onRefresh,
+    onSuccess: () => {
+      onRefresh();
+      void overview.refetch();
+      void payouts.refetch();
+    },
   });
 
   const settle = useMutation({
     mutationFn: (v: { id: string; status: "completed" | "failed" }) =>
       settleFn({ data: { payout_id: v.id, status: v.status } }),
-    onSuccess: onRefresh,
+    onSuccess: () => {
+      onRefresh();
+      void overview.refetch();
+      void settings.refetch();
+      void payouts.refetch();
+    },
   });
 
-
   const o = overview.data;
+  const firstError = overview.error ?? settings.error ?? payouts.error;
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
-      <PageHeader title="Administração" subtitle="Banca, taxas e pagamentos" />
+      <div className="flex items-start justify-between gap-3">
+        <PageHeader title="Administração" subtitle="Banca, taxas e pagamentos" />
+        <Button
+          size="sm"
+          variant="secondary"
+          className="mt-1 shrink-0"
+          disabled={overview.isFetching || settings.isFetching || payouts.isFetching}
+          onClick={() => {
+            void overview.refetch();
+            void settings.refetch();
+            void payouts.refetch();
+          }}
+        >
+          <RefreshCw className={overview.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          Atualizar
+        </Button>
+      </div>
+
+      {firstError ? (
+        <Card className="space-y-2 border-destructive/40">
+          <p className="text-sm font-semibold text-destructive">Não foi possível carregar o painel.</p>
+          <p className="break-words text-xs text-muted-foreground">
+            {(firstError as Error).message}
+          </p>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2">
         <Metric label="Total depositado" value={o ? formatMzn(o.deposits_cents) : "—"} />
@@ -300,7 +334,11 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
             <Pill tone="accent">{o.pending_payouts} pendente(s)</Pill>
           ) : null}
         </h3>
-        {(payouts.data ?? []).length === 0 ? (
+        {payouts.isLoading ? (
+          <Card className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> A carregar pedidos...
+          </Card>
+        ) : (payouts.data ?? []).length === 0 ? (
           <Card className="text-sm text-muted-foreground">Sem pedidos.</Card>
         ) : (
           (payouts.data ?? []).map((p) => (
