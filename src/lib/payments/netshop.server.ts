@@ -6,7 +6,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type Method = "mpesa" | "mola" | "mcash" | "bank";
+export type Method = "mpesa" | "emola" | "mkesh" | "bank";
 
 export interface NetshopResult {
   ok: boolean;
@@ -27,8 +27,8 @@ function apiUrl(): string {
 export function walletIdFor(method: Method): string | undefined {
   const map: Record<Method, string> = {
     mpesa: "NETSHOP_WALLET_ID_MPESA",
-    mola: "NETSHOP_WALLET_ID_MOLA",
-    mcash: "NETSHOP_WALLET_ID_MCASH",
+    emola: "NETSHOP_WALLET_ID_EMOLA",
+    mkesh: "NETSHOP_WALLET_ID_MKESH",
     bank: "NETSHOP_WALLET_ID_BANK",
   };
 
@@ -127,7 +127,9 @@ async function callCharge(input: {
     }
 
     const providerRef = String(
-      payload.transaction_id ??
+      payload.transactionID ??
+        (payload.provider as Record<string, unknown> | undefined)?.transactionID ??
+        payload.transaction_id ??
         payload.id ??
         payload.reference ??
         "",
