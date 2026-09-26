@@ -14,6 +14,17 @@ export interface AdminOverview {
   pending_payouts_cents: number;
 }
 
+export interface AdminUser {
+  id: string;
+  display_name: string;
+  phone: string | null;
+  email: string | null;
+  is_blocked: boolean;
+  created_at: string;
+  last_seen_at: string | null;
+  balance_cents: number;
+}
+
 export const claimAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
@@ -32,6 +43,28 @@ export const getAdminOverview = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase.rpc("admin_overview");
     if (error) throw new Error(error.message);
     return data as unknown as AdminOverview;
+  });
+
+export const getAdminUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc("admin_list_users");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as unknown as AdminUser[];
+  });
+
+export const setAdminUserBlocked = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ user_id: z.string().uuid(), blocked: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("admin_set_user_blocked", {
+      _user_id: data.user_id,
+      _blocked: data.blocked,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; user_id: string; is_blocked: boolean };
   });
 
 export const updateSettings = createServerFn({ method: "POST" })
@@ -85,4 +118,3 @@ export const settlePayout = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-
