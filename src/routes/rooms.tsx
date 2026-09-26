@@ -98,7 +98,7 @@ function Rooms() {
   const visible = [...app.rooms.filter((r) => r.status !== "CANCELLED"), ...remoteRooms];
 
   return (
-    <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-6 pt-5 sm:px-6">
       <PageHeader
         title="Salas"
         subtitle="Públicas, privadas e por código"
@@ -109,7 +109,7 @@ function Rooms() {
         }
       />
 
-      <Card className="flex gap-2 p-3">
+      <Card className="flex gap-2 rounded-3xl border border-border bg-card/95 p-3 shadow-sm">
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
