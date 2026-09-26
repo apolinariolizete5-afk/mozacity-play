@@ -142,13 +142,33 @@ begin
     raise exception 'cannot_block_self';
   end if;
 
-  if not exists (select 1 from public.profiles where id = _user_id) then
+  if not exists (
+    select 1 from auth.users
+    where id = _user_id
+      and coalesce((raw_user_meta_data->>'is_anonymous')::boolean, false) = false
+  ) then
     raise exception 'user_not_found';
   end if;
 
+  -- A real Auth account may exist before its profile row is created.
+  insert into public.profiles (id, display_name, phone, is_blocked, last_seen_at)
+  select
+    u.id,
+    coalesce(
+      nullif(trim(u.raw_user_meta_data->>'display_name'), ''),
+      nullif(trim(u.raw_user_meta_data->>'name'), ''),
+      nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
+      'Jogador'
+    ),
+    nullif(u.phone, ''),
+    false,
+    null
+  from auth.users u
+  where u.id = _user_id
+  on conflict (id) do nothing;
+
   update public.profiles
-     set is_blocked = _blocked,
-         last_seen_at = case when _blocked then last_seen_at else now() end
+     set is_blocked = _blocked
    where id = _user_id;
 
   return jsonb_build_object('ok', true, 'user_id', _user_id, 'is_blocked', _blocked);
