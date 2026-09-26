@@ -44,6 +44,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_row public.multiplayer_matches;
+  v_code text := upper(trim(_room_code));
 BEGIN
   IF auth.uid() IS NULL
      OR (auth.uid() <> _player_one_id AND auth.uid() <> _player_two_id) THEN
@@ -62,36 +63,42 @@ BEGIN
     RAISE EXCEPTION 'invalid_game';
   END IF;
 
+  SELECT * INTO v_row
+  FROM public.multiplayer_matches
+  WHERE room_code = v_code
+  FOR UPDATE;
+
+  IF FOUND THEN
+    IF v_row.player_one_id <> _player_one_id
+       OR v_row.player_two_id <> _player_two_id
+       OR v_row.game <> _game
+       OR v_row.bet_cents <> _bet_cents THEN
+      RAISE EXCEPTION 'room_match_mismatch';
+    END IF;
+
+    RETURN jsonb_build_object(
+      'ok', true,
+      'match_id', v_row.id,
+      'bet_cents', v_row.bet_cents,
+      'status', v_row.status,
+      'already', true
+    );
+  END IF;
+
   INSERT INTO public.multiplayer_matches (
     room_code, game, player_one_id, player_two_id, bet_cents
   )
   VALUES (
-    upper(trim(_room_code)), _game, _player_one_id, _player_two_id, _bet_cents
+    v_code, _game, _player_one_id, _player_two_id, _bet_cents
   )
-  ON CONFLICT (room_code) DO UPDATE
-    SET game = EXCLUDED.game,
-        player_one_id = EXCLUDED.player_one_id,
-        player_two_id = EXCLUDED.player_two_id,
-        bet_cents = EXCLUDED.bet_cents
-  WHERE public.multiplayer_matches.status IN ('ready','playing')
   RETURNING * INTO v_row;
-
-  IF NOT FOUND THEN
-    SELECT * INTO v_row
-    FROM public.multiplayer_matches
-    WHERE room_code = upper(trim(_room_code));
-  END IF;
-
-  IF v_row.player_one_id <> _player_one_id
-     AND v_row.player_two_id <> _player_one_id THEN
-    RAISE EXCEPTION 'room_players_mismatch';
-  END IF;
 
   RETURN jsonb_build_object(
     'ok', true,
     'match_id', v_row.id,
     'bet_cents', v_row.bet_cents,
-    'status', v_row.status
+    'status', v_row.status,
+    'already', false
   );
 END;
 $$;
