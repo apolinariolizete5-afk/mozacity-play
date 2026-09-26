@@ -328,7 +328,7 @@ function LudoMatch() {
         {result && (
           <ResultOverlay
             result={result}
-            coins={result === "win" ? bet * 2 : 0}
+            coins={0}
             onRematch={() => {
               settled.current = false;
               setState(ludoEngine.createGame({ players: 2 }));
