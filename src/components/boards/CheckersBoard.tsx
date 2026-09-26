@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { legalMoves, type CheckersMove, type CheckersState } from "@/lib/games/checkers";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ export function CheckersBoard({
   const [from, setFrom] = useState<number | null>(null);
   const moves = useMemo(() => legalMoves(state), [state]);
   const targets = from === null ? [] : moves.filter((m) => m.from === from).map((m) => m.to);
+  const lastMove = state.lastMove;
 
   const click = (square: number) => {
     if (disabled) return;
@@ -28,37 +30,63 @@ export function CheckersBoard({
   };
 
   return (
-    <div className="grid aspect-square w-full grid-cols-8 overflow-hidden rounded-2xl border-4 border-border/70">
-      {state.board.map((piece, i) => {
-        const dark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
-        return (
-          <button
-            key={i}
-            onClick={() => click(i)}
-            className={cn(
-              "relative flex items-center justify-center p-[10%]",
-              dark ? "bg-board-dark" : "bg-board-light",
-              from === i && "bg-accent/70",
-            )}
-          >
-            {piece ? (
-              <span
-                className={cn(
-                  "flex h-full w-full items-center justify-center rounded-full text-[3.2vw] font-black shadow-md sm:text-base",
-                  piece.p === 0
-                    ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900"
-                    : "bg-gradient-to-br from-neutral-700 to-neutral-950 text-amber-300",
-                )}
-              >
-                {piece.king ? "♛" : ""}
-              </span>
-            ) : null}
-            {targets.includes(i) ? (
-              <span className="absolute h-1/3 w-1/3 rounded-full bg-accent/80" />
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <style>{`
+        @keyframes checkers-piece-arrive {
+          from {
+            transform: translate(calc(var(--move-x) * 100%), calc(var(--move-y) * 100%)) scale(.78);
+            opacity: .45;
+          }
+          65% { transform: translate(0, 0) scale(1.05); opacity: 1; }
+          to { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+        .checkers-piece-arrive { animation: checkers-piece-arrive 260ms cubic-bezier(.2,.8,.2,1); }
+      `}</style>
+
+      <div className="grid aspect-square w-full grid-cols-8 overflow-hidden rounded-2xl border-4 border-border/70">
+        {state.board.map((piece, i) => {
+          const dark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
+          const arriving = Boolean(piece && lastMove?.to === i);
+          const moveStyle: CSSProperties | undefined = arriving
+            ? {
+                "--move-x": String(Math.floor(lastMove!.from % 8) - Math.floor(lastMove!.to % 8)),
+                "--move-y": String(Math.floor(lastMove!.from / 8) - Math.floor(lastMove!.to / 8)),
+              } as CSSProperties
+            : undefined;
+
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => click(i)}
+              className={cn(
+                "relative flex items-center justify-center p-[10%] transition-colors",
+                dark ? "bg-board-dark" : "bg-board-light",
+                from === i && "bg-accent/70",
+              )}
+            >
+              {piece ? (
+                <span
+                  key={`piece-${i}-${piece.p}-${piece.king ? "k" : "m"}-${lastMove?.from ?? "n"}-${lastMove?.to ?? "n"}`}
+                  style={moveStyle}
+                  className={cn(
+                    "flex h-full w-full items-center justify-center rounded-full text-[3.2vw] font-black shadow-md sm:text-base",
+                    piece.p === 0
+                      ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900"
+                      : "bg-gradient-to-br from-neutral-700 to-neutral-950 text-amber-300",
+                    arriving && "checkers-piece-arrive",
+                  )}
+                >
+                  {piece.king ? "♛" : ""}
+                </span>
+              ) : null}
+              {targets.includes(i) ? (
+                <span className="absolute h-1/3 w-1/3 rounded-full bg-accent/80 animate-pulse" />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
