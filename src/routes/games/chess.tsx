@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { ChessBoard } from "@/components/boards/ChessBoard";
 import { Card, Pill } from "@/components/ui/primitives";
-import { chessBotMove, chessEngine, inCheck, legalMoves, type ChessMove } from "@/lib/games/chess";
-import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+import { chessEngine, inCheck, type ChessMove } from "@/lib/games/chess";
+import { placeBet, recordMatch, useApp } from "@/lib/store";
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/chess")({
@@ -29,7 +29,7 @@ function ChessMatch() {
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
-  const [opponent, setOpponent] = useState(() => botName());
+  const [opponent, setOpponent] = useState("A aguardar adversário...");
   const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const staked = useRef(false);
@@ -61,22 +61,6 @@ function ChessMatch() {
     return () => clearInterval(id);
   }, [state.turn, state.over, timer, state.history.length]);
 
-  // timeout → random legal move
-  useEffect(() => {
-    if (room || seconds > 0 || state.over || state.turn !== (realtime.playerIndex === 0 ? "w" : "b")) return;
-    const moves = legalMoves(state);
-    if (moves.length) setState((s) => chessEngine.applyMove(s, moves[0]!));
-  }, [seconds, state]);
-
-  // bot
-  useEffect(() => {
-    if (room || state.over || state.turn !== "b") return;
-    const id = setTimeout(() => {
-      const move = chessBotMove(state);
-      if (move) setState((s) => chessEngine.applyMove(s, move));
-    }, 700);
-    return () => clearTimeout(id);
-  }, [state]);
 
   useEffect(() => {
     if (!state.over || settled.current) return;
@@ -84,13 +68,14 @@ function ChessMatch() {
     const winner = chessEngine.getWinner(state);
     recordMatch({
       game: "chess",
-      result: state.draw ? "draw" : winner === 0 ? "win" : "loss",
+      result: state.draw ? "draw" : winner === realtime.playerIndex ? "win" : "loss",
       opponents: [opponent],
       bet,
     });
   }, [state, bet, opponent]);
 
-  const result = state.over ? (state.draw ? "draw" : state.winner === 0 ? "win" : "loss") : null;
+  const result = state.over ? (state.draw ? "draw" : state.winner === realtime.playerIndex ? "win" : "loss") : null;
+  const ready = Boolean(room && realtime.players.length >= 2);
 
   return (
     <>
@@ -99,13 +84,15 @@ function ChessMatch() {
         seconds={seconds}
         limit={timer}
         seats={[
-          { name: app.profile.name, avatar: app.profile.avatar, bot: false, active: state.turn === (realtime.playerIndex === 0 ? "w" : "b"), label: "Brancas" },
-          { name: opponent, avatar: "🤖", bot: true, active: state.turn === "b", label: "Negras" },
+          { name: app.profile.name, avatar: app.profile.avatar, active: state.turn === (realtime.playerIndex === 0 ? "w" : "b"), label: "Brancas" },
+          { name: opponent, avatar: "🙂", active: state.turn === "b", label: "Negras" },
         ]}
         statusText={
           state.over
             ? "Partida terminada"
-            : state.turn === (realtime.playerIndex === 0 ? "w" : "b")
+            : !ready
+              ? "A aguardar outro jogador..." 
+              : state.turn === (realtime.playerIndex === 0 ? "w" : "b")
               ? inCheck(state, realtime.playerIndex === 0 ? "w" : "b")
                 ? "Estás em xeque!"
                 : "A tua vez"
@@ -118,11 +105,11 @@ function ChessMatch() {
           </Card>
         }
       >
-        <ChessBoard
+        {ready ? <ChessBoard
           state={state}
           disabled={state.turn !== (realtime.playerIndex === 0 ? "w" : "b") || state.over}
           onMove={(m: ChessMove) => setState((s) => { const next = chessEngine.applyMove(s, m); if (room) realtime.broadcastState({ type: "state", state: next }); return next; })}
-        />
+        /> : <Card className="p-8 text-center"><p className="font-bold">Sala online</p><p className="mt-2 text-sm text-muted-foreground">Código: {room || "—"}. A aguardar um jogador real para começar.</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
       </MatchShell>
       {result ? (
         <ResultOverlay
