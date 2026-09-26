@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const METHODS = ["mpesa", "mola", "mcash", "bank"] as const;
+const METHODS = ["mpesa", "emola", "mkesh", "bank"] as const;
 
 export interface WalletSummary {
   balance_cents: number;
