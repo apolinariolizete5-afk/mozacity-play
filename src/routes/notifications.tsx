@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff, CheckCircle2, Settings2 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { useApp } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 import {
   disablePushNotifications,
   enablePushNotifications,
@@ -20,6 +21,7 @@ function NotificationsPage() {
   const [pushState, setPushState] = useState<PushState>("unsupported");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
 
   const refreshState = async () => {
     try {
@@ -77,6 +79,27 @@ function NotificationsPage() {
     }
   };
 
+  const sendTestNotification = async () => {
+    if (!app.profile.id) {
+      setMessage("Entra na tua conta para testar as notificações.");
+      return;
+    }
+
+    setTestBusy(true);
+    setMessage("");
+
+    try {
+      const { error } = await supabase.rpc("send_test_notification");
+      if (error) throw error;
+      setMessage("Aviso de teste enviado. Deves vê-lo nesta página e, com as notificações ativas, também como aviso do dispositivo.");
+    } catch (error) {
+      console.error("[Notifications] Teste:", error);
+      setMessage("Não foi possível enviar o aviso de teste. Confirma se a migração do Lovable Cloud já foi aplicada.");
+    } finally {
+      setTestBusy(false);
+    }
+  };
+
   const title = pushState === "on" ? "Notificações ativadas" : "Notificações desativadas";
 
   const description =
@@ -123,6 +146,23 @@ function NotificationsPage() {
             <span>{message}</span>
           </p>
         )}
+      </Card>
+
+      <Card className="space-y-4 border-primary/20">
+        <div>
+          <p className="font-display font-extrabold">Teste de notificações</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Envia um aviso real para a tua própria conta. Ele entra na lista de Avisos e o Realtime pode mostrá-lo imediatamente.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void sendTestNotification()}
+          disabled={testBusy || !app.profile.id}
+          className="w-full rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-extrabold text-primary disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {testBusy ? "A enviar..." : "Enviar aviso de teste"}
+        </button>
       </Card>
 
       <Card className="space-y-2 text-xs text-muted-foreground">
