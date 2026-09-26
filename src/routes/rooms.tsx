@@ -155,6 +155,15 @@ function Rooms() {
         </Card>
       ) : null}
 
+      <div className="flex items-end justify-between gap-3 pt-1">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Partidas</p>
+          <h2 className="text-lg font-bold">Salas disponíveis</h2>
+        </div>
+        <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{visible.length} salas</span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
       {visible.map((room) => {
         const full = room.players.length >= room.capacity;
         const isRemote = !app.rooms.some((item) => item.id === room.id);
