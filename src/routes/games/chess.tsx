@@ -49,7 +49,7 @@ function ChessMatch() {
 
   // timeout → random legal move
   useEffect(() => {
-    if (room || seconds > 0 || state.over || state.turn !== "w") return;
+    if (room || seconds > 0 || state.over || state.turn !== (realtime.playerIndex === 0 ? "w" : "b")) return;
     const moves = legalMoves(state);
     if (moves.length) setState((s) => chessEngine.applyMove(s, moves[0]!));
   }, [seconds, state]);
@@ -85,14 +85,14 @@ function ChessMatch() {
         seconds={seconds}
         limit={timer}
         seats={[
-          { name: app.profile.name, avatar: app.profile.avatar, bot: false, active: state.turn === "w", label: "Brancas" },
+          { name: app.profile.name, avatar: app.profile.avatar, bot: false, active: state.turn === (realtime.playerIndex === 0 ? "w" : "b"), label: "Brancas" },
           { name: opponent, avatar: "🤖", bot: true, active: state.turn === "b", label: "Negras" },
         ]}
         statusText={
           state.over
             ? "Partida terminada"
-            : state.turn === "w"
-              ? inCheck(state, "w")
+            : state.turn === (realtime.playerIndex === 0 ? "w" : "b")
+              ? inCheck(state, realtime.playerIndex === 0 ? "w" : "b")
                 ? "Estás em xeque!"
                 : "A tua vez"
               : "O adversário pensa..."
@@ -106,7 +106,7 @@ function ChessMatch() {
       >
         <ChessBoard
           state={state}
-          disabled={state.turn !== "w" || state.over}
+          disabled={state.turn !== (realtime.playerIndex === 0 ? "w" : "b") || state.over}
           onMove={(m: ChessMove) => setState((s) => { const next = chessEngine.applyMove(s, m); if (room) realtime.broadcastState({ type: "state", state: next }); return next; })}
         />
       </MatchShell>
