@@ -385,7 +385,7 @@ function LudoMatch() {
             ? `A aguardar ${Math.max(0, players - realtime.players.length)} jogador(es) para completar a sala...` 
             : state.over
             ? "Partida terminada!"
-            : state.turn === 0
+            : state.turn === realtime.playerIndex
               ? state.dice == null
                 ? "👉 É a tua vez! Toca no teu dado para rolar."
                 : "👉 Escolhe o teu peão disponível para mover."
