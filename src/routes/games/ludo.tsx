@@ -261,6 +261,14 @@ function LudoMatch() {
 
   return (
     <div className="ludo-page min-h-dvh bg-background p-2 sm:p-4">
+    <div className="mx-auto mb-3 flex max-w-lg items-center gap-3 rounded-3xl border border-border bg-card/95 p-2.5 shadow-sm">
+      <img src="/covers/ludo.svg" alt="Ludo" className="h-12 w-20 rounded-2xl object-cover" />
+      <div className="min-w-0">
+        <p className="text-sm font-bold">Ludo</p>
+        <p className="text-xs text-muted-foreground">Corrida de dados · 2–4 jogadores</p>
+      </div>
+      <div className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">Online</div>
+    </div>
       <div className="ludo-match-shell max-w-lg mx-auto">
         <div className="flex items-center justify-between py-1 px-2">
           <Pill tone="primary" className="text-xs">
