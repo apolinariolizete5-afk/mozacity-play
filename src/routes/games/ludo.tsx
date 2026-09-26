@@ -5,7 +5,7 @@ import { ResultOverlay } from "@/components/MatchShell";
 import { VoiceChat } from "@/components/VoiceChat";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
-import { LUDO_NAMES, ludoEngine, ludoTimeout, type LudoMove } from "@/lib/games/ludo";
+import { ludoEngine, ludoTimeout, type LudoMove, type LudoState } from "@/lib/games/ludo";
 import { recordMatch, useApp } from "@/lib/store";
 import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { cn } from "@/lib/utils";
@@ -108,7 +108,7 @@ function LudoMatch() {
   const [rolling, setRolling] = useState(false);
   const [moving, setMoving] = useState(false);
   const movingRef = useRef(false);
-  const pendingRemoteState = useRef<any | null>(null);
+  const pendingRemoteState = useRef<LudoState | null>(null);
   const [pendingMoveToken, setPendingMoveToken] = useState<number | null>(null);
   const [dicePreview, setDicePreview] = useState(1);
   const [turnSequence, setTurnSequence] = useState(0);
