@@ -41,7 +41,8 @@ function CheckersMatch() {
   const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
-  const [moveCount, setMoveCount] = useState(0);\n  const [payoutCents, setPayoutCents] = useState(0);
+  const [moveCount, setMoveCount] = useState(0);
+  const [payoutCents, setPayoutCents] = useState(0);
   const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
   const playersReady = Boolean(room && realtime.players.length >= 2);
