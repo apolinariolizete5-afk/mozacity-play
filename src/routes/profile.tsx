@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Coins, History, Bell } from "lucide-react";
+import { Coins, History, Bell, Phone, Save, ShieldCheck } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { setProfile, setTimerPreference, useApp, winRate } from "@/lib/store";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/profile")({
 
 function Profile() {
   const app = useApp();
-  const [name, setName] = useState(app.profile.name);
+  const [name, setName] = useState(app.profile.name);\n  const [phone, setPhone] = useState(app.profile.phone);\n  const [saved, setSaved] = useState(false);
   const avatars = ["🦁", "🐆", "🦅", "🐘", "🦈", "🐊", "🦒", "🐅"];
 
   return (
@@ -38,7 +38,7 @@ function Profile() {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onBlur={() => setProfile(name || "Jogador", app.profile.avatar)}
+              onBlur={() => setProfile(name || "Jogador", app.profile.avatar, phone)}
               className="w-full rounded-2xl bg-secondary px-4 py-2 font-display text-lg font-bold outline-none"
             />
             <p className="mt-1 text-xs text-muted-foreground">
@@ -50,7 +50,7 @@ function Profile() {
           {avatars.map((a) => (
             <button
               key={a}
-              onClick={() => setProfile(name || "Jogador", a)}
+              onClick={() => setProfile(name || "Jogador", a, phone)}
               className={`h-10 w-10 rounded-2xl text-xl ${
                 app.profile.avatar === a ? "bg-primary/25 ring-1 ring-primary" : "bg-secondary"
               }`}
@@ -61,7 +61,7 @@ function Profile() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-2">
+      <Card className="space-y-3">\n        <div className="flex items-center gap-2">\n          <Phone className="h-4 w-4 text-primary" />\n          <div><p className="font-display font-bold">Contacto</p><p className="text-xs text-muted-foreground">Usado para identificação e contacto da conta.</p></div>\n        </div>\n        <input\n          type="tel"\n          value={phone}\n          onChange={(e) => { setPhone(e.target.value); setSaved(false); }}\n          placeholder="+258 84 000 0000"\n          className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"\n        />\n        <Button size="sm" className="w-full" onClick={() => { setProfile(name || "Jogador", app.profile.avatar, phone.trim()); setSaved(true); }}>\n          {saved ? <ShieldCheck className="h-4 w-4" /> : <Save className="h-4 w-4" />}\n          {saved ? "Contacto guardado" : "Guardar alterações"}\n        </Button>\n      </Card>\n\n      <div className="grid grid-cols-3 gap-2">
         <Card className="text-center">
           <p className="font-display text-2xl font-extrabold">{app.stats.total.wins}</p>
           <p className="text-[11px] text-muted-foreground">Vitórias</p>
