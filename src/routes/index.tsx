@@ -69,24 +69,25 @@ function Home() {
             </Link>
           </div>
         </div>
-        <div className="hidden min-h-[330px] bg-background/60 p-5 lg:block">
-          <div className="grid h-full grid-rows-[1fr_auto] gap-4">
-            <div className="relative overflow-hidden rounded-[1.5rem]">
-              <img src={GAME_META.ludo.cover} alt="Ludo" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-              <div className="absolute bottom-5 left-5">
-                <p className="text-xs font-bold uppercase tracking-widest text-white/70">Destaque</p>
-                <p className="mt-1 font-display text-2xl font-black text-white">Ludo Clássico</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(GAME_META) as GameId[]).map((id) => (
-                <Link key={id} to="/play" search={{ game: id }} className="rounded-2xl border border-border bg-card p-3">
-                  <p className="text-xs font-extrabold">{GAME_META[id].name}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">{GAME_META[id].players}</p>
+        <div className="hidden min-h-[330px] bg-background/60 p-5 lg:flex lg:flex-col lg:justify-center">
+          <div className="mb-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary">Jogos</p>
+            <p className="mt-1 font-display text-xl font-black">Escolhe o teu desafio</p>
+          </div>
+          <div className="space-y-2">
+            {(Object.keys(GAME_META) as GameId[]).map((id) => {
+              const Icon = ICONS[id];
+              return (
+                <Link key={id} to="/play" search={{ game: id }} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-primary/40">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-extrabold">{GAME_META[id].name}</span>
+                    <span className="block text-[10px] text-muted-foreground">{GAME_META[id].players}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
