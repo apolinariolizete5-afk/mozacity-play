@@ -53,9 +53,10 @@ async function callCharge(input: {
   msisdn: string;
   amountCents: number;
   reference: string;
+  walletEnv?: string;
 }): Promise<NetshopResult> {
   const key = env("NETSHOP_API_KEY");
-  const walletId = providerWalletEnv ? env(providerWalletEnv) : walletIdFor(input.method);
+  const walletId = input.walletEnv ? env(input.walletEnv) : walletIdFor(input.method as Method);
 
   if (!key) {
     return {
@@ -195,6 +196,7 @@ const raw = input.msisdn.trim().replace(/[\\s()-]/g, "");
     ...input,
     method: providerMethod,
     msisdn,
+    ...(providerWalletEnv ? { walletEnv: providerWalletEnv } : {}),
   });
 }
 
