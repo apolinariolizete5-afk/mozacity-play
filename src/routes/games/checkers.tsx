@@ -79,7 +79,7 @@ function CheckersMatch() {
       opponents: [opponent],
       opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
       playerIds: realtime.players.map((p) => p.playerId),
-      winnerId: realtime.players[state.winner ?? 0]?.playerId ?? null,
+      winnerId: realtime.players[realtime.forfeitWinner ?? state.winner ?? 0]?.playerId ?? null,
       bet,
     });
   }, [state, bet, opponent]);
