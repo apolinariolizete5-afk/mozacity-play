@@ -120,7 +120,11 @@ function CheckersMatch() {
         winner_id: winnerId,
         loser_id: loserId,
         bet_cents: Math.round(bet * 100),
-      }}).catch((error) => console.error("[MozaPlay] Falha na liquidação:", error));
+      }}).then((settlement) => {
+        if (winnerId === app.profile.id && typeof settlement.payout === "number") {
+          setPayoutCents(settlement.payout);
+        }
+      }).catch((error) => console.error("[MozaPlay] Falha na liquidação:", error));
     }
     void recordMatch({
       game: "checkers",
