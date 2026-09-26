@@ -29,7 +29,7 @@ export const getWalletSummary = createServerFn({ method: "GET" })
 /** Inicia um depósito real através do gateway configurado. */
 export const startDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         amount_cents: z.number().int().min(5000).max(50_000_000),
@@ -72,7 +72,7 @@ export const startDeposit = createServerFn({ method: "POST" })
 
 export const quoteWithdrawal = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ amount_cents: z.number().int().min(0) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -86,7 +86,7 @@ export const quoteWithdrawal = createServerFn({ method: "GET" })
 
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         amount_cents: z.number().int().min(5000),
@@ -108,7 +108,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
 /** Autoridade do servidor sobre a aposta: debita o saldo e abre a partida. */
 export const startMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         game: z.enum(["ludo", "checkers", "chess"]),
@@ -128,7 +128,7 @@ export const startMatch = createServerFn({ method: "POST" })
 /** Liquida a partida: a comissão da casa sai do pote antes de creditar o vencedor. */
 export const finishMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         match_id: z.string().uuid(),
