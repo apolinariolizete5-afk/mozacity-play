@@ -28,8 +28,8 @@ function apiUrl(): string {
 export function walletIdFor(method: Method): string | undefined {
   const map: Record<Method, string> = {
     mpesa: "NETSHOP_WALLET_ID_MPESA",
-    mola: "NETSHOP_WALLET_ID_MOLA",
-    mcash: "NETSHOP_WALLET_ID_MCASH",
+    mola: "NETSHOP_WALLET_ID_EMOLA",
+    mcash: "NETSHOP_WALLET_ID_MKESH",
     bank: "NETSHOP_WALLET_ID_BANK",
   };
 
@@ -182,13 +182,13 @@ export function requestDeposit(input: {
 }) {
   const providerMethod: ProviderMethod = input.method === "mola" ? "emola" : input.method === "mcash" ? "mkesh" : input.method;
   const providerWalletEnv = input.method === "mola" ? "NETSHOP_WALLET_ID_EMOLA" : input.method === "mcash" ? "NETSHOP_WALLET_ID_MKESH" : undefined;
-const raw = input.msisdn.trim().replace(/[\\s()-]/g, "");
+const raw = input.msisdn.trim().replace(/[\s()-]/g, "");
   const msisdn =
     raw.startsWith("+258")
       ? raw
       : raw.startsWith("258")
         ? `+${raw}`
-        : /^8\\d{8}$/.test(raw)
+        : /^8\d{8}$/.test(raw)
           ? `+258${raw}`
           : raw;
 
