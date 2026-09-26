@@ -76,7 +76,7 @@ function ChessMatch() {
       opponents: [opponent],
       opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
       playerIds: realtime.players.map((p) => p.playerId),
-      winnerId: winner === null ? null : realtime.players[winner]?.playerId ?? null,
+      winnerId: realtime.forfeitWinner !== null ? realtime.players[realtime.forfeitWinner]?.playerId ?? null : winner === null ? null : realtime.players[winner]?.playerId ?? null,
       bet,
     });
   }, [state, bet, opponent]);
