@@ -850,6 +850,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      send_test_notification: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       register_room_match: {
         Args: {
           _bet_cents: number
