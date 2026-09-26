@@ -178,7 +178,20 @@ export function requestDeposit(input: {
   amountCents: number;
   reference: string;
 }) {
-  return callCharge(input);
+  const raw = input.msisdn.trim().replace(/[\\s()-]/g, "");
+  const msisdn =
+    raw.startsWith("+258")
+      ? raw
+      : raw.startsWith("258")
+        ? `+${raw}`
+        : /^8\\d{8}$/.test(raw)
+          ? `+258${raw}`
+          : raw;
+
+  return callCharge({
+    ...input,
+    msisdn,
+  });
 }
 
 /**
