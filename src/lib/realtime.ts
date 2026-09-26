@@ -16,6 +16,7 @@ export type RoomPresence = {
   hostId?: string;
   createdAt?: string;
   searching?: boolean;
+  bet?: number;
 };
 
 export type LobbyRoom = {
@@ -82,7 +83,7 @@ function presenceToRooms(state: Record<string, unknown[]>) {
         code: entry.roomCode,
         game: entry.game,
         isPrivate: Boolean(entry.isPrivate),
-        bet: 0,
+        bet: Number(entry.bet ?? 20),
         timer: TURN_SECONDS,
         capacity: Math.min(entry.game === "ludo" ? 4 : 2, Math.max(2, entry.capacity ?? 2)),
         status: "WAITING",
@@ -103,16 +104,18 @@ export async function createRoom(input: {
   player: RoomPresence;
   isPrivate?: boolean;
   capacity?: number;
+  bet?: number;
 }) {
   const channel = getLobbyChannel();
   await ensureSubscribed(channel);
   const code = makeRoomCode();
+  const bet = Math.max(20, Math.round(Number(input.bet ?? 20)));
   const room: LobbyRoom = {
     id: code,
     code,
     game: input.game,
     isPrivate: Boolean(input.isPrivate),
-    bet: 0,
+    bet,
     timer: TURN_SECONDS,
     capacity: Math.min(input.game === "ludo" ? 4 : 2, Math.max(2, input.capacity ?? 2)),
     status: "WAITING",
@@ -128,6 +131,7 @@ export async function createRoom(input: {
     capacity: room.capacity,
     hostId: room.hostId,
     createdAt: room.createdAt,
+    bet,
   });
   return room;
 }
@@ -150,6 +154,7 @@ export async function joinRoom(code: string, player: RoomPresence) {
     capacity: room.capacity,
     hostId: room.hostId,
     createdAt: room.createdAt,
+    bet: room.bet,
   });
   return { ...room, players: [...room.players, { id: player.playerId, name: player.name }] };
 }
@@ -157,6 +162,7 @@ export async function joinRoom(code: string, player: RoomPresence) {
 export async function quickMatch(input: {
   game: GameId;
   player: RoomPresence;
+  bet?: number;
   signal?: AbortSignal;
 }) {
   const queue = supabase.channel(`mozaplay:matchmaking:${input.game}`, {
@@ -195,6 +201,7 @@ export async function quickMatch(input: {
     ...input.player,
     game: input.game,
     searching: true,
+    bet: Math.max(20, Math.round(Number(input.bet ?? 20))),
     createdAt: new Date().toISOString(),
   };
 
@@ -228,7 +235,7 @@ export async function quickMatch(input: {
       code,
       game: input.game,
       isPrivate: false,
-      bet: 0,
+      bet: searchingPlayer.bet ?? 20,
       timer: TURN_SECONDS,
       capacity: 2,
       status: "READY",
@@ -247,6 +254,7 @@ export async function quickMatch(input: {
         .filter((entry) =>
           entry.game === input.game &&
           entry.searching === true &&
+          Number(entry.bet ?? 20) === searchingPlayer.bet &&
           Boolean(entry.playerId),
         );
 
@@ -327,7 +335,12 @@ export function useRealtimeLobby(player?: RoomPresence, enabled = true) {
 
   useEffect(() => {
     if (!enabled || !playerId) return;
-    const channel = getLobbyChannel();
+    const channel = supabase.channel("mozaplay:lobby", {
+      config: {
+        presence: {},
+        broadcast: { self: false, ack: true },
+      },
+    });
     let active = true;
 
     const sync = () => {
@@ -337,6 +350,10 @@ export function useRealtimeLobby(player?: RoomPresence, enabled = true) {
         .filter((room) => room.status !== "READY");
       setRemoteRooms(rooms);
     };
+
+    channel.on("presence", { event: "sync" }, sync);
+    channel.on("presence", { event: "join" }, sync);
+    channel.on("presence", { event: "leave" }, sync);
 
     const start = async () => {
       try {
@@ -348,13 +365,11 @@ export function useRealtimeLobby(player?: RoomPresence, enabled = true) {
       }
     };
 
-    channel.on("presence", { event: "sync" }, sync);
-    channel.on("presence", { event: "join" }, sync);
-    channel.on("presence", { event: "leave" }, sync);
     void start();
 
     return () => {
       active = false;
+      void supabase.removeChannel(channel);
     };
   }, [enabled, playerId]);
 
