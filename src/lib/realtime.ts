@@ -45,7 +45,7 @@ function getLobbyChannel() {
   if (existing) return existing;
   const channel = supabase.channel("mozaplay:lobby", {
     config: {
-      presence: { key: "mozaplay-lobby" },
+      presence: {},
       broadcast: { self: false, ack: true },
     },
   });
