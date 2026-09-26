@@ -47,7 +47,7 @@ function DiceFace({ value, rolling }: { value: number; rolling?: boolean }) {
 export const Route = createFileRoute("/games/ludo")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
-    bet: Number(search["bet"] ?? 0) || 0,
+    bet: Math.max(20, Number(search["bet"] ?? 20) || 20),
     timer: TURN_SECONDS,
     players: Math.min(4, Math.max(2, Number(search["players"] ?? 2) || 2)),
     room: String(search["room"] ?? ""),
