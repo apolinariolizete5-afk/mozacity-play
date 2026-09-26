@@ -289,11 +289,12 @@ export function useRealtimeRoom<T>(
       setOpponentDisconnected(!opponentOnline && nextPlayers.length > 0);
 
       if (opponentOnline) {
+        hadOpponentRef.current = true;
         if (disconnectTimerRef.current) window.clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
       } else if (hadOpponentRef.current && nextPlayers.length > 0 && !disconnectTimerRef.current) {
         disconnectTimerRef.current = window.setTimeout(() => {
-          if (active) setForfeitWinner(0);
+          if (active) setForfeitWinner(playerIndexRef.current);
         }, DISCONNECT_GRACE_SECONDS * 1000);
       }
       lastPresenceRef.current = nextPlayers.map((entry) => entry.playerId);
@@ -311,7 +312,7 @@ export function useRealtimeRoom<T>(
 
     const onRequestState = (payload: { payload?: RoomEvent<T> }) => {
       const event = payload.payload;
-      if (!event || event.kind !== "request_state" || event.actorId === player.playerId) return;
+      if (!event || event.kind !== "request_state" || event.actorId === player.playerId || latestStateRef.current === null) return;
       void channel.send({
         type: "broadcast",
         event: "state",
@@ -328,8 +329,8 @@ export function useRealtimeRoom<T>(
     const onForfeit = (payload: { payload?: RoomEvent<T> }) => {
       const event = payload.payload;
       if (!event || event.kind !== "forfeit" || event.actorId === player.playerId) return;
-      const winnerIndex = players.findIndex((entry) => entry.playerId === event.winnerId);
-      if (winnerIndex >= 0) setForfeitWinner(winnerIndex);
+      if (event.winnerId === player.playerId) setForfeitWinner(playerIndexRef.current);
+      else setForfeitWinner(playerIndexRef.current === 0 ? 1 : 0);
     };
 
     channel.on("presence", { event: "sync" }, syncPresence);
