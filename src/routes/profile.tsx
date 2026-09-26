@@ -116,7 +116,7 @@ function Profile() {
         },
       });
       if (error) throw error;
-      setProfile(name, avatar, phone, bio);
+      await setProfile(name, avatar, phone, bio);
       setSaved(true);
       setEditing(false);
     } catch (error) {
