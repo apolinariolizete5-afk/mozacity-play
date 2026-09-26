@@ -120,6 +120,9 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
       .on("broadcast", { event: "answer" }, async ({ payload }) => {
         if (payload?.to !== userId || !peerRef.current) return;
         await peerRef.current.setRemoteDescription(payload.description);
+        for (const candidate of pendingCandidatesRef.current.splice(0)) {
+          try { await peerRef.current.addIceCandidate(candidate); } catch { /* ignore stale ICE */ }
+        }
       })
       .on("broadcast", { event: "ice" }, async ({ payload }) => {
         if (payload?.from === userId || !peerRef.current || !payload?.candidate) return;
