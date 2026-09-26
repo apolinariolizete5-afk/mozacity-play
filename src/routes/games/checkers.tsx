@@ -157,7 +157,17 @@ function CheckersMatch() {
       <MatchShell
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
-          if (opponent) await realtime.forfeit(opponent.playerId);
+          if (room && opponent) {
+            try {
+              const settlement = await forfeitRoomMatch({ data: { room_code: room } });
+              if (settlement.winner_id === app.profile.id && typeof settlement.payout === "number") {
+                setPayoutCents(settlement.payout);
+              }
+            } catch (error) {
+              console.error("[MozaPlay] Falha ao desistir:", error);
+            }
+            await realtime.forfeit(opponent.playerId);
+          }
           await navigate({ to: "/play", search: { game: "checkers" } });
         }}
         title="Damas"
