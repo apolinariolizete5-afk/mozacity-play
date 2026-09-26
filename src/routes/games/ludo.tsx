@@ -109,7 +109,7 @@ function LudoMatch() {
   const [pendingMoveToken, setPendingMoveToken] = useState<number | null>(null);
   const [dicePreview, setDicePreview] = useState(1);
   const [turnSequence, setTurnSequence] = useState(0);
-  const [opponents] = useState(() => Array.from({ length: players - 1 }, () => botName()));
+  const [opponents, setOpponents] = useState(() => Array.from({ length: players - 1 }, () => botName()));
   const realtime = useRealtimeRoom<any>(room || undefined, "ludo", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const staked = useRef(false);
@@ -196,6 +196,12 @@ function LudoMatch() {
       bet,
     });
   }, [bet, opponents, state.over, state.winner]);
+
+  useEffect(() => {
+    if (!room) return;
+    const remoteNames = realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.name);
+    if (remoteNames.length) setOpponents(remoteNames);
+  }, [app.profile.id, realtime.players, room]);
 
   useEffect(() => {
     if (!room || !realtime.remoteState) return;
