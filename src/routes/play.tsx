@@ -23,6 +23,7 @@ function Play() {
   const [selected, setSelected] = useState<GameId>(game);
   const [timer, setTimer] = useState(TURN_SECONDS);
   const [bet, setBet] = useState(20);
+  const [players, setPlayers] = useState(2);
   const [searching, setSearching] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
@@ -38,11 +39,11 @@ function Play() {
   useEffect(() => setSelected(game), [game]);
 
   useEffect(() => {
-    if (!searching || !roomCode || realtime.players.length < 2) return;
+    if (!searching || !roomCode || realtime.players.length < players) return;
     const code = roomCode;
     void navigate(
       selected === "ludo"
-        ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players: 2, room: code } }
+        ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players, room: code } }
         : selected === "checkers"
           ? { to: "/games/checkers", search: { bet, timer: TURN_SECONDS, room: code } }
           : { to: "/games/chess", search: { bet, timer: TURN_SECONDS, room: code } },
@@ -64,13 +65,14 @@ function Play() {
         game: selected,
         player: { playerId: app.profile.id, name: app.profile.name },
         bet,
+        players: selected === "ludo" ? players : 2,
         signal: controller.signal,
       });
       setRoomCode(room.code);
       if (room.players.length >= 2) {
         await navigate(
           selected === "ludo"
-            ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players: 2, room: room.code } }
+            ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players, room: room.code } }
             : selected === "checkers"
               ? { to: "/games/checkers", search: { bet, timer: TURN_SECONDS, room: room.code } }
               : { to: "/games/chess", search: { bet, timer: TURN_SECONDS, room: room.code } },
@@ -143,7 +145,14 @@ function Play() {
 
           <div className="mt-5">
             <div className="flex items-center gap-2 text-xs font-extrabold"><Users2 className="h-4 w-4 text-primary" /> Jogadores</div>
-            <div className="mt-2 rounded-xl bg-secondary py-3 text-center text-xs font-extrabold">2 jogadores humanos</div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {(selected === "ludo" ? [2, 3, 4] : [2]).map((count) => (
+                <button key={count} type="button" onClick={() => setPlayers(count)} className={`rounded-xl py-3 text-xs font-extrabold ${players === count ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>
+                  {count} jogadores
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Só encontrarás jogadores que escolheram a mesma quantidade e a mesma aposta.</p>
           </div>
 
           {error ? <p className="mt-4 text-xs font-semibold text-destructive">{error}</p> : null}
@@ -152,7 +161,7 @@ function Play() {
             <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center">
               <Loader2 className="mx-auto h-7 w-7 animate-spin text-primary" />
               <p className="mt-2 text-sm font-extrabold">A procurar outro jogador...</p>
-              <p className="mt-1 text-xs text-muted-foreground">{realtime.players.length}/2 jogadores online</p>
+              <p className="mt-1 text-xs text-muted-foreground">{realtime.players.length}/{players} jogadores encontrados</p>
               {roomCode ? <p className="mt-2 font-mono text-xs font-bold tracking-widest text-primary">{roomCode}</p> : null}
               <button onClick={cancelSearch} className="mt-3 rounded-xl border border-border px-4 py-2 text-xs font-bold">Cancelar</button>
             </div>
