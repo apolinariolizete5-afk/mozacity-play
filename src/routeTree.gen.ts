@@ -25,7 +25,6 @@ import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as GamesCheckersRouteImport } from './routes/games/checkers'
 import { Route as GamesChessRouteImport } from './routes/games/chess'
 import { Route as GamesLudoRouteImport } from './routes/games/ludo'
-import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
 import { Route as ApiPublicWebhooksNetshopRouteImport } from './routes/api/public/webhooks/netshop'
 
 const IndexRoute = IndexRouteImport.update({
@@ -132,7 +131,6 @@ export interface FileRoutesByFullPath {
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
   '/games/ludo': typeof GamesLudoRoute
-  '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/webhooks/netshop': typeof ApiPublicWebhooksNetshopRoute
 }
 export interface FileRoutesByTo {
@@ -152,7 +150,6 @@ export interface FileRoutesByTo {
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
   '/games/ludo': typeof GamesLudoRoute
-  '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/webhooks/netshop': typeof ApiPublicWebhooksNetshopRoute
 }
 export interface FileRoutesById {
@@ -173,7 +170,6 @@ export interface FileRoutesById {
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
   '/games/ludo': typeof GamesLudoRoute
-  '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
   '/api/public/webhooks/netshop': typeof ApiPublicWebhooksNetshopRoute
 }
 export interface FileRouteTypes {
@@ -256,7 +252,6 @@ export interface RootRouteChildren {
   GamesCheckersRoute: typeof GamesCheckersRoute
   GamesChessRoute: typeof GamesChessRoute
   GamesLudoRoute: typeof GamesLudoRoute
-  ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
   ApiPublicWebhooksNetshopRoute: typeof ApiPublicWebhooksNetshopRoute
 }
 
@@ -408,7 +403,6 @@ const rootRouteChildren: RootRouteChildren = {
   GamesCheckersRoute: GamesCheckersRoute,
   GamesChessRoute: GamesChessRoute,
   GamesLudoRoute: GamesLudoRoute,
-  ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
   ApiPublicWebhooksNetshopRoute: ApiPublicWebhooksNetshopRoute,
 }
 export const routeTree = rootRouteImport
