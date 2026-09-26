@@ -70,8 +70,8 @@ function Home() {
         <Link to="/wallet">
           <Card className="h-full">
             <Coins className="h-5 w-5 text-primary" />
-            <p className="mt-2 font-display text-2xl font-extrabold tabular-nums">{app.coins}</p>
-            <p className="text-xs text-muted-foreground">Moedas de demo</p>
+            <p className="mt-2 font-display text-xl font-extrabold">Carteira</p>
+            <p className="text-xs text-muted-foreground">Saldo e movimentos</p>
           </Card>
         </Link>
         <Link to="/profile">
@@ -88,7 +88,7 @@ function Home() {
       </div>
 
       <section className="space-y-3">
-        <h3 className="px-1 font-display text-lg font-bold">Jogos</h3>
+        <div className="px-1"><h3 className="font-display text-lg font-bold">Escolhe um jogo</h3><p className="mt-1 text-xs text-muted-foreground">Cada jogo tem a sua própria área.</p></div>
         {(Object.keys(GAME_META) as GameId[]).map((id) => {
           const Icon = ICONS[id];
           const meta = GAME_META[id];
