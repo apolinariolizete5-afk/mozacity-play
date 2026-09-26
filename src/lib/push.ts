@@ -1,40 +1,26 @@
-import {
-  getPushConfig,
-  removePushSubscription,
-  savePushSubscription,
-} from "./push.functions";
-
 export async function registerPushServiceWorker() {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-    return null;
-  }
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   return navigator.serviceWorker.register("/sw.js", { scope: "/" });
 }
 
-export async function enablePushNotifications() {
+export async function enablePushNotifications(playerId?: string) {
   if (
     typeof window === "undefined" ||
     !("Notification" in window) ||
     !("serviceWorker" in navigator) ||
     !("PushManager" in window)
-  ) {
-    throw new Error("push_not_supported");
-  }
+  ) throw new Error("push_not_supported");
 
   const permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    throw new Error("push_permission_denied");
-  }
+  if (permission !== "granted") throw new Error("push_permission_denied");
 
-  const config = await getPushConfig();
-  if (!config.publicKey) {
-    throw new Error("push_not_configured");
-  }
+  const configResponse = await fetch("/api/push", { cache: "no-store" });
+  const config = await configResponse.json();
+  if (!config.publicKey) throw new Error("push_not_configured");
 
   const registration =
     (await navigator.serviceWorker.getRegistration("/")) ??
     (await registerPushServiceWorker());
-
   if (!registration) throw new Error("service_worker_not_ready");
   await navigator.serviceWorker.ready;
 
@@ -46,24 +32,34 @@ export async function enablePushNotifications() {
     });
   }
 
-  await savePushSubscription({
-    data: { subscription: subscription.toJSON() },
-  });
+  if (playerId) {
+    const response = await fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "subscribe",
+        playerId,
+        subscription: subscription.toJSON(),
+      }),
+    });
+    if (!response.ok) throw new Error("push_subscription_failed");
+  }
 
   return subscription;
 }
 
-export async function disablePushNotifications() {
+export async function disablePushNotifications(playerId?: string) {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-
+  if (playerId) {
+    await fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "unsubscribe", playerId }),
+    }).catch(() => undefined);
+  }
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
-  if (!subscription) return;
-
-  await removePushSubscription({
-    data: { endpoint: subscription.endpoint },
-  });
-  await subscription.unsubscribe();
+  if (subscription) await subscription.unsubscribe();
 }
 
 function urlBase64ToUint8Array(base64String: string) {
