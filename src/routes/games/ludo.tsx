@@ -7,6 +7,7 @@ import { Card, Pill } from "@/components/ui/primitives";
 import { LUDO_NAMES, ludoBotMove, ludoEngine, type LudoMove } from "@/lib/games/ludo";
 import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { useRealtimeRoom } from "@/lib/realtime";
 import "@/styles/ludo-motion.css";
 
 const TURN_SECONDS = 15;
@@ -45,7 +46,8 @@ export const Route = createFileRoute("/games/ludo")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
     timer: TURN_SECONDS,
-    players: Math.min(4, Math.max(2, Number(search["players"] ?? 4) || 4)),
+    players: Math.min(4, Math.max(2, Number(search["players"] ?? 2) || 2)),
+    room: String(search["room"] ?? ""),
   }),
   head: () => ({
     meta: [
@@ -97,7 +99,7 @@ function playAudio(url?: string) {
 }
 
 function LudoMatch() {
-  const { bet, players } = Route.useSearch();
+  const { bet, players, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players }));
   const [seconds, setSeconds] = useState(TURN_SECONDS);
@@ -107,11 +109,13 @@ function LudoMatch() {
   const [dicePreview, setDicePreview] = useState(1);
   const [turnSequence, setTurnSequence] = useState(0);
   const [opponents] = useState(() => Array.from({ length: players - 1 }, () => botName()));
+  const realtime = useRealtimeRoom<LudoMove | null>(room || undefined, "ludo", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const staked = useRef(false);
   const rollTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    if (room) return;
     if (!staked.current) {
       staked.current = true;
       placeBet(bet, "ludo");
@@ -165,13 +169,13 @@ function LudoMatch() {
   );
 
   useEffect(() => {
-    if (seconds > 0 || state.over || rolling || moving) return;
+    if (room || seconds > 0 || state.over || rolling || moving) return;
     const move = state.turn === 0 ? ludoEngine.legalMoves(state)[0] : ludoBotMove(state);
     if (move) play(move);
   }, [moving, play, rolling, seconds, state]);
 
   useEffect(() => {
-    if (state.over || state.turn === 0 || rolling || moving) return;
+    if (room || state.over || state.turn === 0 || rolling || moving) return;
     const timer = window.setTimeout(() => {
       const move = ludoBotMove(state);
       if (move) play(move);
@@ -190,7 +194,7 @@ function LudoMatch() {
     });
   }, [bet, opponents, state.over, state.winner]);
 
-  const activeDiceValue = rolling ? dicePreview : state.dice ?? dicePreview;
+  useEffect(() => {\n    if (!room || !realtime.remoteState) return;\n    const remote = realtime.remoteState as any;\n    if (remote?.type === "state" && remote.state) setState(remote.state);\n  }, [realtime.remoteState, room]);\n\n  const activeDiceValue = rolling ? dicePreview : state.dice ?? dicePreview;
   const canRoll = state.turn === 0 && state.dice == null && !state.over && !rolling;
   const result = state.over ? (state.winner === 0 ? "win" : "loss") : null;
 
@@ -272,7 +276,7 @@ function LudoMatch() {
             state={state}
             disabled={state.turn !== 0 || state.over || rolling || moving}
             onMove={(token) => {
-              applyMove({ type: "move", token });
+              const next = ludoEngine.applyMove(state, { type: "move", token });\n              setState(next);\n              if (room) realtime.broadcastState({ type: "state", state: next } as any);
               setPendingMoveToken(null);
               setMoving(false);
             }}
@@ -302,7 +306,7 @@ function LudoMatch() {
             coins={result === "win" ? bet * 2 : 0}
             onRematch={() => {
               settled.current = false;
-              placeBet(bet, "ludo");
+              if (!room) placeBet(bet, "ludo");
               setState(ludoEngine.createGame({ players }));
               setSeconds(TURN_SECONDS);
               setTurnSequence((value) => value + 1);
