@@ -107,6 +107,8 @@ function LudoMatch() {
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [rolling, setRolling] = useState(false);
   const [moving, setMoving] = useState(false);
+  const movingRef = useRef(false);
+  const pendingRemoteState = useRef<any | null>(null);
   const [pendingMoveToken, setPendingMoveToken] = useState<number | null>(null);
   const [dicePreview, setDicePreview] = useState(1);
   const [turnSequence, setTurnSequence] = useState(0);
@@ -256,14 +258,22 @@ function LudoMatch() {
     void realtime.broadcastState(state);
   }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
-  const playersList = Array.from({ length: 2 }, (_, index) => ({
-    index,
-    name: index === 0 ? app.profile.name : opponents[index - 1] ?? "A aguardar adversário...",
-    avatar: index === 0 ? app.profile.avatar : "🙂",
-    label: LUDO_NAMES[index] ?? `Jogador ${index + 1}`,
-    active: state.turn === index,
-    color: PLAYER_COLORS[index] ?? PLAYER_COLORS[0],
-  }));
+  // The board player index comes from the same stable UUID-sorted Presence
+  // list on every device. Do not use "me = player 0": that caused names/colors
+  // to change places between phones.
+  const playersList = Array.from({ length: 2 }, (_, index) => {
+    const remotePlayer = realtime.players[index];
+    const isUser = index === realtime.playerIndex;
+    return {
+      index,
+      id: remotePlayer?.playerId ?? `waiting-${index}`,
+      name: remotePlayer?.name ?? (isUser ? app.profile.name : "A aguardar adversário..."),
+      avatar: isUser ? app.profile.avatar : "🙂",
+      label: isUser ? "Tu" : "Adversário",
+      active: state.turn === index,
+      color: PLAYER_COLORS[index] ?? PLAYER_COLORS[0],
+    };
+  });
 
   const renderPlayerCorner = (playerIdx: number) => {
     const player = playersList[playerIdx];
@@ -350,7 +360,7 @@ function LudoMatch() {
               setPendingMoveToken(null);
               setMoving(false);
             }}
-            onAnimatingChange={setMoving}
+            onAnimatingChange={handleAnimatingChange}
             requestedToken={pendingMoveToken}
           />
         </div>
