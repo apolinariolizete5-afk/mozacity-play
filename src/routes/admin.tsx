@@ -342,6 +342,49 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
 
       <section className="space-y-2">
         <h3 className="flex items-center gap-2 px-1 font-display text-lg font-bold">
+          <UserRound className="h-5 w-5 text-primary" /> Utilizadores
+        </h3>
+        {users.isLoading ? (
+          <Card className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> A carregar utilizadores...
+          </Card>
+        ) : (users.data ?? []).length === 0 ? (
+          <Card className="text-sm text-muted-foreground">Nenhum utilizador encontrado.</Card>
+        ) : (
+          (users.data ?? []).map((u) => (
+            <Card key={u.id} className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-display font-bold">{u.display_name || "Jogador"}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{u.email || "Sem email"}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Saldo {formatMzn(u.balance_cents)} · {u.is_blocked ? "bloqueado" : "ativo"}
+                  </p>
+                </div>
+                <Pill tone={u.is_blocked ? "danger" : "success"}>
+                  {u.is_blocked ? "Bloqueado" : "Ativo"}
+                </Pill>
+              </div>
+              <Button
+                size="sm"
+                variant={u.is_blocked ? "outline" : "danger"}
+                className="w-full"
+                disabled={blockUser.isPending}
+                onClick={() => blockUser.mutate({ user_id: u.id, blocked: !u.is_blocked })}
+              >
+                {u.is_blocked ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                {u.is_blocked ? "Desbloquear utilizador" : "Bloquear utilizador"}
+              </Button>
+            </Card>
+          ))
+        )}
+        {blockUser.isError ? (
+          <p className="text-xs font-semibold text-destructive">{(blockUser.error as Error).message}</p>
+        ) : null}
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="flex items-center gap-2 px-1 font-display text-lg font-bold">
           Fila de levantamentos
           {o && o.pending_payouts > 0 ? (
             <Pill tone="accent">{o.pending_payouts} pendente(s)</Pill>
@@ -363,7 +406,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
                     {METHOD_LABELS[p.method] ?? p.method} · {p.destination}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Taxa {formatMzn(p.fee_cents)} · líquido {formatMzn(p.net_cents)}
+                    Valor solicitado: {formatMzn(p.amount_cents)}
                   </p>
                 </div>
                 <Pill
