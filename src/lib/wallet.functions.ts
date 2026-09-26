@@ -150,7 +150,7 @@ export const lockRoomWager = createServerFn({ method: "POST" })
       _amount_cents: data.bet_cents,
     });
     if (error) throw new Error(error.message);
-    return result as { ok: boolean; locked: number };
+    return result as { ok: boolean; locked: number; already?: boolean; status: "ready" | "playing" | "finished" | "cancelled" };
   });
 
 /** Liquida a partida multiplayer com a taxa da casa aplicada no pote. */
