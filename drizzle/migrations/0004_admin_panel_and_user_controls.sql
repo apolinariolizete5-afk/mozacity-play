@@ -28,7 +28,8 @@ begin
     raise exception 'admin_required';
   end if;
 
-  select count(*) into players from public.profiles;
+  select count(*) into players from auth.users
+   where coalesce((raw_user_meta_data->>'is_anonymous')::boolean, false) = false;
 
   select coalesce(sum(balance_cents),0) into balance
     from public.wallets;
@@ -94,18 +95,25 @@ begin
 
   return query
   select
-    p.id,
-    coalesce(p.display_name, 'Jogador'),
-    p.phone,
+    u.id,
+    coalesce(
+      nullif(trim(p.display_name), ''),
+      nullif(trim(u.raw_user_meta_data->>'display_name'), ''),
+      nullif(trim(u.raw_user_meta_data->>'name'), ''),
+      nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
+      'Jogador'
+    )::text,
+    coalesce(nullif(p.phone, ''), nullif(u.phone, ''))::text,
     u.email::text,
-    coalesce(p.is_blocked,false),
-    p.created_at,
+    coalesce(p.is_blocked, false),
+    u.created_at,
     p.last_seen_at,
-    coalesce(w.balance_cents,0)::bigint
-  from public.profiles p
-  left join auth.users u on u.id = p.id
-  left join public.wallets w on w.user_id = p.id
-  order by p.created_at desc;
+    coalesce(w.balance_cents, 0)::bigint
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  left join public.wallets w on w.user_id = u.id
+  where coalesce((u.raw_user_meta_data->>'is_anonymous')::boolean, false) = false
+  order by u.created_at desc;
 end
 $$;
 
