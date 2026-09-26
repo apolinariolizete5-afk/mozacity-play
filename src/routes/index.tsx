@@ -31,110 +31,81 @@ function Home() {
   const unread = app.notifications.filter((n) => !n.read).length;
 
   return (
-    <main className="mx-auto w-full max-w-md space-y-4 px-4 pt-4">
-      <div className="flex items-center justify-between">
-        <Wordmark />
+    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 pb-6 pt-5 sm:px-6">
+      <header className="flex items-center justify-between">
+        <Wordmark size={42} />
         <Link
           to="/notifications"
-          className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary"
+          className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-card/80"
           aria-label="Notificações"
         >
           <Bell className="h-5 w-5" />
-          {unread > 0 ? (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-              {unread}
-            </span>
-          ) : null}
+          {unread > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold">{unread}</span>}
         </Link>
-      </div>
+      </header>
 
-      <Card className="relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl" />
-        <Pill tone="accent">
-          <Zap className="h-3 w-3" /> Partida rápida
-        </Pill>
-        <h2 className="mt-3 font-display text-2xl font-extrabold leading-tight">
-          Desafia jogadores <br /> em segundos
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Matchmaking automático com preenchimento por bots quando faltam jogadores.
-        </p>
-        <Link to="/play" search={{ game: "ludo" }} className="mt-4 block">
-          <Button size="lg" className="w-full">
-            Jogar agora
-          </Button>
-        </Link>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Link to="/wallet">
-          <Card className="h-full">
-            <Coins className="h-5 w-5 text-primary" />
-            <p className="mt-2 font-display text-xl font-extrabold">Carteira</p>
-            <p className="text-xs text-muted-foreground">Saldo e movimentos</p>
-          </Card>
-        </Link>
-        <Link to="/profile">
-          <Card className="h-full">
-            <Crown className="h-5 w-5 text-accent" />
-            <p className="mt-2 font-display text-2xl font-extrabold tabular-nums">
-              {winRate(app.stats.total)}%
+      <section className="relative overflow-hidden rounded-[2rem] border border-border bg-card p-5 sm:p-7">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(34,211,238,.18),transparent_32%),radial-gradient(circle_at_15%_90%,rgba(139,92,246,.16),transparent_30%)]" />
+        <div className="relative grid gap-6 md:grid-cols-[1.15fr_.85fr] md:items-center">
+          <div>
+            <Pill tone="accent"><Zap className="h-3 w-3" /> Partida rápida</Pill>
+            <h1 className="mt-4 max-w-xl font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
+              Escolhe o teu jogo.<br /><span className="text-primary">Entra na partida.</span>
+            </h1>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
+              Ludo, Damas e Xadrez numa experiência simples, rápida e feita para telemóvel.
             </p>
-            <p className="text-xs text-muted-foreground">
-              Taxa de vitória · {app.stats.total.wins}V {app.stats.total.losses}D
-            </p>
-          </Card>
-        </Link>
-      </div>
-
-      <section className="space-y-3">
-        <div className="px-1"><h3 className="font-display text-lg font-bold">Escolhe um jogo</h3><p className="mt-1 text-xs text-muted-foreground">Cada jogo tem a sua própria área.</p></div>
-        {(Object.keys(GAME_META) as GameId[]).map((id) => {
-          const Icon = ICONS[id];
-          const meta = GAME_META[id];
-          return (
-            <Link key={id} to="/play" search={{ game: id }}>
-              <Card className="flex items-center gap-3 border-border/90 transition-transform active:scale-[0.99]">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-                  <Icon className="h-7 w-7" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-display text-base font-bold">{meta.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {meta.tagline} · {meta.players}
-                  </p>
-                </div>
-                <Pill tone="primary">{winRate(app.stats[id])}%</Pill>
-              </Card>
+            <Link to="/play" search={{ game: "ludo" }} className="mt-5 inline-block">
+              <Button size="lg"><Zap className="h-5 w-5" /> Jogar agora</Button>
             </Link>
-          );
-        })}
+          </div>
+          <div className="hidden md:block">
+            <img src={GAME_META.ludo.cover} alt="Capa do Ludo" className="w-full rounded-3xl border border-white/10 object-cover shadow-xl" />
+          </div>
+        </div>
       </section>
 
-      <section className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h3 className="font-display text-lg font-bold">Últimas partidas</h3>
-          <Link to="/history" className="text-xs font-semibold text-primary">
-            Ver tudo
-          </Link>
+      <section>
+        <div className="mb-3 flex items-end justify-between px-1">
+          <div><h2 className="font-display text-xl font-extrabold">Jogos</h2><p className="text-xs text-muted-foreground">Escolhe uma capa para começar</p></div>
+          <Link to="/play" search={{ game: "ludo" }} className="text-xs font-bold text-primary">Ver todos</Link>
         </div>
-        {app.matches.length === 0 ? (
-          <Card className="text-sm text-muted-foreground">
-            Ainda sem partidas. Começa pela partida rápida.
+        <div className="grid gap-4 sm:grid-cols-3">
+          {(Object.keys(GAME_META) as GameId[]).map((id) => {
+            const meta = GAME_META[id];
+            return (
+              <Link key={id} to="/play" search={{ game: id }} className="group">
+                <article className="overflow-hidden rounded-3xl border border-border bg-card transition-transform active:scale-[.99] sm:hover:-translate-y-1">
+                  <div className="relative aspect-[1.7] overflow-hidden">
+                    <img src={meta.cover} alt={`Capa de ${meta.name}`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-3 pt-10">
+                      <span className="text-xs font-semibold text-white">{meta.players}</span>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-display text-lg font-extrabold">{meta.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{meta.tagline}</p>
+                  </div>
+                </article>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2">
+        <Link to="/wallet"><Card className="h-full border-border bg-card p-5"><Coins className="h-5 w-5 text-primary" /><p className="mt-3 font-display text-xl font-extrabold">Carteira</p><p className="mt-1 text-xs text-muted-foreground">Saldo e movimentos da conta</p></Card></Link>
+        <Link to="/profile"><Card className="h-full border-border bg-card p-5"><Crown className="h-5 w-5 text-accent" /><p className="mt-3 font-display text-xl font-extrabold">{winRate(app.stats.total)}% de vitórias</p><p className="mt-1 text-xs text-muted-foreground">{app.stats.total.wins} vitórias · {app.stats.total.losses} derrotas</p></Card></Link>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between px-1"><h2 className="font-display text-xl font-extrabold">Últimas partidas</h2><Link to="/history" className="text-xs font-bold text-primary">Ver tudo</Link></div>
+        {app.matches.length === 0 ? <Card className="border-border bg-card text-sm text-muted-foreground">Ainda sem partidas. Escolhe um jogo acima para começar.</Card> : app.matches.slice(0, 3).map((m) => (
+          <Card key={m.id} className="flex items-center justify-between border-border bg-card py-3">
+            <div><p className="text-sm font-semibold">{GAME_META[m.game].name}</p><p className="text-xs text-muted-foreground">vs {m.opponents.join(", ") || "adversário"}</p></div>
+            <Pill tone={m.result === "win" ? "success" : m.result === "draw" ? "muted" : "danger"}>{m.result === "win" ? "Vitória" : m.result === "draw" ? "Empate" : "Derrota"}</Pill>
           </Card>
-        ) : (
-          app.matches.slice(0, 3).map((m) => (
-            <Card key={m.id} className="flex items-center justify-between py-3">
-              <div>
-                <p className="text-sm font-semibold">{GAME_META[m.game].name}</p>
-                <p className="text-xs text-muted-foreground">vs {m.opponents.join(", ") || "bot"}</p>
-              </div>
-              <Pill tone={m.result === "win" ? "success" : m.result === "draw" ? "muted" : "danger"}>
-                {m.result === "win" ? "Vitória" : m.result === "draw" ? "Empate" : "Derrota"}
-              </Pill>
-            </Card>
-          ))
-        )}
+        ))}
       </section>
     </main>
   );
