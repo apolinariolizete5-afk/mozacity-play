@@ -146,7 +146,12 @@ function LudoMatch() {
   const wagerLocked = useRef(false);
 
   useEffect(() => {
-    if (!playersReady || !room || realtime.players.length < 2 || roomRegistered.current) return;
+    if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
+    if (players !== 2) {
+      roomRegistered.current = true;
+      setEscrowReady(bet >= 20);
+      return;
+    }
     const playerIds = realtime.players.map((player) => player.playerId);
     if (playerIds.length < 2) return;
     roomRegistered.current = true;
@@ -351,8 +356,7 @@ function LudoMatch() {
         {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}
 
         <div className="grid grid-cols-2 gap-2 my-2">
-          <div>{renderPlayerCorner(0)}</div>
-          <div>{renderPlayerCorner(1)}</div>
+          {playersList.map((_, index) => <div key={index}>{renderPlayerCorner(index)}</div>)}
         </div>
 
         <div className="my-1 py-1">
@@ -378,7 +382,7 @@ function LudoMatch() {
 
         <Card className="p-2 text-center text-xs text-muted-foreground mt-1">
           {!ready
-            ? "A aguardar ${players - realtime.players.length} jogador(es) para completar a sala..." 
+            ? `A aguardar ${Math.max(0, players - realtime.players.length)} jogador(es) para completar a sala...` 
             : state.over
             ? "Partida terminada!"
             : state.turn === 0
