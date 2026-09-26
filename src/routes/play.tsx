@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Bot, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { botName, setTimerPreference, useApp } from "@/lib/store";
@@ -25,6 +25,7 @@ function Play() {
   const [players, setPlayers] = useState(4);
   const [searching, setSearching] = useState(false);
   const [found, setFound] = useState<string[]>([]);
+  const matchCodeRef = useRef<string | null>(null);
 
   useEffect(() => setSelected(game), [game]);
   const maxPlayers = selected === "ludo" ? 4 : 2;
@@ -37,12 +38,64 @@ function Play() {
     else navigate({ to: "/games/chess", search: { bet, timer } });
   };
 
-  const quickMatch = () => {
+  const quickMatch = async () => {
     setSearching(true);
     setFound([]);
-    const names = Array.from({ length: seats - 1 }, () => botName());
-    names.forEach((n, i) => setTimeout(() => setFound((f) => [...f, n]), 500 * (i + 1)));
-    setTimeout(start, 500 * seats + 400);
+    try {
+      const response = await fetch("/api/multiplayer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "quick",
+          game: selected,
+          timer,
+          capacity: 2,
+          player: { id: app.profile.id, name: app.profile.name },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.room) throw new Error(data.error || "Não foi possível procurar uma partida.");
+      const room = data.room;
+      matchCodeRef.current = room.code;
+
+      const refresh = async () => {
+        const current = await fetch(`/api/multiplayer?room=${encodeURIComponent(room.code)}`, { cache: "no-store" });
+        if (!current.ok) throw new Error("A sala deixou de estar disponível.");
+        return (await current.json()) as { room: { players: Array<{ id: string; name: string }>; code: string } };
+      };
+
+      const applyMatch = (current: { room: { players: Array<{ id: string; name: string }>; code: string } }) => {
+        const others = current.room.players.filter((p) => p.id !== app.profile.id);
+        setFound(others.map((p) => p.name));
+        if (current.room.players.length >= 2) {
+          const roomCode = current.room.code;
+          navigate(
+            selected === "ludo"
+              ? { to: "/games/ludo", search: { bet: 0, timer, players: 2, room: roomCode } }
+              : selected === "checkers"
+                ? { to: "/games/checkers", search: { bet: 0, timer, room: roomCode } }
+                : { to: "/games/chess", search: { bet: 0, timer, room: roomCode } },
+          );
+          return true;
+        }
+        return false;
+      };
+
+      if (applyMatch({ room: { players: room.players, code: room.code } })) return;
+
+      const deadline = Date.now() + 120000;
+      while (Date.now() < deadline && matchCodeRef.current === room.code) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const current = await refresh();
+        if (applyMatch(current)) return;
+      }
+      setSearching(false);
+      setFound([]);
+    } catch (error) {
+      setSearching(false);
+      setFound([]);
+      console.error("[QuickMatch]", error);
+    }
   };
 
   return (
