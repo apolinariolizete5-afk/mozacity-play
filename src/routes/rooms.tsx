@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Lock, Globe, Plus, Play, Share2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
+import { useRealtimeLobby } from "@/lib/realtime";
 import {
   createRoom,
   findRoomByCode,
@@ -46,9 +47,10 @@ function Rooms() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const { remoteRooms } = useRealtimeLobby(app.rooms);
 
   const enter = (room: Room) => {
-    setRoomStatus(room.id, "PLAYING");
+    if (app.rooms.some((item) => item.id === room.id)) setRoomStatus(room.id, "PLAYING");
     if (room.game === "ludo")
       navigate({
         to: "/games/ludo",
@@ -93,7 +95,7 @@ function Rooms() {
     setMessage(`Entraste na sala ${room.code}.`);
   };
 
-  const visible = app.rooms.filter((r) => r.status !== "CANCELLED");
+  const visible = [...app.rooms.filter((r) => r.status !== "CANCELLED"), ...remoteRooms];
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
@@ -155,7 +157,7 @@ function Rooms() {
 
       {visible.map((room) => {
         const full = room.players.length >= room.capacity;
-        const joined = room.players.some((p) => p.id === app.profile.id);
+        const isRemote = !app.rooms.some((item) => item.id === room.id);\n        const joined = room.players.some((p) => p.id === app.profile.id);
         return (
           <Card key={room.id} className="space-y-3">
             <div className="flex items-start justify-between">
