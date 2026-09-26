@@ -7,6 +7,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type Method = "mpesa" | "mola" | "mcash" | "bank";
+type ProviderMethod = "mpesa" | "emola" | "mkesh" | "bank";
 
 export interface NetshopResult {
   ok: boolean;
@@ -48,7 +49,7 @@ export function netshopStatus() {
 }
 
 async function callCharge(input: {
-  method: Method;
+  method: ProviderMethod;
   msisdn: string;
   amountCents: number;
   reference: string;
@@ -178,7 +179,7 @@ export function requestDeposit(input: {
   amountCents: number;
   reference: string;
 }) {
-  const providerMethod: Method = input.method === "mola" ? "emola" : input.method === "mcash" ? "mkesh" : input.method;
+  const providerMethod: ProviderMethod = input.method === "mola" ? "emola" : input.method === "mcash" ? "mkesh" : input.method;
   const providerWalletEnv = input.method === "mola" ? "NETSHOP_WALLET_ID_EMOLA" : input.method === "mcash" ? "NETSHOP_WALLET_ID_MKESH" : undefined;
 const raw = input.msisdn.trim().replace(/[\\s()-]/g, "");
   const msisdn =
