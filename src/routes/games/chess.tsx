@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { ChessBoard } from "@/components/boards/ChessBoard";
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/games/chess")({
 });
 
 function ChessMatch() {
+  const navigate = useNavigate();
   const { bet, timer, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
@@ -134,6 +135,11 @@ function ChessMatch() {
   return (
     <>
       <MatchShell
+        onExit={async () => {
+          const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
+          if (opponent) await realtime.forfeit(opponent.playerId);
+          await navigate({ to: "/play", search: { game: "chess" } });
+        }}
         title="Xadrez"
         seconds={seconds}
         limit={timer}
