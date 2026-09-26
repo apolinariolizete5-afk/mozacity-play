@@ -208,6 +208,59 @@ function PushPrompt() {
   );
 }
 
+
+function InstallPrompt() {
+  const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    if (standalone) return;
+
+    const dismissedAt = Number(window.localStorage.getItem("mozaplay:install-dismissed:v1") || 0);
+    if (dismissedAt && Date.now() - dismissedAt < 5 * 24 * 60 * 60 * 1000) return;
+
+    const handler = (event: Event) => {
+      event.preventDefault();
+      setPrompt(event as BeforeInstallPromptEvent);
+      setVisible(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  if (!visible || !prompt) return null;
+
+  const install = async () => {
+    await prompt.prompt();
+    await prompt.userChoice;
+    setVisible(false);
+    setPrompt(null);
+  };
+
+  const dismiss = () => {
+    window.localStorage.setItem("mozaplay:install-dismissed:v1", String(Date.now()));
+    setVisible(false);
+  };
+
+  return (
+    <div className="fixed bottom-24 left-3 right-3 z-[70] mx-auto max-w-md rounded-2xl border border-border bg-card p-4 shadow-2xl">
+      <p className="font-bold">Instalar MozaPlay</p>
+      <p className="mt-1 text-xs text-muted-foreground">Adiciona o MozaPlay ao ecrã inicial para uma experiência de app.</p>
+      <div className="mt-3 flex gap-2">
+        <button onClick={() => void install()} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">Instalar</button>
+        <button onClick={dismiss} className="rounded-xl border border-input px-4 py-2.5 text-sm font-bold">Agora não</button>
+      </div>
+    </div>
+  );
+}
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -225,6 +278,7 @@ function RootComponent() {
       </div>
       <BottomNav />
       <PushPrompt />
+      <InstallPrompt />
     </QueryClientProvider>
   );
 }
