@@ -54,11 +54,11 @@ function Rooms() {
     if (room.game === "ludo")
       navigate({
         to: "/games/ludo",
-        search: { bet: room.bet, timer: room.timer, players: room.capacity },
+        search: { bet: 0, timer: room.timer, players: Math.min(2, room.capacity), room: room.code },
       });
     else if (room.game === "checkers")
-      navigate({ to: "/games/checkers", search: { bet: room.bet, timer: room.timer } });
-    else navigate({ to: "/games/chess", search: { bet: room.bet, timer: room.timer } });
+      navigate({ to: "/games/checkers", search: { bet: 0, timer: room.timer, room: room.code } });
+    else navigate({ to: "/games/chess", search: { bet: 0, timer: room.timer, room: room.code } });
   };
 
   const submitCreate = () => {
