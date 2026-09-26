@@ -186,3 +186,27 @@ export const settleRoomMatch = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return result as { ok: boolean; already?: boolean; pending?: boolean; payout?: number; rake?: number };
   });
+
+/** Finaliza uma partida de Damas por desistência e liquida o prémio no servidor. */
+export const forfeitRoomMatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({
+      room_code: z.string().trim().min(4).max(12),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("forfeit_room_match", {
+      _room_code: data.room_code,
+    });
+    if (error) throw new Error(error.message);
+    return result as {
+      ok: boolean;
+      already?: boolean;
+      status?: string;
+      winner_id?: string | null;
+      payout_cents?: number;
+      rake_cents?: number;
+      result_id?: string | null;
+    };
+  });
