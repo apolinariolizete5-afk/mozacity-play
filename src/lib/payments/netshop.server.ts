@@ -221,4 +221,3 @@ export function verifyWebhookSignature(
     a.length === b.length &&
     timingSafeEqual(a, b)
   );
-      }
