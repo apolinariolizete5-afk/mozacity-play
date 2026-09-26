@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Bell, BellOff, CheckCircle2, Settings2 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/primitives";
 import { useApp } from "@/lib/store";
-import { enablePushNotifications, disablePushNotifications } from "@/lib/push";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushState,
+  type PushState,
+} from "@/lib/push";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({ meta: [{ title: "Notificações — MozaPlay" }] }),
@@ -11,71 +17,130 @@ export const Route = createFileRoute("/notifications")({
 
 function NotificationsPage() {
   const app = useApp();
-  const [pushState, setPushState] = useState<"checking" | "off" | "on" | "unsupported">("checking");
+  const [pushState, setPushState] = useState<PushState>("unsupported");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setPushState("unsupported");
-      return;
+  const refreshState = async () => {
+    try {
+      setPushState(await getPushState(app.profile.id || undefined));
+    } catch {
+      setPushState("off");
     }
-    void navigator.serviceWorker.getRegistration("/").then(async (registration) => {
-      const subscription = await registration?.pushManager.getSubscription();
-      setPushState(subscription ? "on" : "off");
-    }).catch(() => setPushState("off"));
-  }, []);
+  };
+
+  useEffect(() => {
+    void refreshState();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshState();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [app.profile.id]);
 
   const togglePush = async () => {
     if (!app.profile.id) {
-      setMessage("Entra na tua conta para ativar notificações.");
+      setMessage("Entra na tua conta para gerir as notificações.");
       return;
     }
+
     setBusy(true);
     setMessage("");
+
     try {
       if (pushState === "on") {
         await disablePushNotifications(app.profile.id);
         setPushState("off");
-        setMessage("Notificações push desativadas.");
+        setMessage("Notificações push desativadas neste dispositivo.");
       } else {
         await enablePushNotifications(app.profile.id);
         setPushState("on");
-        setMessage("Notificações push ativadas.");
+        setMessage("Notificações push ativadas neste dispositivo.");
       }
     } catch (error) {
       const code = error instanceof Error ? error.message : "push_error";
-      setMessage(
-        code === "push_permission_denied"
-          ? "Permissão de notificações recusada."
-          : code === "push_not_configured"
-            ? "Push ainda não foi configurado no backend."
-            : "Não foi possível ativar as notificações push.",
-      );
+
+      if (code === "push_permission_denied") {
+        setPushState("blocked");
+        setMessage("A permissão foi recusada. Ativa as notificações do MozaPlay nas definições do navegador/Android e tenta novamente.");
+      } else if (code === "push_not_configured") {
+        setMessage("O push ainda não está configurado no servidor. Falta a chave VAPID pública/privada no Render.");
+      } else if (code === "push_invalid_subscription") {
+        setMessage("A subscrição do dispositivo ficou inválida. Tenta desativar e ativar novamente.");
+      } else {
+        setMessage("Não foi possível atualizar as notificações. Tenta novamente.");
+        console.error("[Push]", error);
+      }
+      await refreshState();
     } finally {
       setBusy(false);
     }
   };
 
+  const title =
+    pushState === "on"
+      ? "Push ativado"
+      : pushState === "blocked"
+        ? "Push bloqueado"
+        : pushState === "unsupported"
+          ? "Push indisponível"
+          : "Push desativado";
+
+  const description =
+    pushState === "on"
+      ? "Este dispositivo pode receber avisos reais do MozaPlay."
+      : pushState === "blocked"
+        ? "A permissão foi bloqueada pelo navegador. Altera a permissão nas definições do site."
+        : pushState === "unsupported"
+          ? "O navegador atual não suporta notificações push."
+          : "Ativa para receber avisos mesmo quando o MozaPlay não estiver aberto.";
+
   return (
-    <main className="mx-auto w-full max-w-md space-y-3 px-4 pb-28">
-      <PageHeader title="Notificações" subtitle="Avisos reais da plataforma" />
-      <Card className="space-y-4">
-        <div>
-          <p className="text-sm font-bold">Notificações push</p>
-          <p className="mt-1 text-xs text-muted-foreground">O Service Worker está preparado para receber notificações enviadas pelo backend.</p>
+    <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-28 pt-5">
+      <PageHeader title="Notificações" subtitle="Controla os avisos no teu dispositivo" />
+
+      <Card className="space-y-5">
+        <div className="flex items-start gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+            {pushState === "on" ? <Bell className="h-6 w-6" /> : <BellOff className="h-6 w-6" />}
+          </div>
+          <div className="min-w-0">
+            <p className="font-display font-extrabold">{title}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+          </div>
         </div>
+
         <button
+          type="button"
           onClick={() => void togglePush()}
-          disabled={busy || pushState === "unsupported"}
-          className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-extrabold text-primary-foreground disabled:opacity-50"
+          disabled={busy || pushState === "unsupported" || pushState === "blocked"}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-extrabold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Aguarda..." : pushState === "on" ? "Desativar push" : "Ativar push"}
         </button>
-        {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
+
+        {pushState === "blocked" && (
+          <div className="flex gap-3 rounded-2xl border border-border bg-secondary/60 p-3">
+            <Settings2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-xs leading-5 text-muted-foreground">
+              Se recusaste a permissão, abre as definições do site no navegador, permite notificações e volta aqui.
+            </p>
+          </div>
+        )}
+
+        {message && (
+          <p className="flex items-start gap-2 text-xs font-semibold text-muted-foreground">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>{message}</span>
+          </p>
+        )}
       </Card>
-      <Card className="text-sm text-muted-foreground">
-        As notificações desta área aparecem apenas quando forem geradas por eventos reais da tua conta ou partida. Não são criados avisos fictícios.
+
+      <Card className="space-y-2 text-xs text-muted-foreground">
+        <p className="font-bold text-foreground">Como funciona</p>
+        <p>• Ao ativar, o dispositivo é registado para receber push.</p>
+        <p>• Ao desativar, a subscrição deste dispositivo é removida.</p>
+        <p>• Só serão enviados avisos quando existir um evento real da tua conta ou partida.</p>
       </Card>
     </main>
   );
