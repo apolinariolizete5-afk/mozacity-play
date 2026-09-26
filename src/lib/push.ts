@@ -1,30 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type PushState = "on" | "off" | "blocked" | "unsupported";
+export type PushState = "on" | "off";
+const PREF_KEY = "mozaplay:notifications-enabled:v2";
 
-const PREF_KEY = "mozaplay:notifications-enabled:v1";
-
-export function pushSupported(): boolean {
-  return typeof window !== "undefined" && "Notification" in window;
-}
+export function pushSupported(): boolean { return typeof window !== "undefined"; }
 
 export async function getPushState(_userId?: string): Promise<PushState> {
-  if (!pushSupported()) return "unsupported";
-  if (Notification.permission === "denied") return "blocked";
-  return localStorage.getItem(PREF_KEY) === "1" && Notification.permission === "granted" ? "on" : "off";
+  return typeof window !== "undefined" && localStorage.getItem(PREF_KEY) === "1" ? "on" : "off";
 }
 
 export async function enablePushNotifications(userId: string) {
   if (!userId) throw new Error("auth_required");
-  if (!pushSupported()) throw new Error("push_unsupported");
-  if (Notification.permission === "denied") throw new Error("push_permission_denied");
-
-  const permission = Notification.permission === "granted"
-    ? "granted"
-    : await Notification.requestPermission();
-
-  if (permission !== "granted") throw new Error("push_permission_denied");
-
   localStorage.setItem(PREF_KEY, "1");
   return { enabled: true };
 }
@@ -37,49 +23,22 @@ export function notificationsEnabled(): boolean {
   return typeof window !== "undefined" && localStorage.getItem(PREF_KEY) === "1";
 }
 
-/** Lovable Cloud/Supabase Realtime notification stream. */
+/** Notificações em tempo real do Lovable Cloud/Supabase Realtime. */
 export function subscribeToRealtimeNotifications(
   userId: string,
   onNotification?: (n: { id: string; title: string; body: string; url?: string }) => void,
 ) {
   if (!userId) return () => {};
-
   const channel = supabase
-    .channel(`user-notifications-${userId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "notifications",
-        filter: `user_id=eq.${userId}`,
-      },
-      (payload) => {
-        const notification = payload.new as {
-          id: string;
-          title: string;
-          body: string;
-          url?: string;
-        };
-
-        if (notificationsEnabled() && pushSupported() && Notification.permission === "granted") {
-          try {
-            new Notification(notification.title, {
-              body: notification.body,
-              icon: "/icons/icon-192.png",
-              tag: notification.id,
-            });
-          } catch {
-            // The Realtime event remains available even when browser notifications are unavailable.
-          }
-        }
-
-        onNotification?.(notification);
-      },
-    )
-    .subscribe();
-
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+    .channel("user-notifications-" + userId, { config: { broadcast: { self: false } } })
+    .on("postgres_changes", {
+      event: "INSERT", schema: "public", table: "notifications", filter: "user_id=eq." + userId,
+    }, (payload) => {
+      const notification = payload.new as { id: string; title: string; body: string; url?: string };
+      onNotification?.(notification);
+    })
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") console.warn("[Notifications] Realtime unavailable:", status);
+    });
+  return () => { void supabase.removeChannel(channel); };
 }
