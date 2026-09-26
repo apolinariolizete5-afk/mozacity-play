@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, Mail } from "lucide-react";
+import { Check, Loader2, Mail, Phone } from "lucide-react";
 import { Button, Card } from "@/components/ui/primitives";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,8 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -46,6 +48,10 @@ function AuthPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+    if (mode === "signup" && !acceptedTerms) {
+      setError("Confirma que leste e aceitas os Termos e Condições para criar a conta.");
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -54,7 +60,12 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { display_name: name.trim() || "Jogador" },
+            data: {
+              display_name: name.trim() || "Jogador",
+              phone: phone.trim(),
+              terms_accepted: true,
+              terms_accepted_at: new Date().toISOString(),
+            },
           },
         });
         if (err) throw err;
@@ -124,7 +135,7 @@ function AuthPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {error ? <p className="text-xs font-semibold text-destructive">{error}</p> : null}
+          {mode === "signup" ? (\n            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-secondary/60 p-3 text-xs leading-5">\n              <input\n                type="checkbox"\n                checked={acceptedTerms}\n                onChange={(e) => setAcceptedTerms(e.target.checked)}\n                className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"\n              />\n              <span>\n                <span className="font-semibold">Li e aceito os </span>\n                <a href="/terms" target="_blank" rel="noreferrer" className="font-bold text-primary underline">Termos e Condições</a>\n                <span className="font-semibold"> e a </span>\n                <a href="/privacy" target="_blank" rel="noreferrer" className="font-bold text-primary underline">Política de Privacidade</a>.\n              </span>\n            </label>\n          ) : null}\n          {error ? <p className="text-xs font-semibold text-destructive">{error}</p> : null}
           {info ? <p className="text-xs font-semibold text-success">{info}</p> : null}
           <Button className="w-full" size="lg" disabled={busy} type="submit">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
