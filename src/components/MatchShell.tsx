@@ -3,6 +3,7 @@ import { ArrowLeft, Wifi, Timer as TimerIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Avatar, Button, Card, Pill } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
+import { VoiceChat } from "@/components/VoiceChat";
 
 export interface Seat {
   name: string;
