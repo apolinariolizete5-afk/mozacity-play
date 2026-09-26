@@ -5,8 +5,6 @@ import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { useRealtimeLobby } from "@/lib/realtime";
 import {
-  findRoomByCode,
-  joinRoom,
   notify,
   setRoomStatus,
   useApp,
