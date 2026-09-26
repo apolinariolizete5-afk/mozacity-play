@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-type Player = { id: string; name: string; bot: false };
+type Player = { id: string; name: string };
 type Room = {
   id: string;
   code: string;
@@ -87,7 +87,7 @@ export const Route = createFileRoute("/api/multiplayer")({
             timer: Math.max(5, Number(body?.timer) || 10),
             capacity,
             status: "WAITING",
-            players: [{ id: playerId, name: playerName, bot: false }],
+            players: [{ id: playerId, name: playerName }],
             hostId: playerId,
             createdAt: new Date().toISOString(),
           };
@@ -101,7 +101,7 @@ export const Route = createFileRoute("/api/multiplayer")({
           if (!room) return json({ error: "Sala não encontrada." }, 404);
           if (room.players.some((p) => p.id === playerId)) return json({ room: cleanRoom(room), state: room.state ?? null });
           if (room.players.length >= room.capacity) return json({ error: "Sala cheia." }, 409);
-          room.players.push({ id: playerId, name: playerName, bot: false });
+          room.players.push({ id: playerId, name: playerName });
           if (room.players.length >= room.capacity) room.status = "READY";
           return json({ room: cleanRoom(room), state: room.state ?? null });
         }
@@ -120,7 +120,7 @@ export const Route = createFileRoute("/api/multiplayer")({
           );
 
           if (existing) {
-            existing.players.push({ id: playerId, name: playerName, bot: false });
+            existing.players.push({ id: playerId, name: playerName });
             if (existing.players.length >= existing.capacity) existing.status = "READY";
             return json({ room: cleanRoom(existing), matched: true, state: existing.state ?? null });
           }
@@ -133,7 +133,7 @@ export const Route = createFileRoute("/api/multiplayer")({
             timer: Math.max(5, Number(body?.timer) || 10),
             capacity,
             status: "WAITING",
-            players: [{ id: playerId, name: playerName, bot: false }],
+            players: [{ id: playerId, name: playerName }],
             hostId: playerId,
             createdAt: new Date().toISOString(),
           };
