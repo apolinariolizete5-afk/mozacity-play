@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, Mail, Phone } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail } from "lucide-react";
 import { Button, Card } from "@/components/ui/primitives";
 import { Logo } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,12 +28,25 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const goAfterLogin = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    await navigate({ to: data?.role === "admin" ? "/admin" : "/wallet" });
+  };
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -42,12 +55,12 @@ function AuthPage() {
       return;
     }
 
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") void navigate({ to: "/wallet" });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) void goAfterLogin(session.user.id);
       if (event === "PASSWORD_RECOVERY") setMode("reset");
     });
     void supabase.auth.getSession().then(({ data: d }) => {
-      if (d.session && mode !== "recovery") void navigate({ to: "/wallet" });
+      if (d.session && mode !== "recovery") void goAfterLogin(d.session.user.id);
     });
     return () => data.subscription.unsubscribe();
   }, [navigate, mode]);
@@ -188,27 +201,47 @@ function AuthPage() {
           ) : null}
 
           {mode === "reset" ? (
-            <input
-              className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-              type="password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-              placeholder="Nova palavra-passe"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 pr-12 text-sm outline-none focus:border-primary"
+                type={showNewPassword ? "text" : "password"}
+                required
+                minLength={6}
+                autoComplete="new-password"
+                placeholder="Nova palavra-passe"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showNewPassword ? "Ocultar palavra-passe" : "Ver palavra-passe"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-muted-foreground"
+                onClick={() => setShowNewPassword((v) => !v)}
+              >
+                {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           ) : (
-            <input
-              className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-              type="password"
-              required
-              minLength={6}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              placeholder="Palavra-passe"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 pr-12 text-sm outline-none focus:border-primary"
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                placeholder="Palavra-passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Ocultar palavra-passe" : "Ver palavra-passe"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-muted-foreground"
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           )}
 
           {mode === "signup" ? (
