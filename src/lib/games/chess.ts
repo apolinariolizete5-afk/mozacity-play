@@ -336,25 +336,3 @@ export const PIECE_GLYPH: Record<string, string> = {
   bn: "♞",
   bp: "♟",
 };
-
-/** Simple greedy bot: prefers checkmate, then highest material capture. */
-export function chessBotMove(s: ChessState): ChessMove | null {
-  const moves = legalMoves(s);
-  if (!moves.length) return null;
-  const value: Record<PieceType, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-  let best = moves[0]!;
-  let bestScore = -Infinity;
-  for (const m of moves) {
-    const target = s.board[m.to];
-    let score = target ? value[target.t] * 10 : 0;
-    const n = rawApply(s, m);
-    if (legalMoves(n).length === 0 && inCheck(n, n.turn)) score += 1000;
-    else if (inCheck(n, n.turn)) score += 5;
-    score += Math.random();
-    if (score > bestScore) {
-      bestScore = score;
-      best = m;
-    }
-  }
-  return best;
-}
