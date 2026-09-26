@@ -108,6 +108,30 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     return { payout_id: id as string };
   });
 
+/** Regista a partida multiplayer no banco antes de qualquer débito. */
+export const registerRoomMatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({
+      room_code: z.string().trim().length(6),
+      game: z.enum(["ludo", "checkers", "chess"]),
+      player_one_id: z.string().uuid(),
+      player_two_id: z.string().uuid(),
+      bet_cents: z.number().int().min(0).max(50_000_000),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("register_room_match", {
+      _room_code: data.room_code,
+      _game: data.game,
+      _player_one_id: data.player_one_id,
+      _player_two_id: data.player_two_id,
+      _bet_cents: data.bet_cents,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; match_id: string; bet_cents: number; status: string };
+  });
+
 /** Trava a caução para uma partida multiplayer antes do início. */
 export const lockRoomWager = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
