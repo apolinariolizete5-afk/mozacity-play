@@ -47,6 +47,11 @@ function Profile() {
   const [saving, setSaving] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [gameStats, setGameStats] = useState<Record<GameId, { wins: number; losses: number }>>({
+    ludo: { wins: 0, losses: 0 },
+    checkers: { wins: 0, losses: 0 },
+    chess: { wins: 0, losses: 0 },
+  });
 
   useEffect(() => {
     setName(app.profile.name);
@@ -54,6 +59,32 @@ function Profile() {
     setBio(app.profile.bio);
     setAvatar(app.profile.avatar);
   }, [app.profile]);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+      const { data: matches } = await supabase
+        .from("matches")
+        .select("game_type, player1_id, winner_id")
+        .or(`player1_id.eq.${user.user.id},player2_id.eq.${user.user.id}`);
+      const next = {
+        ludo: { wins: 0, losses: 0 },
+        checkers: { wins: 0, losses: 0 },
+        chess: { wins: 0, losses: 0 },
+      };
+      for (const match of matches ?? []) {
+        const key = match.game_type as GameId;
+        if (!next[key]) continue;
+        if (!match.winner_id) continue;
+        if (match.winner_id === user.user.id) next[key].wins += 1;
+        else next[key].losses += 1;
+      }
+      if (active) setGameStats(next);
+    })();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
@@ -88,11 +119,8 @@ function Profile() {
       setProfile(name, avatar, phone, bio);
       setSaved(true);
       setEditing(false);
-    } catch {
-      // Keep the local profile usable even when authentication is not connected.
-      setProfile(name, avatar, phone, bio);
-      setSaved(true);
-      setEditing(false);
+    } catch (error) {
+      console.error("[Profile]", error);
     } finally {
       setSaving(false);
     }
@@ -212,7 +240,7 @@ function Profile() {
         {(Object.keys(GAME_META) as GameId[]).map((id) => (
           <div key={id} className="flex items-center justify-between rounded-2xl bg-secondary/60 px-4 py-3 text-sm">
             <span className="font-semibold">{GAME_META[id].name}</span>
-            <span className="text-xs text-muted-foreground">{app.stats[id].wins}V · {app.stats[id].losses}D · {winRate(app.stats[id])}%</span>
+            <span className="text-xs text-muted-foreground">{gameStats[id].wins}V · {gameStats[id].losses}D · {winRate({ ...gameStats[id], draws: 0 })}%</span>
           </div>
         ))}
       </Card>
@@ -220,7 +248,7 @@ function Profile() {
       <Card className="space-y-3">
         <div className="flex items-center gap-2"><UserRound className="h-4 w-4 text-primary" /><p className="font-display font-bold">Preferências</p></div>
         <p className="text-xs text-muted-foreground">Escolhe o teu tempo preferido por turno.</p>
-        <div className="flex gap-2">{[5, 10, 15, 30].map((t) => <button key={t} onClick={() => setTimerPreference(t)} className={`h-11 flex-1 rounded-2xl text-sm font-bold ${app.timer === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t}s</button>)}</div>
+        <div className="flex gap-2">{[5, 10, 15].map((t) => <button key={t} onClick={() => setTimerPreference(t)} className={`h-11 flex-1 rounded-2xl text-sm font-bold ${app.timer === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t}s</button>)}</div>
       </Card>
 
       <Card className="flex flex-col gap-4 border-destructive/20 sm:flex-row sm:items-center sm:justify-between">
