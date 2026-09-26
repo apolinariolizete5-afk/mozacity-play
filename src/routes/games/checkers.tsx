@@ -8,7 +8,7 @@ import {
   legalMoves,
   type CheckersMove,
 } from "@/lib/games/checkers";
-import { placeBet, recordMatch, useApp } from "@/lib/store";
+import { recordMatch, useApp } from "@/lib/store";
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/checkers")({
@@ -38,17 +38,8 @@ function CheckersMatch() {
   const [seconds, setSeconds] = useState(timer);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
-  const staked = useRef(false);
   const [moveCount, setMoveCount] = useState(0);
   const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
-
-  useEffect(() => {
-    if (room) return;
-    if (!staked.current) {
-      staked.current = true;
-      placeBet(bet, "checkers");
-    }
-  }, [bet]);
 
   useEffect(() => {
     setSeconds(timer);
