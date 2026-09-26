@@ -44,12 +44,14 @@ function ChessMatch() {
     setState(realtime.remoteState);
   }, [room, realtime.remoteState]);
 
-  const ready = Boolean(room && realtime.players.length >= 2);
+  const playersReady = Boolean(room && realtime.players.length >= 2);
+  const [escrowReady, setEscrowReady] = useState(bet <= 0);
+  const ready = playersReady && escrowReady;
   const roomRegistered = useRef(false);
   const wagerLocked = useRef(false);
 
   useEffect(() => {
-    if (!ready || !room || realtime.players.length < 2 || roomRegistered.current) return;
+    if (!playersReady || !room || realtime.players.length < 2 || roomRegistered.current) return;
     const playerIds = realtime.players.map((player) => player.playerId);
     if (playerIds.length < 2) return;
     roomRegistered.current = true;
@@ -61,16 +63,20 @@ function ChessMatch() {
       bet_cents: Math.max(0, Math.round(bet * 100)),
     }}).then(() => {
       if (bet > 0 && !wagerLocked.current) {
-        wagerLocked.current = true;
-        return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } });
+        return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } }).then(() => {
+          wagerLocked.current = true;
+          setEscrowReady(true);
+        });
       }
+      setEscrowReady(true);
       return null;
     }).catch((error) => {
       roomRegistered.current = false;
       wagerLocked.current = false;
+      setEscrowReady(false);
       console.error("[MozaPlay] Falha ao preparar aposta:", error);
     });
-  }, [bet, ready, room, realtime.players]);
+  }, [bet, playersReady, room, realtime.players]);
 
 
   useEffect(() => {
