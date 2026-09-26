@@ -8,7 +8,6 @@ import { VoiceChat } from "@/components/VoiceChat";
 export interface Seat {
   name: string;
   avatar: string;
-  bot: boolean;
   active: boolean;
   label?: string;
 }
@@ -65,7 +64,7 @@ export function MatchShell({
           >
             <Avatar emoji={s.avatar} name={s.name} size={40} />
             <span className="text-[10px] uppercase text-muted-foreground">
-              {s.label ?? (s.bot ? "Bot" : "Tu")}
+              {s.label ?? "Jogador"}
             </span>
           </div>
         ))}
