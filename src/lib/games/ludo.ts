@@ -78,6 +78,17 @@ export function movableTokens(state: LudoState): number[] {
   });
 }
 
+export function ludoTimeout(state: LudoState): LudoState {
+  if (state.over) return state;
+  const next = clone(state);
+  next.dice = null;
+  next.sixStreak = 0;
+  next.bonusRoll = false;
+  next.turn = (next.turn + 1) % next.players;
+  next.log.unshift("Tempo esgotado. A vez passou ao próximo jogador.");
+  return next;
+}
+
 export const LUDO_NAMES = ["Verde", "Amarelo", "Azul", "Vermelho"] as const;
 
 export const ludoEngine: GameEngine<LudoState, LudoMove> = {
