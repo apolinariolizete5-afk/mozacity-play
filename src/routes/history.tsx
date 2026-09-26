@@ -1,46 +1,75 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Card, PageHeader, Pill } from "@/components/ui/primitives";
-import { GAME_META } from "@/lib/games/types";
-import { useApp } from "@/lib/store";
+import { GAME_META, type GameId } from "@/lib/games/types";
+import { supabase } from "@/integrations/supabase/client";
+
+type MatchRow = {
+  id: string;
+  game_type: GameId;
+  player1_id: string;
+  player2_id: string | null;
+  winner_id: string | null;
+  status: string;
+  created_at: string;
+  ended_at: string | null;
+};
 
 export const Route = createFileRoute("/history")({
-  head: () => ({
-    meta: [
-      { title: "Histórico de partidas — MozaPlay" },
-      { name: "description", content: "Detalhe de todas as partidas jogadas, resultados e moedas." },
-      { property: "og:title", content: "Histórico de partidas — MozaPlay" },
-      { property: "og:description", content: "Revê os teus resultados partida a partida." },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Histórico de partidas — MozaPlay" }] }),
   component: HistoryPage,
 });
 
 function HistoryPage() {
-  const app = useApp();
+  const [rows, setRows] = useState<MatchRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) {
+        if (active) setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("matches")
+        .select("id, game_type, player1_id, player2_id, winner_id, status, created_at, ended_at")
+        .or(`player1_id.eq.${user.user.id},player2_id.eq.${user.user.id}`)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) console.error("[History]", error.message);
+      if (active) {
+        setRows((data as MatchRow[] | null) ?? []);
+        setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   return (
-    <main className="mx-auto w-full max-w-md space-y-3 px-4 pb-4">
-      <PageHeader title="Histórico" subtitle={`${app.matches.length} partidas registadas`} />
-      {app.matches.length === 0 ? (
-        <Card className="text-sm text-muted-foreground">Ainda não jogaste nenhuma partida.</Card>
-      ) : (
-        app.matches.map((m) => (
-          <Card key={m.id} className="flex items-center justify-between py-3">
+    <main className="mx-auto w-full max-w-md space-y-3 px-4 pb-28">
+      <PageHeader title="Histórico" subtitle={`${rows.length} partidas reais registadas`} />
+      {loading ? <Card className="text-sm text-muted-foreground">A carregar...</Card> : null}
+      {!loading && rows.length === 0 ? <Card className="text-sm text-muted-foreground">Ainda não tens partidas registadas.</Card> : null}
+      {rows.map((match) => {
+        const result = match.winner_id === null ? "draw" : match.winner_id === match.player1_id ? "win" : "loss";
+        return (
+          <Card key={match.id} className="flex items-center justify-between py-3">
             <div>
-              <p className="text-sm font-bold">{GAME_META[m.game].name}</p>
+              <p className="text-sm font-bold">{GAME_META[match.game_type]?.name ?? match.game_type}</p>
               <p className="text-[11px] text-muted-foreground">
-                vs {m.opponents.join(", ") || "bot"} · aposta {m.bet} · {" "}
-                {new Date(m.createdAt).toLocaleString("pt-PT")}
+                {new Date(match.created_at).toLocaleString("pt-PT")}
               </p>
             </div>
-            <div className="text-right">
-              <Pill tone={m.result === "win" ? "success" : m.result === "draw" ? "muted" : "danger"}>
-                {m.result === "win" ? "Vitória" : m.result === "draw" ? "Empate" : "Derrota"}
-              </Pill>
-              <p className="mt-1 text-[11px] text-muted-foreground">+{m.coins} moedas</p>
-            </div>
+            <Pill tone={result === "win" ? "success" : result === "draw" ? "muted" : "danger"}>
+              {result === "win" ? "Vitória" : result === "draw" ? "Empate" : "Derrota"}
+            </Pill>
           </Card>
-        ))
-      )}
+        );
+      })}
     </main>
   );
 }
