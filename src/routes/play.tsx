@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Bot, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
+import { ArrowRight, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { setTimerPreference, useApp } from "@/lib/store";
 
@@ -21,7 +21,6 @@ function Play() {
   const app = useApp();
   const [selected, setSelected] = useState<GameId>(game);
   const [timer, setTimer] = useState(app.timer);
-  const [bet, setBet] = useState(0);
   const [players, setPlayers] = useState(4);
   const [searching, setSearching] = useState(false);
   const [found, setFound] = useState<string[]>([]);
@@ -30,13 +29,6 @@ function Play() {
   useEffect(() => setSelected(game), [game]);
   const maxPlayers = selected === "ludo" ? 4 : 2;
   const seats = selected === "ludo" ? players : 2;
-
-  const start = () => {
-    setTimerPreference(timer);
-    if (selected === "ludo") navigate({ to: "/games/ludo", search: { bet, timer, players: seats } });
-    else if (selected === "checkers") navigate({ to: "/games/checkers", search: { bet, timer } });
-    else navigate({ to: "/games/chess", search: { bet, timer } });
-  };
 
   const quickMatch = async () => {
     setSearching(true);
@@ -161,7 +153,7 @@ function Play() {
           ) : (
             <div className="mt-5 space-y-2">
               <button onClick={quickMatch} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-extrabold text-primary-foreground shadow-lg shadow-primary/15"><Users2 className="h-4 w-4" /> Partida rápida <ArrowRight className="h-4 w-4" /></button>
-              <button onClick={start} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-secondary py-3.5 text-sm font-extrabold"><Bot className="h-4 w-4" /> Entrar sozinho</button>
+
             </div>
           )}
         </aside>
