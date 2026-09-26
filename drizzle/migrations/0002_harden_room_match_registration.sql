@@ -145,7 +145,7 @@ begin
     'completed',
     'rbet_' || e.room_code || '_' || replace(uid::text,'-',''),
     'Aposta em ' || e.game || ' (sala ' || e.room_code || ')'
-  )
+  );
 
   if uid = e.player_one then
     e.locked_one := true;
