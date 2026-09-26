@@ -182,6 +182,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
     onSuccess: () => {
       onRefresh();
       void overview.refetch();
+      void settings.refetch();
       void payouts.refetch();
     },
   });
