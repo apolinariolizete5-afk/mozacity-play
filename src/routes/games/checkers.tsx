@@ -82,7 +82,7 @@ function CheckersMatch() {
       winnerId: realtime.players[realtime.forfeitWinner ?? state.winner ?? 0]?.playerId ?? null,
       bet,
     });
-  }, [state, bet, opponent]);
+  }, [state, bet, opponent, realtime.forfeitWinner, realtime.players]);
 
   function play(move: CheckersMove) {
     if (!room || realtime.players.length < 2) return;
@@ -141,7 +141,7 @@ function CheckersMatch() {
       {result ? (
         <ResultOverlay
           result={result}
-          coins={result === "win" ? bet * 2 : 0}
+          coins={0}
           onRematch={() => {
             settled.current = false;
             
