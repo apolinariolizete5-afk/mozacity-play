@@ -4,13 +4,7 @@ import { Lock, Globe, Plus, Play, Share2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { useRealtimeLobby } from "@/lib/realtime";
-import {
-  notify,
-  setRoomStatus,
-  useApp,
-  type Room,
-  type RoomStatus,
-} from "@/lib/store";
+import { notify, useApp, type Room, type RoomStatus } from "@/lib/store";
 
 export const Route = createFileRoute("/rooms")({
   head: () => ({
@@ -44,10 +38,9 @@ function Rooms() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const { remoteRooms } = useRealtimeLobby(app.rooms);
+  const { remoteRooms } = useRealtimeLobby([]);
 
   const enter = (room: Room) => {
-    if (app.rooms.some((item) => item.id === room.id)) setRoomStatus(room.id, "PLAYING");
     if (room.game === "ludo")
       navigate({
         to: "/games/ludo",
@@ -114,7 +107,7 @@ function Rooms() {
     }
   };
 
-  const visible = [...app.rooms.filter((r) => r.status !== "CANCELLED"), ...remoteRooms];
+  const visible = remoteRooms.filter((r) => r.status !== "FINISHED");
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-6 pt-5 sm:px-6">
@@ -185,8 +178,7 @@ function Rooms() {
       <div className="grid gap-3 sm:grid-cols-2">
       {visible.map((room) => {
         const full = room.players.length >= room.capacity;
-        const isRemote = !app.rooms.some((item) => item.id === room.id);
-        const joined = room.players.some((p) => p.id === app.profile.id);
+                const joined = room.players.some((p) => p.id === app.profile.id);
         return (
           <Card key={room.id} className="space-y-3">
             <div className="flex items-start justify-between">
@@ -215,7 +207,24 @@ function Rooms() {
 
             <div className="flex gap-2">
               {!joined ? (
-                <Button variant="ghost" className="flex-1" onClick={() => joinRoom(room.id)} disabled={full}>
+                <Button variant="ghost" className="flex-1" onClick={async () => {
+                    try {
+                      const response = await fetch("/api/multiplayer", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "join",
+                          code: room.code,
+                          player: { id: app.profile.id, name: app.profile.name },
+                        }),
+                      });
+                      const data = await response.json();
+                      if (!response.ok || !data.room) throw new Error(data.error || "Não foi possível entrar na sala.");
+                      setMessage(`Entraste na sala ${data.room.code}.`);
+                    } catch (error) {
+                      setMessage(error instanceof Error ? error.message : "Não foi possível entrar na sala.");
+                    }
+                  }} disabled={full}>
                   {full ? "Cheia" : "Entrar"}
                 </Button>
               ) : null}
