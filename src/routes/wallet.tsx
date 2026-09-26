@@ -245,10 +245,10 @@ function MethodPicker({
 
 function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () => void }) {
   const deposit = useServerFn(startDeposit);
-  const [amount, setAmount] = useState("50");
+  const min = summary.min_deposit_cents / 100;
+  const [amount, setAmount] = useState(String(min));
   const [method, setMethod] = useState<Method>("mpesa");
   const [msisdn, setMsisdn] = useState("");
-  const min = summary.min_deposit_cents / 100;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -277,7 +277,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
           onChange={(e) => setAmount(e.target.value.replace(/[^\d.,]/g, "").replace(",", "."))}
         />
         <div className="mt-2 flex gap-2">
-          {[50, 100, 250, 500].map((v) => (
+          {[min, min * 2, min * 5, min * 10].filter((v, i, a) => v > 0 && a.indexOf(v) === i).map((v) => (
             <button
               key={v}
               type="button"
@@ -433,9 +433,9 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
   );
 }
 
-function depositError(message: string): string {
+function depositError(message: string, minDepositCents = 5000): string {
   const map: Record<string, string> = {
-    below_min_deposit: "O depósito mínimo é 50 MT.",
+    below_min_deposit: `O depósito mínimo é ${formatMzn(minDepositCents)}.`,
     below_min_withdrawal: "O levantamento mínimo é 50 MT.",
     insufficient_funds: "Saldo insuficiente.",
     rollover_pending: "Ainda tens saldo por apostar antes de levantar.",
