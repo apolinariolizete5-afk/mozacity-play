@@ -81,6 +81,7 @@ function CheckersMatch() {
       playerIds: realtime.players.map((p) => p.playerId),
       winnerId: realtime.players[realtime.forfeitWinner ?? state.winner ?? 0]?.playerId ?? null,
       bet,
+      persistMatch: realtime.forfeitWinner !== null ? realtime.forfeitWinner === realtime.playerIndex : realtime.playerIndex === 0,
     });
   }, [state, bet, opponent, realtime.forfeitWinner, realtime.players]);
 
