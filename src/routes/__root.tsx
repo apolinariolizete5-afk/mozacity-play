@@ -125,7 +125,39 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-function AgeGate() {\n  const [open, setOpen] = useState(false);\n  useEffect(() => {\n    if (typeof window === "undefined") return;\n    setOpen(window.localStorage.getItem("mozaplay:age-confirmed:v1") !== "1");\n  }, []);\n  if (!open) return null;\n  const confirm = () => {\n    window.localStorage.setItem("mozaplay:age-confirmed:v1", "1");\n    setOpen(false);\n  };\n  return <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4 backdrop-blur-sm">\n    <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl">\n      <p className="text-3xl">🔞</p><h2 className="mt-3 font-display text-2xl font-extrabold">18+ / Aviso de idade</h2>\n      <p className="mt-3 text-sm text-muted-foreground">Confirma que tens 18 anos ou mais para continuar. Algumas funcionalidades podem exigir verificações adicionais de idade ou identidade.</p>\n      <div className="mt-5 grid grid-cols-2 gap-2">\n        <a href="/responsible-play" className="rounded-2xl border border-input px-4 py-3 text-center text-sm font-bold">Jogo responsável</a>\n        <button onClick={confirm} className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Tenho 18+</button>\n      </div>\n    </div>\n  </div>;\n}\n\nfunction LegalFooter() {\n  return <footer className="border-t border-border px-4 py-6 text-center text-xs text-muted-foreground">\n    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">\n      <Link to="/terms">Termos e Condições</Link><Link to="/privacy">Privacidade</Link><Link to="/responsible-play">Jogo Responsável / 18+</Link>\n    </div>\n    <p className="mt-3">© {new Date().getFullYear()} MozaPlay</p>\n  </footer>;\n}\n\nfunction RootComponent() {
+function AgeGate() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setOpen(window.localStorage.getItem("mozaplay:age-confirmed:v1") !== "1");
+  }, []);
+  if (!open) return null;
+  const confirm = () => {
+    window.localStorage.setItem("mozaplay:age-confirmed:v1", "1");
+    setOpen(false);
+  };
+  return <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4 backdrop-blur-sm">
+    <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl">
+      <p className="text-3xl">🔞</p><h2 className="mt-3 font-display text-2xl font-extrabold">18+ / Aviso de idade</h2>
+      <p className="mt-3 text-sm text-muted-foreground">Confirma que tens 18 anos ou mais para continuar. Algumas funcionalidades podem exigir verificações adicionais de idade ou identidade.</p>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <a href="/responsible-play" className="rounded-2xl border border-input px-4 py-3 text-center text-sm font-bold">Jogo responsável</a>
+        <button onClick={confirm} className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground">Tenho 18+</button>
+      </div>
+    </div>
+  </div>;
+}
+
+function LegalFooter() {
+  return <footer className="border-t border-border px-4 py-6 text-center text-xs text-muted-foreground">
+    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+      <Link to="/terms">Termos e Condições</Link><Link to="/privacy">Privacidade</Link><Link to="/responsible-play">Jogo Responsável / 18+</Link>
+    </div>
+    <p className="mt-3">© {new Date().getFullYear()} MozaPlay</p>
+  </footer>;
+}
+
+function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
