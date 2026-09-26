@@ -51,8 +51,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           Esta página não carregou
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Algo falhou do nosso lado. Tenta atualizar ou voltar ao início.
+          Algo falhou ao abrir esta página. Tenta novamente.
         </p>
+        <details className="mt-4 rounded-2xl bg-secondary p-3 text-left">
+          <summary className="cursor-pointer text-xs font-bold">Ver detalhe técnico</summary>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] text-muted-foreground">{error.message}</pre>
+        </details>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
