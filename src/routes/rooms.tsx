@@ -22,6 +22,7 @@ function Rooms() {
   const [creating, setCreating] = useState(false);
   const [game, setGame] = useState<GameId>("ludo");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [bet, setBet] = useState(20);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const { remoteRooms } = useRealtimeLobby(
@@ -29,27 +30,31 @@ function Rooms() {
     true,
   );
 
-  const goToRoom = (room: { game: GameId; code: string }) => {
+  const goToRoom = (room: { game: GameId; code: string; bet?: number }) => {
+    const wager = Math.max(20, Math.round(Number(room.bet ?? bet) || 20));
     if (room.game === "ludo") {
-      void navigate({ to: "/games/ludo", search: { bet: 0, timer: 15, players: 2, room: room.code } });
+      void navigate({ to: "/games/ludo", search: { bet: wager, timer: 15, players: 2, room: room.code } });
     } else if (room.game === "checkers") {
-      void navigate({ to: "/games/checkers", search: { bet: 0, timer: 15, room: room.code } });
+      void navigate({ to: "/games/checkers", search: { bet: wager, timer: 15, room: room.code } });
     } else {
-      void navigate({ to: "/games/chess", search: { bet: 0, timer: 15, room: room.code } });
+      void navigate({ to: "/games/chess", search: { bet: wager, timer: 15, room: room.code } });
     }
   };
 
   const submitCreate = async () => {
     if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     try {
+      const wager = Math.max(20, Math.round(bet));
+      if (wager < 20) { setMessage("A aposta mínima é 20 MT."); return; }
       const room = await createRoom({
         game,
         isPrivate,
         capacity: 2,
+        bet: wager,
         player: { playerId: app.profile.id, name: app.profile.name },
       });
       setCreating(false);
-      setMessage(`Sala ${room.code} criada. A aguardar outro jogador humano.`);
+      setMessage(`Sala ${room.code} criada com aposta de ${room.bet} MT. A aguardar outro jogador humano.`);
       goToRoom(room);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível criar a sala.");
@@ -70,10 +75,10 @@ function Rooms() {
   const shareRoom = async (room: { game: GameId; code: string }) => {
     const path =
       room.game === "ludo"
-        ? `/games/ludo?room=${room.code}&players=2&bet=0`
+        ? `/games/ludo?room=${room.code}&players=2&bet=${room.bet}`
         : room.game === "checkers"
-          ? `/games/checkers?room=${room.code}&bet=0`
-          : `/games/chess?room=${room.code}&bet=0`;
+          ? `/games/checkers?room=${room.code}&bet=${room.bet}`
+          : `/games/chess?room=${room.code}&bet=${room.bet}`;
     const url = `${window.location.origin}${path}`;
     try {
       if (navigator.share) await navigator.share({ title: "MozaPlay", text: `Entra na minha sala ${room.code}`, url });
@@ -119,6 +124,14 @@ function Rooms() {
               </button>
             ))}
           </div>
+          <label className="block rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
+            <span>Valor da aposta</span>
+            <div className="mt-2 flex items-center gap-2">
+              <input type="number" min={20} step={1} value={bet} onChange={(event) => setBet(Math.max(20, Number(event.target.value) || 20))} className="h-12 flex-1 rounded-xl bg-background px-4 text-base font-extrabold outline-none" />
+              <span className="font-extrabold">MT</span>
+            </div>
+            <span className="mt-1 block text-[11px] text-muted-foreground">Mínimo: 20 MT por jogador.</span>
+          </label>
           <label className="flex items-center justify-between rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
             Sala privada
             <input type="checkbox" checked={isPrivate} onChange={(event) => setIsPrivate(event.target.checked)} className="h-5 w-5" />
@@ -153,7 +166,7 @@ function Rooms() {
                   </div>
                   <p className="mt-1 font-mono text-xs tracking-widest text-primary">{room.code}</p>
                 </div>
-                <Pill tone="muted">{room.players.length}/{room.capacity}</Pill>
+                <div className="flex gap-1"><Pill tone="primary">{room.bet} MT</Pill><Pill tone="muted">{room.players.length}/{room.capacity}</Pill></div>
               </div>
               <div className="flex flex-wrap gap-1">
                 {room.players.map((player) => <Pill key={player.id} tone="primary">{player.name}</Pill>)}
