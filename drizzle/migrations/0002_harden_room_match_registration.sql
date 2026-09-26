@@ -146,7 +146,6 @@ begin
     'rbet_' || e.room_code || '_' || replace(uid::text,'-',''),
     'Aposta em ' || e.game || ' (sala ' || e.room_code || ')'
   )
-  on conflict (idempotency_key) do nothing;
 
   if uid = e.player_one then
     e.locked_one := true;
