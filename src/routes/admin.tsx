@@ -37,6 +37,7 @@ interface Settings {
   withdrawal_fee_percent: number;
   withdrawal_fee_fixed_cents: number;
   min_deposit_cents: number;
+  min_bet_cents: number;
   min_withdrawal_cents: number;
   rollover_enabled: boolean;
   rollover_multiplier: number;
@@ -142,7 +143,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
       const { data, error } = await supabase
         .from("platform_settings")
         .select(
-          "house_fee_percent, withdrawal_fee_percent, withdrawal_fee_fixed_cents, min_deposit_cents, min_withdrawal_cents, rollover_enabled, rollover_multiplier",
+          "house_fee_percent, withdrawal_fee_percent, withdrawal_fee_fixed_cents, min_deposit_cents, min_withdrawal_cents, min_bet_cents, rollover_enabled, rollover_multiplier",
         )
         .eq("id", 1)
         .maybeSingle();
@@ -177,6 +178,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
           withdrawal_fee_percent: Number(form!.withdrawal_fee_percent),
           withdrawal_fee_fixed_cents: Math.round(Number(form!.withdrawal_fee_fixed_cents)),
           min_deposit_cents: Math.round(Number(form!.min_deposit_cents)),
+          min_bet_cents: Math.round(Number(form!.min_bet_cents)),
           min_withdrawal_cents: Math.round(Number(form!.min_withdrawal_cents)),
           rollover_enabled: form!.rollover_enabled,
           rollover_multiplier: Number(form!.rollover_multiplier),
@@ -290,6 +292,12 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
                 <NumInput
                   value={form.min_deposit_cents / 100}
                   onChange={(v) => setForm({ ...form, min_deposit_cents: v * 100 })}
+                />
+              </Field>
+              <Field label="Aposta mínima (MT)">
+                <NumInput
+                  value={form.min_bet_cents / 100}
+                  onChange={(v) => setForm({ ...form, min_bet_cents: v * 100 })}
                 />
               </Field>
               <Field label="Levantamento mínimo (MT)">
