@@ -1,0 +1,40 @@
+{
+  "packageId": "mz.mozaplay.app",
+  "host": "mozaplay.onrender.com",
+  "name": "MozaPlay",
+  "launcherName": "MozaPlay",
+  "display": "standalone",
+  "themeColor": "#12151d",
+  "themeColorDark": "#12151d",
+  "navigationColor": "#12151d",
+  "navigationColorDark": "#12151d",
+  "navigationDividerColor": "#12151d",
+  "navigationDividerColorDark": "#12151d",
+  "backgroundColor": "#12151d",
+  "enableNotifications": true,
+  "enableSiteSettingsShortcut": true,
+  "fallbackType": "customtabs",
+  "startUrl": "/",
+  "iconUrl": "https://mozaplay.onrender.com/icons/icon-512.png",
+  "maskableIconUrl": "https://mozaplay.onrender.com/icons/maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android-keystore",
+    "alias": "mozaplay"
+  },
+  "appVersionCode": 1,
+  "appVersion": "1.0.0",
+  "webManifestUrl": "https://mozaplay.onrender.com/manifest.webmanifest",
+  "fullScopeUrl": "https://mozaplay.onrender.com/",
+  "minSdkVersion": 23,
+  "orientation": "portrait",
+  "shortcuts": [],
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "generatorApp": "bubblewrap-cli"
+}
