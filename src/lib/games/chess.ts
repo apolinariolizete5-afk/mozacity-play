@@ -322,6 +322,15 @@ export const chessEngine: GameEngine<ChessState, ChessMove> = {
   legalMoves,
 };
 
+export function chessTimeout(state: ChessState): ChessState {
+  if (state.over) return state;
+  const next = clone(state);
+  next.over = true;
+  next.draw = false;
+  next.winner = next.turn === "w" ? 1 : 0;
+  return next;
+}
+
 export const PIECE_GLYPH: Record<string, string> = {
   wk: "♔",
   wq: "♕",
