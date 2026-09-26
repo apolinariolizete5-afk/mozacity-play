@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
-import { quickMatch, useRealtimeRoom, TURN_SECONDS } from "@/lib/realtime";
+import { leaveLobbyRoom, quickMatch, useRealtimeRoom, TURN_SECONDS } from "@/lib/realtime";
 import { useApp } from "@/lib/store";
 
 const TIMERS = [5, 10, 15, 30];
@@ -25,6 +25,7 @@ function Play() {
   const [searching, setSearching] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
+  const [searchStartedAt, setSearchStartedAt] = useState<number | null>(null);
 
   const realtime = useRealtimeRoom(
     roomCode || undefined,
@@ -47,9 +48,24 @@ function Play() {
     );
   }, [realtime.players.length, searching, roomCode, selected, navigate]);
 
+  useEffect(() => {
+    if (!searching || !searchStartedAt || realtime.players.length >= 2) return;
+    const timerId = window.setTimeout(() => {
+      if (realtime.players.length < 2) {
+        setSearching(false);
+        setRoomCode("");
+        setSearchStartedAt(null);
+        void leaveLobbyRoom();
+        setError("Não encontrámos outro jogador online. Tenta novamente em alguns segundos.");
+      }
+    }, 30_000);
+    return () => window.clearTimeout(timerId);
+  }, [searching, searchStartedAt, realtime.players.length]);
+
   const startQuickMatch = async () => {
     if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     setSearching(true);
+    setSearchStartedAt(Date.now());
     setError("");
     try {
       const room = await quickMatch({
@@ -69,6 +85,7 @@ function Play() {
     } catch (err) {
       setSearching(false);
       setRoomCode("");
+      setSearchStartedAt(null);
       setError(err instanceof Error ? err.message : "Não foi possível procurar uma partida.");
     }
   };
@@ -76,6 +93,8 @@ function Play() {
   const cancelSearch = () => {
     setSearching(false);
     setRoomCode("");
+    setSearchStartedAt(null);
+    void leaveLobbyRoom();
   };
 
   return (
