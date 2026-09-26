@@ -78,7 +78,13 @@ function Rooms() {
     setMessage(`Sala ${room.code} criada.`);
   };
 
-  const shareRoom = async (room: Room) => {\n    const path = room.game === "ludo" ? `/games/ludo?room=${room.code}&players=2&bet=0` : room.game === "checkers" ? `/games/checkers?room=${room.code}&bet=0` : `/games/chess?room=${room.code}&bet=0`;\n    const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;\n    try { await navigator.clipboard.writeText(url); setMessage("Link da sala copiado."); } catch { setMessage(url); }\n  };\n\n  const joinByCode = () => {
+  const shareRoom = async (room: Room) => {
+    const path = room.game === "ludo" ? `/games/ludo?room=${room.code}&players=2&bet=0` : room.game === "checkers" ? `/games/checkers?room=${room.code}&bet=0` : `/games/chess?room=${room.code}&bet=0`;
+    const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+    try { await navigator.clipboard.writeText(url); setMessage("Link da sala copiado."); } catch { setMessage(url); }
+  };
+
+  const joinByCode = () => {
     const room = findRoomByCode(code);
     if (!room) {
       setMessage("Código não encontrado.");
