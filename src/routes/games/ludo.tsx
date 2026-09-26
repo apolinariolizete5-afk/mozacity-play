@@ -5,7 +5,7 @@ import { ResultOverlay } from "@/components/MatchShell";
 import { VoiceChat } from "@/components/VoiceChat";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
-import { LUDO_NAMES, ludoEngine, type LudoMove } from "@/lib/games/ludo";
+import { LUDO_NAMES, ludoEngine, ludoTimeout, type LudoMove } from "@/lib/games/ludo";
 import { recordMatch, useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useRealtimeRoom } from "@/lib/realtime";
@@ -115,11 +115,20 @@ function LudoMatch() {
   const rollTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    setSeconds(TURN_SECONDS);
-    if (state.over) return;
-    const interval = window.setInterval(() => setSeconds((current) => Math.max(0, current - 1)), 1000);
+    if (!ready || state.over) return;
+    const deadline = realtime.turnDeadlineAt ?? Date.now() + TURN_SECONDS * 1000;
+    const tick = () => setSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    tick();
+    const interval = window.setInterval(tick, 250);
     return () => window.clearInterval(interval);
-  }, [state.turn, state.over, turnSequence]);
+  }, [ready, realtime.turnDeadlineAt, state.turn, state.over, turnSequence]);
+
+  useEffect(() => {
+    if (!ready || state.over || seconds > 0 || state.turn !== realtime.playerIndex) return;
+    const next = ludoTimeout(state);
+    setState(next);
+    void realtime.broadcastState(next);
+  }, [ready, seconds, state, realtime.playerIndex]);
 
   useEffect(() => () => {
     if (rollTimer.current) window.clearTimeout(rollTimer.current);
@@ -159,7 +168,7 @@ function LudoMatch() {
         setRolling(false);
         const next = ludoEngine.applyMove(state, { type: "roll", value });
         setState(next);
-        if (room) realtime.broadcastState({ type: "state", state: next });
+        if (room) void realtime.broadcastState(next);
       }, 560);
     },
     [applyMove, moving, rolling, room, realtime, state, ready],
@@ -169,10 +178,13 @@ function LudoMatch() {
   useEffect(() => {
     if (!state.over || settled.current) return;
     settled.current = true;
-    recordMatch({
+    void recordMatch({
       game: "ludo",
       result: state.winner === realtime.playerIndex ? "win" : "loss",
       opponents,
+      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
+      playerIds: realtime.players.map((p) => p.playerId),
+      winnerId: realtime.players[state.winner ?? 0]?.playerId ?? null,
       bet,
     });
   }, [bet, opponents, state.over, state.winner]);
@@ -185,13 +197,17 @@ function LudoMatch() {
 
   useEffect(() => {
     if (!room || !realtime.remoteState) return;
-    const remote = realtime.remoteState as any;
-    if (remote?.type === "state" && remote.state) setState(remote.state);
+    setState(realtime.remoteState);
   }, [realtime.remoteState, room]);
 
   const activeDiceValue = rolling ? dicePreview : state.dice ?? dicePreview;
   const canRoll = ready && state.turn === realtime.playerIndex && state.dice == null && !state.over && !rolling;
-  const result = state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
+  const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
+
+  useEffect(() => {
+    if (!ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
+    void realtime.broadcastState(state);
+  }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   const playersList = Array.from({ length: 2 }, (_, index) => ({
     index,
@@ -283,7 +299,7 @@ function LudoMatch() {
             onMove={(token) => {
               const next = ludoEngine.applyMove(state, { type: "move", token });
               setState(next);
-              if (room) realtime.broadcastState({ type: "state", state: next } as any);
+              if (room) void realtime.broadcastState(next);
               setPendingMoveToken(null);
               setMoving(false);
             }}
