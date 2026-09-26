@@ -186,8 +186,9 @@ function LudoMatch() {
       playerIds: realtime.players.map((p) => p.playerId),
       winnerId: realtime.players[realtime.forfeitWinner ?? state.winner ?? 0]?.playerId ?? null,
       bet,
+      persistMatch: realtime.forfeitWinner !== null ? realtime.forfeitWinner === realtime.playerIndex : realtime.playerIndex === 0,
     });
-  }, [bet, opponents, state.over, state.winner]);
+  }, [bet, opponents, state.over, state.winner, realtime.forfeitWinner, realtime.players]);
 
   useEffect(() => {
     if (!room) return;
