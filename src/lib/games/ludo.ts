@@ -200,32 +200,3 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
     return state.winner;
   },
 };
-
-export function ludoBotMove(state: LudoState): LudoMove | null {
-  if (state.over) return null;
-  if (state.dice == null) return { type: "roll" };
-  const dice = state.dice;
-  const candidates = movableTokens(state);
-  if (candidates.length === 0) return null;
-  const mine = state.tokens[state.turn];
-  if (!mine) return null;
-
-  const capture = candidates.find((token) => {
-    const position = mine[token];
-    if (position == null || position < 0 || position + dice >= RING) return false;
-    const destination = absoluteRing(state.turn, position + dice);
-    return !SAFE_STEPS.has(destination) && state.tokens.some((tokens, player) =>
-      player !== state.turn && tokens.some((other) => other >= 0 && other < RING && absoluteRing(player, other) === destination),
-    );
-  });
-  if (capture != null) return { type: "move", token: capture };
-
-  const finishing = candidates.find((token) => (mine[token] ?? -1) + dice === FINISHED);
-  if (finishing != null) return { type: "move", token: finishing };
-  const leavingBase = candidates.find((token) => mine[token] === -1);
-  if (leavingBase != null && dice === 6) return { type: "move", token: leavingBase };
-
-  const ordered = [...candidates].sort((a, b) => (mine[b] ?? -1) - (mine[a] ?? -1));
-  const token = ordered[0];
-  return token == null ? null : { type: "move", token };
-}
