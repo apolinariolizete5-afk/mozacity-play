@@ -149,6 +149,7 @@ export const Route = createFileRoute("/api/multiplayer")({
             players: [{ id: playerId, name: playerName }],
             hostId: playerId,
             createdAt: new Date().toISOString(),
+            lastActivityAt: Date.now(),
           };
           rooms.set(room.code, room);
           return json({ room: cleanRoom(room), matched: false, state: null }, 201);
