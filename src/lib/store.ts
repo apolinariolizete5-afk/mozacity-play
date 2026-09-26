@@ -50,7 +50,7 @@ export interface Stats {
 }
 
 export interface AppState {
-  profile: { id: string; name: string; avatar: string; phone: string; joinedAt: string };
+  profile: { id: string; name: string; avatar: string; phone: string; bio: string; joinedAt: string };
   coins: number;
   timer: number;
   stats: Record<GameId | "total", Stats>;
@@ -92,6 +92,8 @@ export function defaultState(): AppState {
       id: uid(),
       name: "Jogador",
       avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)]!,
+      phone: "",
+      bio: "",
       joinedAt: new Date().toISOString(),
     },
     coins: 0,
@@ -122,7 +124,19 @@ let state: AppState | null = null;
 const listeners = new Set<() => void>();
 
 function read(): AppState {
-  return state ?? (state = defaultState());
+  if (state) return state;
+  const base = defaultState();
+  if (typeof window !== "undefined") {
+    try {
+      const saved = window.localStorage.getItem("mozaplay:profile:v2");
+      if (saved) {
+        const profile = JSON.parse(saved) as Partial<AppState["profile"]>;
+        base.profile = { ...base.profile, ...profile };
+      }
+    } catch {}
+  }
+  state = base;
+  return state;
 }
 
 export function update(fn: (s: AppState) => AppState) {
@@ -201,8 +215,14 @@ export function setTimerPreference(timer: number) {
   update((s) => ({ ...s, timer }));
 }
 
-export function setProfile(name: string, avatar: string) {
-  update((s) => ({ ...s, profile: { ...s.profile, name, avatar } }));
+export function setProfile(name: string, avatar: string, phone = "", bio = "") {
+  update((s) => {
+    const profile = { ...s.profile, name: name.trim() || "Jogador", avatar, phone: phone.trim(), bio: bio.trim() };
+    if (typeof window !== "undefined") {
+      try { window.localStorage.setItem("mozaplay:profile:v2", JSON.stringify(profile)); } catch {}
+    }
+    return { ...s, profile };
+  });
 }
 
 export function recordMatch(input: {
