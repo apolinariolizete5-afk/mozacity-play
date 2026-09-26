@@ -157,17 +157,15 @@ export async function quickMatch(input: {
   game: GameId;
   player: RoomPresence;
 }) {
-  // Quick Match is a global queue for players who are explicitly searching.
-  // It is deliberately separate from the room list: a player can be online
-  // without searching, while Quick Match must pair only active searchers.
   const queue = supabase.channel(`mozaplay:matchmaking:${input.game}`, {
     config: {
       presence: { key: input.player.playerId },
+      broadcast: { self: false, ack: true },
     },
   });
   await ensureSubscribed(queue);
 
-  const searchingPlayer = {
+  const searchingPlayer: RoomPresence = {
     ...input.player,
     game: input.game,
     searching: true,
@@ -176,68 +174,97 @@ export async function quickMatch(input: {
 
   await queue.track(searchingPlayer);
 
+  let assignedRoom: LobbyRoom | null = null;
+  let assignmentResolve: ((room: LobbyRoom) => void) | null = null;
+  const assignment = new Promise<LobbyRoom>((resolve) => { assignmentResolve = resolve; });
+
+  const buildRoom = (pair: RoomPresence[]) => {
+    const ids = pair.map((entry) => entry.playerId).sort();
+    const seed = ids.join(":");
+    let hash = 0;
+    for (let index = 0; index < seed.length; index += 1) {
+      hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+    }
+    const code = `Q${hash.toString(36).toUpperCase().padStart(5, "0").slice(-5)}`;
+    return {
+      id: code,
+      code,
+      game: input.game,
+      isPrivate: false,
+      bet: 0,
+      timer: TURN_SECONDS,
+      capacity: 2,
+      status: "READY" as const,
+      players: pair.map((entry) => ({ id: entry.playerId, name: entry.name })),
+      hostId: ids[0],
+      createdAt: pair[0]?.createdAt ?? new Date().toISOString(),
+    };
+  };
+
+  const onAssigned = (payload: { payload?: { pair?: string[]; room?: LobbyRoom } }) => {
+    const event = payload.payload;
+    if (!event?.pair || !event.room) return;
+    if (!event.pair.includes(input.player.playerId)) return;
+    assignedRoom = event.room;
+    assignmentResolve?.(event.room);
+  };
+
+  (queue as any).on("broadcast", { event: "match_assigned" }, onAssigned);
+
   try {
     for (let attempt = 0; attempt < 60; attempt += 1) {
+      if (assignedRoom) return assignedRoom;
+
       const entries = flattenPresence(queue.presenceState() as Record<string, unknown[]>)
         .filter((entry) =>
           entry.game === input.game &&
           entry.searching === true &&
           entry.playerId,
-        )
-        .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+        );
 
       const unique = new Map<string, RoomPresence>();
       for (const entry of entries) unique.set(entry.playerId, entry);
-      const searchers = [...unique.values()];
+      const searchers = [...unique.values()]
+        .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
 
       if (searchers.length >= 2) {
         const pair = searchers.slice(0, 2);
-        if (pair.some((entry) => entry.playerId === input.player.playerId)) {
-          const ids = pair.map((entry) => entry.playerId).sort();
-          const roomSeed = ids.join(":");\n          let roomHash = 0;\n          for (let index = 0; index < roomSeed.length; index += 1) roomHash = (roomHash * 31 + roomSeed.charCodeAt(index)) >>> 0;\n          const roomCode = `Q${roomHash.toString(36).toUpperCase().padStart(5, "0").slice(-5)}`;
+        const pairIds = pair.map((entry) => entry.playerId).sort();
+        const isInPair = pairIds.includes(input.player.playerId);
+        const leaderId = pairIds[0];
 
-          // Remove this player from the queue before entering the room.
-          await queue.untrack();
+        if (isInPair && input.player.playerId === leaderId) {
+          const room = buildRoom(pair);
 
-          const lobby = getLobbyChannel();
-          await ensureSubscribed(lobby);
-          const room: LobbyRoom = {
-            id: roomCode,
-            code: roomCode,
-            game: input.game,
-            isPrivate: false,
-            bet: 0,
-            timer: TURN_SECONDS,
-            capacity: 2,
-            status: "READY",
-            players: pair.map((entry) => ({ id: entry.playerId, name: entry.name })),
-            hostId: ids[0],
-            createdAt: pair[0]?.createdAt ?? new Date().toISOString(),
-          };
-
-          await lobby.track({
-            ...input.player,
-            roomCode,
-            game: input.game,
-            isPrivate: false,
-            capacity: 2,
-            hostId: ids[0],
-            searching: false,
-            createdAt: room.createdAt,
+          // Announce the assignment before leaving the queue. The other
+          // client can therefore enter the exact same room without guessing.
+          await queue.send({
+            type: "broadcast",
+            event: "match_assigned",
+            payload: { pair: pairIds, room },
           });
 
+          assignedRoom = room;
+          assignmentResolve?.(room);
+
+          // Give the second client a small window to receive the assignment
+          // before the leader disappears from Presence.
+          await new Promise((resolve) => setTimeout(resolve, 350));
           return room;
         }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // If the other client already assigned us, return immediately.
+      const quickResult = await Promise.race([
+        assignment.then((room) => room),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+      ]);
+      if (quickResult) return quickResult;
     }
 
     throw new Error("matchmaking_timeout");
   } finally {
-    // If a match was returned, untrack is harmless and ensures the queue
-    // cannot keep showing this player as available.
-    try { await queue.untrack(); } catch { /* channel may already be closed */ }
+    try { await queue.untrack(); } catch { /* channel may already be closing */ }
     await supabase.removeChannel(queue);
   }
 }
