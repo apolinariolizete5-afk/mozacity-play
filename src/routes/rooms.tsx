@@ -5,7 +5,6 @@ import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { useRealtimeLobby } from "@/lib/realtime";
 import {
-  createRoom,
   findRoomByCode,
   joinRoom,
   notify,
@@ -61,21 +60,32 @@ function Rooms() {
     else navigate({ to: "/games/chess", search: { bet: 0, timer: room.timer, room: room.code } });
   };
 
-  const submitCreate = () => {
-    const room = createRoom({
-      game,
-      isPrivate,
-      bet: 0,
-      timer: app.timer,
-      capacity: 2,
-    });
-    setCreating(false);
-    notify({
-      title: "Sala criada",
-      body: `Partilha o código ${room.code} para convidar amigos.`,
-      kind: "invite",
-    });
-    setMessage(`Sala ${room.code} criada.`);
+  const submitCreate = async () => {
+    try {
+      const response = await fetch("/api/multiplayer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          game,
+          isPrivate,
+          timer: app.timer,
+          capacity: 2,
+          player: { id: app.profile.id, name: app.profile.name },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.room) throw new Error(data.error || "Não foi possível criar a sala.");
+      setCreating(false);
+      notify({
+        title: "Sala criada",
+        body: `Partilha o código ${data.room.code} para convidar amigos.`,
+        kind: "invite",
+      });
+      setMessage(`Sala ${data.room.code} criada. A aguardar outro jogador.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível criar a sala.");
+    }
   };
 
   const shareRoom = async (room: Room) => {
@@ -84,15 +94,26 @@ function Rooms() {
     try { await navigator.clipboard.writeText(url); setMessage("Link da sala copiado."); } catch { setMessage(url); }
   };
 
-  const joinByCode = () => {
-    const room = findRoomByCode(code);
-    if (!room) {
-      setMessage("Código não encontrado.");
-      return;
+  const joinByCode = async () => {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return;
+    try {
+      const response = await fetch("/api/multiplayer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "join",
+          code: normalized,
+          player: { id: app.profile.id, name: app.profile.name },
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.room) throw new Error(data.error || "Código não encontrado.");
+      setCode("");
+      setMessage(`Entraste na sala ${data.room.code}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível entrar na sala.");
     }
-    joinRoom(room.id);
-    setCode("");
-    setMessage(`Entraste na sala ${room.code}.`);
   };
 
   const visible = [...app.rooms.filter((r) => r.status !== "CANCELLED"), ...remoteRooms];
