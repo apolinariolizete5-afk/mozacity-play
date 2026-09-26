@@ -277,6 +277,7 @@ function RootComponent() {
         <Outlet />
       </div>
       <BottomNav />
+      <AgeGate />
       <PushPrompt />
       <InstallPrompt />
     </QueryClientProvider>
