@@ -163,6 +163,7 @@ export async function quickMatch(input: {
   game: GameId;
   player: RoomPresence;
   bet?: number;
+  players?: number;
   signal?: AbortSignal;
 }) {
   const queue = supabase.channel(`mozaplay:matchmaking:${input.game}`, {
@@ -194,11 +195,14 @@ export async function quickMatch(input: {
       input.signal?.addEventListener("abort", onAbort, { once: true });
     });
 
+  const desiredPlayers = input.game === "ludo" ? Math.min(4, Math.max(2, Math.round(Number(input.players ?? 2)))) : 2;
+
   const searchingPlayer: RoomPresence = {
     ...input.player,
     game: input.game,
     searching: true,
     bet: Math.max(20, Math.round(Number(input.bet ?? 20))),
+    capacity: desiredPlayers,
     createdAt: new Date().toISOString(),
   };
 
@@ -236,8 +240,8 @@ export async function quickMatch(input: {
       isPrivate: false,
       bet: searchingPlayer.bet ?? 20,
       timer: TURN_SECONDS,
-      capacity: 2,
-      status: "READY",
+      capacity: desiredPlayers,
+      status: pair.length >= desiredPlayers ? "READY" : "WAITING",
       players: pair.map((entry) => ({ id: entry.playerId, name: entry.name })),
       hostId: ids[0],
       createdAt: pair[0]?.createdAt ?? new Date().toISOString(),
@@ -265,11 +269,11 @@ export async function quickMatch(input: {
         return created || a.playerId.localeCompare(b.playerId);
       });
 
-      if (searchers.length >= 2) {
+      if (searchers.length >= desiredPlayers) {
         // Only the oldest active searcher acts as coordinator. This prevents
         // A+B and B+C from being assigned simultaneously when 3+ players
         // enter the queue together.
-        const pair = searchers.slice(0, 2);
+        const pair = searchers.slice(0, desiredPlayers);
         const coordinatorId = pair[0].playerId;
 
         if (input.player.playerId === coordinatorId) {
