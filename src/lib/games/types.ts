@@ -14,8 +14,8 @@ export interface GameEngine<S, M> {
   legalMoves(state: S): M[];
 }
 
-export const GAME_META: Record<GameId, { name: string; tagline: string; players: string }> = {
-  ludo: { name: "Ludo", tagline: "Corrida de dados", players: "2-4 jogadores" },
-  checkers: { name: "Damas", tagline: "Capturas obrigatórias", players: "2 jogadores" },
-  chess: { name: "Xadrez", tagline: "Regras completas", players: "2 jogadores" },
+export const GAME_META: Record<GameId, { name: string; tagline: string; players: string; cover: string }> = {
+  ludo: { name: "Ludo", tagline: "Corrida de dados", players: "2-4 jogadores", cover: "/covers/ludo.svg" },
+  checkers: { name: "Damas", tagline: "Capturas obrigatórias", players: "2 jogadores", cover: "/covers/checkers.svg" },
+  chess: { name: "Xadrez", tagline: "Regras completas", players: "2 jogadores", cover: "/covers/chess.svg" },
 };
