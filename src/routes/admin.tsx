@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { KeyRound, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Ban, KeyRound, Loader2, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { formatMzn, METHOD_LABELS } from "@/lib/money";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,8 @@ import { useAuth, useIsAdmin } from "@/lib/auth";
 import {
   claimAdmin,
   getAdminOverview,
+  getAdminUsers,
+  setAdminUserBlocked,
   settlePayout,
   updateSettings,
 } from "@/lib/admin.functions";
@@ -44,8 +46,6 @@ interface PayoutRow {
   id: string;
   user_id: string;
   amount_cents: number;
-  fee_cents: number;
-  net_cents: number;
   method: string;
   destination: string;
   status: string;
@@ -130,8 +130,11 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
   const overviewFn = useServerFn(getAdminOverview);
   const saveFn = useServerFn(updateSettings);
   const settleFn = useServerFn(settlePayout);
+  const usersFn = useServerFn(getAdminUsers);
+  const blockUserFn = useServerFn(setAdminUserBlocked);
 
   const overview = useQuery({ queryKey: ["admin-overview"], queryFn: () => overviewFn() });
+  const users = useQuery({ queryKey: ["admin-users"], queryFn: () => usersFn() });
 
   const settings = useQuery({
     queryKey: ["admin-settings"],
@@ -153,7 +156,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("payout_requests")
-        .select("id, user_id, amount_cents, fee_cents, net_cents, method, destination, status, created_at")
+        .select("id, user_id, amount_cents, method, destination, status, created_at")
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw new Error(error.message);
@@ -187,6 +190,14 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
     },
   });
 
+  const blockUser = useMutation({
+    mutationFn: (v: { user_id: string; blocked: boolean }) => blockUserFn({ data: v }),
+    onSuccess: () => {
+      void users.refetch();
+      void overview.refetch();
+    },
+  });
+
   const settle = useMutation({
     mutationFn: (v: { id: string; status: "completed" | "failed" }) =>
       settleFn({ data: { payout_id: v.id, status: v.status } }),
@@ -199,7 +210,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
   });
 
   const o = overview.data;
-  const firstError = overview.error ?? settings.error ?? payouts.error;
+  const firstError = overview.error ?? settings.error ?? payouts.error ?? users.error;
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
@@ -209,11 +220,12 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
           size="sm"
           variant="outline"
           className="mt-1 shrink-0"
-          disabled={overview.isFetching || settings.isFetching || payouts.isFetching}
+          disabled={overview.isFetching || settings.isFetching || payouts.isFetching || users.isFetching}
           onClick={() => {
             void overview.refetch();
             void settings.refetch();
             void payouts.refetch();
+            void users.refetch();
           }}
         >
           <RefreshCw className={overview.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
