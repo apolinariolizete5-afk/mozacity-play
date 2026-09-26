@@ -5,8 +5,8 @@ import { ResultOverlay } from "@/components/MatchShell";
 import { VoiceChat } from "@/components/VoiceChat";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
-import { LUDO_NAMES, ludoBotMove, ludoEngine, type LudoMove } from "@/lib/games/ludo";
-import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+import { LUDO_NAMES, ludoEngine, type LudoMove } from "@/lib/games/ludo";
+import { recordMatch, useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useRealtimeRoom } from "@/lib/realtime";
 import "@/styles/ludo-motion.css";
@@ -102,26 +102,17 @@ function playAudio(url?: string) {
 function LudoMatch() {
   const { bet, players, room } = Route.useSearch();
   const app = useApp();
-  const [state, setState] = useState(() => ludoEngine.createGame({ players }));
+  const [state, setState] = useState(() => ludoEngine.createGame({ players: 2 }));
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [rolling, setRolling] = useState(false);
   const [moving, setMoving] = useState(false);
   const [pendingMoveToken, setPendingMoveToken] = useState<number | null>(null);
   const [dicePreview, setDicePreview] = useState(1);
   const [turnSequence, setTurnSequence] = useState(0);
-  const [opponents, setOpponents] = useState(() => Array.from({ length: players - 1 }, () => botName()));
+  const [opponents, setOpponents] = useState<string[]>(["A aguardar adversário..."]);
   const realtime = useRealtimeRoom<any>(room || undefined, "ludo", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
-  const staked = useRef(false);
   const rollTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (room) return;
-    if (!staked.current) {
-      staked.current = true;
-      placeBet(bet, "ludo");
-    }
-  }, [bet]);
 
   useEffect(() => {
     setSeconds(TURN_SECONDS);
@@ -134,6 +125,8 @@ function LudoMatch() {
     if (rollTimer.current) window.clearTimeout(rollTimer.current);
   }, []);
 
+  const ready = Boolean(room && realtime.players.length >= 2);
+
   const applyMove = useCallback((move: LudoMove) => {
     setState((current) => ludoEngine.applyMove(current, move));
     if (move.type === "move") setTurnSequence((value) => value + 1);
@@ -141,6 +134,7 @@ function LudoMatch() {
 
   const play = useCallback(
     (move: LudoMove) => {
+      if (!ready) return;
       if (move.type === "move") {
         if (moving) return;
         setMoving(true);
@@ -168,30 +162,16 @@ function LudoMatch() {
         if (room) realtime.broadcastState({ type: "state", state: next });
       }, 560);
     },
-    [applyMove, moving, rolling, room, realtime, state],
+    [applyMove, moving, rolling, room, realtime, state, ready],
   );
 
-  useEffect(() => {
-    if (room || seconds > 0 || state.over || rolling || moving) return;
-    const move = state.turn === realtime.playerIndex ? ludoEngine.legalMoves(state)[0] : ludoBotMove(state);
-    if (move) play(move);
-  }, [moving, play, rolling, seconds, state]);
-
-  useEffect(() => {
-    if (room || state.over || state.turn === 0 || rolling || moving) return;
-    const timer = window.setTimeout(() => {
-      const move = ludoBotMove(state);
-      if (move) play(move);
-    }, state.dice == null ? 700 : 850);
-    return () => window.clearTimeout(timer);
-  }, [moving, play, rolling, state]);
 
   useEffect(() => {
     if (!state.over || settled.current) return;
     settled.current = true;
     recordMatch({
       game: "ludo",
-      result: state.winner === 0 ? "win" : "loss",
+      result: state.winner === realtime.playerIndex ? "win" : "loss",
       opponents,
       bet,
     });
@@ -210,13 +190,13 @@ function LudoMatch() {
   }, [realtime.remoteState, room]);
 
   const activeDiceValue = rolling ? dicePreview : state.dice ?? dicePreview;
-  const canRoll = state.turn === realtime.playerIndex && state.dice == null && !state.over && !rolling;
-  const result = state.over ? (state.winner === 0 ? "win" : "loss") : null;
+  const canRoll = ready && state.turn === realtime.playerIndex && state.dice == null && !state.over && !rolling;
+  const result = state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
 
-  const playersList = Array.from({ length: players }, (_, index) => ({
+  const playersList = Array.from({ length: 2 }, (_, index) => ({
     index,
-    name: index === 0 ? app.profile.name : opponents[index - 1] ?? `Bot ${index}`,
-    avatar: index === 0 ? app.profile.avatar : "🤖",
+    name: index === 0 ? app.profile.name : opponents[index - 1] ?? "A aguardar adversário...",
+    avatar: index === 0 ? app.profile.avatar : "🙂",
     label: LUDO_NAMES[index] ?? `Jogador ${index + 1}`,
     active: state.turn === index,
     color: PLAYER_COLORS[index] ?? PLAYER_COLORS[0],
@@ -289,7 +269,7 @@ function LudoMatch() {
           </div>
         </div>
 
-        {room && players === 2 ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}\n\n        <div className="grid grid-cols-2 gap-2 my-2">
+        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}\n\n        <div className="grid grid-cols-2 gap-2 my-2">
           <div>{renderPlayerCorner(0)}</div>
           <div>{players >= 2 ? renderPlayerCorner(1) : null}</div>
         </div>
@@ -316,7 +296,9 @@ function LudoMatch() {
         </div>
 
         <Card className="p-2 text-center text-xs text-muted-foreground mt-1">
-          {state.over
+          {!ready
+            ? "A aguardar outro jogador real..." 
+            : state.over
             ? "Partida terminada!"
             : state.turn === 0
               ? state.dice == null
@@ -331,8 +313,7 @@ function LudoMatch() {
             coins={result === "win" ? bet * 2 : 0}
             onRematch={() => {
               settled.current = false;
-              if (!room) placeBet(bet, "ludo");
-              setState(ludoEngine.createGame({ players }));
+              setState(ludoEngine.createGame({ players: 2 }));
               setSeconds(TURN_SECONDS);
               setTurnSequence((value) => value + 1);
             }}
