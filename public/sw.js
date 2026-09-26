@@ -1,47 +1,63 @@
 // public/sw.js - Service Worker PWA & Web Push
-self.addEventListener('install', (event) => {
+const APP_NAME = "MozaPlay";
+const APP_ICON = "/icons/notification-badge.svg";
+const APP_URL = "/";
+
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('push', (event) => {
-  let data = { title: 'MozaPlay', body: 'Tens uma nova notificação na tua conta!', url: '/' };
+self.addEventListener("push", (event) => {
+  let data = {
+    title: APP_NAME,
+    body: "Tens uma nova notificação na tua conta!",
+    url: APP_URL,
+  };
+
   try {
     if (event.data) {
       data = { ...data, ...event.data.json() };
     }
-  } catch (e) {
+  } catch {
     if (event.data) data.body = event.data.text();
   }
 
   const options = {
     body: data.body,
-    icon: '/apple-touch-icon.png',
-    badge: '/apple-touch-icon.png',
+    icon: APP_ICON,
+    badge: APP_ICON,
+    tag: data.tag || "mozaplay-notification",
+    renotify: true,
     vibrate: [100, 50, 100],
-    data: { url: data.url || '/' },
+    data: { url: data.url || APP_URL },
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(
+    self.registration.showNotification(data.title || APP_NAME, options),
+  );
 });
 
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const targetUrl = new URL(
+    event.notification.data?.url || APP_URL,
+    self.location.origin,
+  ).href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
+        if ("focus" in client) {
+          client.navigate(targetUrl);
           return client.focus();
         }
       }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    })
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      return undefined;
+    }),
   );
 });
