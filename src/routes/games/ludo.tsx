@@ -173,7 +173,7 @@ function LudoMatch() {
   }, [bet, playersReady, room, realtime.players]);
 
 
-  const applyMove = useCallback((move: LudoMove) => {
+  const handleAnimatingChange = useCallback((animating: boolean) => {\n    setMoving(animating);\n  }, []);\n\n  const applyMove = useCallback((move: LudoMove) => {
     setState((current) => ludoEngine.applyMove(current, move));
     if (move.type === "move") setTurnSequence((value) => value + 1);
   }, []);
