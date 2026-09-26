@@ -23,6 +23,7 @@ export const Route = createFileRoute("/history")({
 function HistoryPage() {
   const [rows, setRows] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -33,7 +34,7 @@ function HistoryPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      setCurrentUserId(user.user.id);\n\n      const { data, error } = await supabase
         .from("matches")
         .select("id, game_type, player1_id, player2_id, winner_id, status, created_at, ended_at")
         .or(`player1_id.eq.${user.user.id},player2_id.eq.${user.user.id}`)
@@ -55,7 +56,7 @@ function HistoryPage() {
       {loading ? <Card className="text-sm text-muted-foreground">A carregar...</Card> : null}
       {!loading && rows.length === 0 ? <Card className="text-sm text-muted-foreground">Ainda não tens partidas registadas.</Card> : null}
       {rows.map((match) => {
-        const result = match.winner_id === null ? "draw" : match.winner_id === match.player1_id ? "win" : "loss";
+        const result = match.winner_id === null ? "draw" : match.winner_id === currentUserId ? "win" : "loss";
         return (
           <Card key={match.id} className="flex items-center justify-between py-3">
             <div>
