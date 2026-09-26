@@ -67,7 +67,7 @@ export function useRealtimeRoom<T>(
       active = false;
       void supabase.removeChannel(channel);
     };
-  }, [channelName, enabled, game, player]);
+  }, [channelName, enabled, game, player.playerId, player.name]);
 
   return {
     connected,
