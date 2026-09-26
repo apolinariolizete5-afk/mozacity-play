@@ -216,8 +216,10 @@ export type Database = {
           created_at: string
           id: string
           kind: string
+          pushed_at: string | null
           read: boolean
           title: string
+          url: string | null
           user_id: string
         }
         Insert: {
@@ -225,8 +227,10 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: string
+          pushed_at?: string | null
           read?: boolean
           title: string
+          url?: string | null
           user_id: string
         }
         Update: {
@@ -234,8 +238,10 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: string
+          pushed_at?: string | null
           read?: boolean
           title?: string
+          url?: string | null
           user_id?: string
         }
         Relationships: []
@@ -417,6 +423,81 @@ export type Database = {
           last_seen_at?: string
           p256dh?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      reminder_log: {
+        Row: {
+          id: string
+          kind: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      room_escrows: {
+        Row: {
+          bet_cents: number
+          created_at: string
+          finished_at: string | null
+          game: string
+          locked_one: boolean
+          locked_two: boolean
+          payout_cents: number
+          player_one: string
+          player_two: string
+          rake_cents: number
+          report_one: string | null
+          report_two: string | null
+          room_code: string
+          status: string
+          winner_id: string | null
+        }
+        Insert: {
+          bet_cents?: number
+          created_at?: string
+          finished_at?: string | null
+          game: string
+          locked_one?: boolean
+          locked_two?: boolean
+          payout_cents?: number
+          player_one: string
+          player_two: string
+          rake_cents?: number
+          report_one?: string | null
+          report_two?: string | null
+          room_code: string
+          status?: string
+          winner_id?: string | null
+        }
+        Update: {
+          bet_cents?: number
+          created_at?: string
+          finished_at?: string | null
+          game?: string
+          locked_one?: boolean
+          locked_two?: boolean
+          payout_cents?: number
+          player_one?: string
+          player_two?: string
+          rake_cents?: number
+          report_one?: string | null
+          report_two?: string | null
+          room_code?: string
+          status?: string
+          winner_id?: string | null
         }
         Relationships: []
       }
@@ -694,7 +775,21 @@ export type Database = {
         Args: { _display_name?: string; _phone?: string }
         Returns: undefined
       }
+      cancel_room_escrow: { Args: { _room_code: string }; Returns: Json }
       claim_admin: { Args: { _code: string }; Returns: string }
+      claim_push_batch: {
+        Args: { _token: string }
+        Returns: {
+          auth: string
+          body: string
+          endpoint: string
+          notification_id: string
+          p256dh: string
+          title: string
+          url: string
+          user_id: string
+        }[]
+      }
       credit_wallet: {
         Args: {
           _amount_cents: number
@@ -721,6 +816,10 @@ export type Database = {
         }
         Returns: string
       }
+      drop_push_subscription: {
+        Args: { _endpoint: string; _token: string }
+        Returns: undefined
+      }
       ensure_wallet: { Args: { _user_id: string }; Returns: undefined }
       finish_solo_match: {
         Args: { _match_id: string; _result: string }
@@ -736,6 +835,30 @@ export type Database = {
       internal_secret_matches: {
         Args: { _name: string; _value: string }
         Returns: boolean
+      }
+      lock_room_wager: {
+        Args: { _amount_cents: number; _room_code: string }
+        Returns: Json
+      }
+      notify_user: {
+        Args: {
+          _body: string
+          _kind: string
+          _title: string
+          _uid: string
+          _url?: string
+        }
+        Returns: undefined
+      }
+      register_room_match: {
+        Args: {
+          _bet_cents: number
+          _game: string
+          _player_one_id: string
+          _player_two_id: string
+          _room_code: string
+        }
+        Returns: Json
       }
       request_withdrawal: {
         Args: {
@@ -758,6 +881,10 @@ export type Database = {
         Args: { _idempotency_key: string }
         Returns: string
       }
+      settle_room_result: {
+        Args: { _room_code: string; _winner_id: string }
+        Returns: Json
+      }
       start_deposit: {
         Args: {
           _amount_cents: number
@@ -773,6 +900,7 @@ export type Database = {
         Args: { _bet_cents: number; _game: string }
         Returns: string
       }
+      touch_last_seen: { Args: never; Returns: undefined }
       wallet_summary: { Args: never; Returns: Json }
       withdrawal_quote: {
         Args: { _amount_cents: number }
