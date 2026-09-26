@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { CheckersBoard } from "@/components/boards/CheckersBoard";
@@ -34,6 +34,7 @@ export const Route = createFileRoute("/games/checkers")({
 });
 
 function CheckersMatch() {
+  const navigate = useNavigate();
   const { bet, timer, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
@@ -154,6 +155,11 @@ function CheckersMatch() {
   return (
     <>
       <MatchShell
+        onExit={async () => {
+          const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
+          if (opponent) await realtime.forfeit(opponent.playerId);
+          await navigate({ to: "/play", search: { game: "checkers" } });
+        }}
         title="Damas"
         seconds={seconds}
         limit={timer}
