@@ -49,7 +49,7 @@ export function MatchShell({
         </Pill>
       </div>
 
-      <Card className="flex items-center justify-between gap-2 p-3">
+      <Card className="grid grid-cols-2 gap-2 rounded-3xl border border-border bg-card/95 p-3 shadow-sm sm:grid-cols-2">
         {seats.map((s, i) => (
           <div
             key={i}
@@ -80,7 +80,7 @@ export function MatchShell({
             {seconds}s
           </span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary/80">
           <div
             className={cn("h-full rounded-full transition-all duration-500", low ? "bg-destructive" : "bg-primary")}
             style={{ width: `${pct}%` }}
@@ -105,8 +105,8 @@ export function ResultOverlay({
   onRematch: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-background/80 px-4 pb-8 backdrop-blur-sm">
-      <Card className="w-full text-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 px-4 pb-8 backdrop-blur-sm sm:items-center">
+      <Card className="w-full max-w-md border-border bg-card/95 text-center shadow-2xl">
         <p className="text-5xl">{result === "win" ? "🏆" : result === "draw" ? "🤝" : "💪"}</p>
         <h2 className="mt-2 font-display text-2xl font-extrabold">
           {result === "win" ? "Venceste!" : result === "draw" ? "Empate" : "Derrota"}
