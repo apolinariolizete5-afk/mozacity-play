@@ -74,6 +74,16 @@ async function callCharge(input: {
     };
   }
 
+  const maskMsisdn = (value: string) =>
+    value.length <= 7 ? "***" : `${value.slice(0, 5)}******${value.slice(-1)}`;
+
+  console.info("[NetShop] charge request", {
+    method: input.method,
+    amount_mzn: input.amountCents / 100,
+    msisdn: maskMsisdn(input.msisdn),
+    reference: input.reference,
+  });
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -116,15 +126,21 @@ async function callCharge(input: {
     }
 
     if (!response.ok) {
+      const error = String(
+        payload.message ??
+          payload.error ??
+          payload.code ??
+          `HTTP ${response.status}`,
+      );
+      console.warn("[NetShop] charge rejected", {
+        method: input.method,
+        http_status: response.status,
+        error,
+      });
       return {
         ok: false,
         status: "failed",
-        error: String(
-          payload.message ??
-            payload.error ??
-            payload.code ??
-            `HTTP ${response.status}`,
-        ),
+        error,
       };
     }
 
@@ -154,12 +170,23 @@ async function callCharge(input: {
           ? "failed"
           : "pending";
 
+    console.info("[NetShop] charge response", {
+      method: input.method,
+      http_status: response.status,
+      remote_status: remoteStatus,
+      provider_ref: providerRef || null,
+    });
+
     return {
       ok: status !== "failed",
       status,
       ...(providerRef ? { providerRef } : {}),
     };
   } catch (error) {
+    console.error("[NetShop] charge request failed", {
+      method: input.method,
+      error: error instanceof Error ? error.message : "provider_request_failed",
+    });
     return {
       ok: false,
       status: "failed",
