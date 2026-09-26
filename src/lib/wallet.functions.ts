@@ -130,7 +130,7 @@ export const registerRoomMatch = createServerFn({ method: "POST" })
       game: z.enum(["ludo", "checkers", "chess"]),
       player_one_id: z.string().uuid(),
       player_two_id: z.string().uuid(),
-      bet_cents: z.number().int().min(0).max(50_000_000),
+      bet_cents: z.number().int().min(2000).max(50_000_000),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
