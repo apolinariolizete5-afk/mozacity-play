@@ -54,6 +54,9 @@ export const startDeposit = createServerFn({ method: "POST" })
     const status = netshopStatus();
 
     if (!status.configured) {
+      await context.supabase.rpc("cancel_failed_deposit", {
+        _idempotency_key: key,
+      });
       throw new Error("payment_provider_not_configured");
     }
 
@@ -63,6 +66,16 @@ export const startDeposit = createServerFn({ method: "POST" })
       amountCents: data.amount_cents,
       reference: key,
     });
+
+    // Failed/rejected provider requests must not remain in financial history.
+    // Pending rows are kept only when the provider accepted the charge and
+    // may still complete it asynchronously.
+    if (!result.ok || result.status === "failed") {
+      await context.supabase.rpc("cancel_failed_deposit", {
+        _idempotency_key: key,
+      });
+      throw new Error(result.error ?? "deposit_failed");
+    }
 
     return {
       mode: "live" as const,
