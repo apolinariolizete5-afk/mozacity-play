@@ -70,7 +70,7 @@ function ChessMatch() {
     if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
     const winner = realtime.forfeitWinner !== null ? realtime.forfeitWinner : chessEngine.getWinner(state);
-    recordMatch({
+    void recordMatch({
       game: "chess",
       result: realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.draw ? "draw" : winner === realtime.playerIndex ? "win" : "loss",
       opponents: [opponent],
