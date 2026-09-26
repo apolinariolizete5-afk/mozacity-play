@@ -15,9 +15,12 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PlayRouteImport } from './routes/play'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RankingRouteImport } from './routes/ranking'
+import { Route as ResponsiblePlayRouteImport } from './routes/responsible-play'
 import { Route as RoomsRouteImport } from './routes/rooms'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as GamesCheckersRouteImport } from './routes/games/checkers'
 import { Route as GamesChessRouteImport } from './routes/games/chess'
@@ -53,6 +56,11 @@ const PlayRoute = PlayRouteImport.update({
   path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -63,9 +71,19 @@ const RankingRoute = RankingRouteImport.update({
   path: '/ranking',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResponsiblePlayRoute = ResponsiblePlayRouteImport.update({
+  id: '/responsible-play',
+  path: '/responsible-play',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RoomsRoute = RoomsRouteImport.update({
   id: '/rooms',
   path: '/rooms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WalletRoute = WalletRouteImport.update({
@@ -96,9 +114,12 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/notifications': typeof NotificationsRoute
   '/play': typeof PlayRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/ranking': typeof RankingRoute
+  '/responsible-play': typeof ResponsiblePlayRoute
   '/rooms': typeof RoomsRoute
+  '/terms': typeof TermsRoute
   '/wallet': typeof WalletRoute
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
@@ -111,9 +132,12 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/notifications': typeof NotificationsRoute
   '/play': typeof PlayRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/ranking': typeof RankingRoute
+  '/responsible-play': typeof ResponsiblePlayRoute
   '/rooms': typeof RoomsRoute
+  '/terms': typeof TermsRoute
   '/wallet': typeof WalletRoute
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
@@ -127,9 +151,12 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/notifications': typeof NotificationsRoute
   '/play': typeof PlayRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/ranking': typeof RankingRoute
+  '/responsible-play': typeof ResponsiblePlayRoute
   '/rooms': typeof RoomsRoute
+  '/terms': typeof TermsRoute
   '/wallet': typeof WalletRoute
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
@@ -144,9 +171,12 @@ export interface FileRouteTypes {
     | '/history'
     | '/notifications'
     | '/play'
+    | '/privacy'
     | '/profile'
     | '/ranking'
+    | '/responsible-play'
     | '/rooms'
+    | '/terms'
     | '/wallet'
     | '/games/checkers'
     | '/games/chess'
@@ -159,9 +189,12 @@ export interface FileRouteTypes {
     | '/history'
     | '/notifications'
     | '/play'
+    | '/privacy'
     | '/profile'
     | '/ranking'
+    | '/responsible-play'
     | '/rooms'
+    | '/terms'
     | '/wallet'
     | '/games/checkers'
     | '/games/chess'
@@ -174,9 +207,12 @@ export interface FileRouteTypes {
     | '/history'
     | '/notifications'
     | '/play'
+    | '/privacy'
     | '/profile'
     | '/ranking'
+    | '/responsible-play'
     | '/rooms'
+    | '/terms'
     | '/wallet'
     | '/games/checkers'
     | '/games/chess'
@@ -190,9 +226,12 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   NotificationsRoute: typeof NotificationsRoute
   PlayRoute: typeof PlayRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   RankingRoute: typeof RankingRoute
+  ResponsiblePlayRoute: typeof ResponsiblePlayRoute
   RoomsRoute: typeof RoomsRoute
+  TermsRoute: typeof TermsRoute
   WalletRoute: typeof WalletRoute
   GamesCheckersRoute: typeof GamesCheckersRoute
   GamesChessRoute: typeof GamesChessRoute
@@ -243,6 +282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -257,11 +303,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RankingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/responsible-play': {
+      id: '/responsible-play'
+      path: '/responsible-play'
+      fullPath: '/responsible-play'
+      preLoaderRoute: typeof ResponsiblePlayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rooms': {
       id: '/rooms'
       path: '/rooms'
       fullPath: '/rooms'
       preLoaderRoute: typeof RoomsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wallet': {
@@ -302,9 +362,12 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   NotificationsRoute: NotificationsRoute,
   PlayRoute: PlayRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   RankingRoute: RankingRoute,
+  ResponsiblePlayRoute: ResponsiblePlayRoute,
   RoomsRoute: RoomsRoute,
+  TermsRoute: TermsRoute,
   WalletRoute: WalletRoute,
   GamesCheckersRoute: GamesCheckersRoute,
   GamesChessRoute: GamesChessRoute,
