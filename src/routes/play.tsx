@@ -47,7 +47,7 @@ function Play() {
     );
   }, [realtime.players.length, searching, roomCode, selected, navigate]);
 
-  const startQuickMatch = async () => {
+  const startQuickMatch = async () => {\n    if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     setSearching(true);
     setError("");
     try {
