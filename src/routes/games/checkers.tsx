@@ -10,11 +10,12 @@ import {
   type CheckersMove,
 } from "@/lib/games/checkers";
 import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/checkers")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,
+    timer: Number(search["timer"] ?? 10) || 10,\n    room: String(search["room"] ?? ""),
   }),
   head: () => ({
     meta: [
@@ -31,17 +32,17 @@ export const Route = createFileRoute("/games/checkers")({
 });
 
 function CheckersMatch() {
-  const { bet, timer } = Route.useSearch();
+  const { bet, timer, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
   const [opponent] = useState(() => botName());
   const settled = useRef(false);
   const staked = useRef(false);
-  const [moveCount, setMoveCount] = useState(0);
+  const [moveCount, setMoveCount] = useState(0);\n  const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
   useEffect(() => {
-    if (!staked.current) {
+    if (room) return;\n    if (!staked.current) {
       staked.current = true;
       placeBet(bet, "checkers");
     }
@@ -55,13 +56,13 @@ function CheckersMatch() {
   }, [state.turn, state.over, timer, moveCount]);
 
   useEffect(() => {
-    if (seconds > 0 || state.over || state.turn !== 0) return;
+    if (room || seconds > 0 || state.over || state.turn !== 0) return;
     const moves = legalMoves(state);
     if (moves.length) play(moves[0]!);
   }, [seconds, state]);
 
   useEffect(() => {
-    if (state.over || state.turn !== 1) return;
+    if (room || state.over || state.turn !== 1) return;
     const id = setTimeout(() => {
       const move = checkersBotMove(state);
       if (move) play(move);
@@ -129,7 +130,7 @@ function CheckersMatch() {
           coins={result === "win" ? bet * 2 : 0}
           onRematch={() => {
             settled.current = false;
-            placeBet(bet, "checkers");
+            if (!room) placeBet(bet, "checkers");
             setState(checkersEngine.createGame());
             setSeconds(timer);
           }}
