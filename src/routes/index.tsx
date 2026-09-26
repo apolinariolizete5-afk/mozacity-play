@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, ChevronRight, Crown, Gamepad2, Trophy, Users, WalletCards, Zap } from "lucide-react";
+import { Bell, ChevronRight, Crown, Gamepad2, Trophy, Users, WalletCards, Zap, Dice5, CircleDot } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/")({
 });
 
 const ICONS: Record<GameId, typeof Gamepad2> = {
-  ludo: Gamepad2,
-  checkers: Crown,
-  chess: Trophy,
+  ludo: Dice5,
+  checkers: CircleDot,
+  chess: Crown,
 };
 
 function Home() {
@@ -120,16 +120,15 @@ function Home() {
             const Icon = ICONS[id];
             return (
               <Link key={id} to="/play" search={{ game: id }} className="group relative overflow-hidden rounded-[1.75rem] border border-border bg-card">
-                <div className="relative aspect-[1.25] overflow-hidden">
-                  <img src={meta.cover} alt={meta.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
-                  <div className="absolute left-4 top-4 grid h-10 w-10 place-items-center rounded-2xl bg-black/35 text-white backdrop-blur"><Icon className="h-5 w-5" /></div>
-                  <div className="absolute inset-x-4 bottom-4 text-white">
-                    <p className="font-display text-2xl font-black">{meta.name}</p>
-                    <p className="mt-1 text-xs text-white/70">{meta.tagline}</p>
+                <div className="flex items-center gap-4 p-5">
+                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary"><Icon className="h-7 w-7" /></span>
+                  <div className="min-w-0">
+                    <p className="font-display text-xl font-black">{meta.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{meta.tagline}</p>
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{meta.players}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center justify-between border-t border-border px-5 py-3">
                   <span className="text-xs font-bold text-muted-foreground">{meta.players}</span>
                   <span className="text-xs font-extrabold text-primary">Jogar <ChevronRight className="inline h-3 w-3" /></span>
                 </div>
