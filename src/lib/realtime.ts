@@ -11,7 +11,7 @@ export type LobbyRoom = {
   timer: number;
   capacity: number;
   status: string;
-  players: Array<{ id: string; name: string; bot: boolean }>;
+  players: Array<{ id: string; name: string }>;
   hostId: string;
   createdAt: string;
 };
