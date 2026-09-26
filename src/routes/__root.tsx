@@ -13,7 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
 import { subscribeToRealtimeNotifications } from "@/lib/push";
-import { useApp } from "@/lib/store";
+import { update, useApp } from "@/lib/store";
 
 function NotFoundComponent() {
   return (
@@ -217,7 +217,25 @@ function RootComponent() {
 
   useEffect(() => {
     if (!app.profile.id) return;
-    return subscribeToRealtimeNotifications(app.profile.id);
+    return subscribeToRealtimeNotifications(app.profile.id, (notification) => {
+      update((current) => {
+        if (current.notifications.some((item) => item.id === notification.id)) return current;
+        return {
+          ...current,
+          notifications: [
+            {
+              id: notification.id,
+              title: notification.title,
+              body: notification.body,
+              kind: "system",
+              read: false,
+              createdAt: new Date().toISOString(),
+            },
+            ...current.notifications,
+          ].slice(0, 50),
+        };
+      });
+    });
   }, [app.profile.id]);
 
   return (
