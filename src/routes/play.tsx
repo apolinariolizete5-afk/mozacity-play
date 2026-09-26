@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { leaveLobbyRoom, quickMatch, useRealtimeRoom, TURN_SECONDS } from "@/lib/realtime";
@@ -25,7 +25,7 @@ function Play() {
   const [searching, setSearching] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
-  const [searchStartedAt, setSearchStartedAt] = useState<number | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   const realtime = useRealtimeRoom(
     roomCode || undefined,
@@ -54,12 +54,15 @@ function Play() {
   const startQuickMatch = async () => {
     if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
     setSearching(true);
-    setSearchStartedAt(Date.now());
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     setError("");
     try {
       const room = await quickMatch({
         game: selected,
         player: { playerId: app.profile.id, name: app.profile.name },
+        signal: controller.signal,
       });
       setRoomCode(room.code);
       if (room.players.length >= 2) {
@@ -80,9 +83,11 @@ function Play() {
   };
 
   const cancelSearch = () => {
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
     setSearching(false);
     setRoomCode("");
-    setSearchStartedAt(null);
+    setError("");
     void leaveLobbyRoom();
   };
 
