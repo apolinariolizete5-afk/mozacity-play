@@ -170,7 +170,7 @@ function LudoMatch() {
 
   useEffect(() => {
     if (room || seconds > 0 || state.over || rolling || moving) return;
-    const move = state.turn === 0 ? ludoEngine.legalMoves(state)[0] : ludoBotMove(state);
+    const move = state.turn === realtime.playerIndex ? ludoEngine.legalMoves(state)[0] : ludoBotMove(state);
     if (move) play(move);
   }, [moving, play, rolling, seconds, state]);
 
@@ -195,7 +195,7 @@ function LudoMatch() {
   }, [bet, opponents, state.over, state.winner]);
 
   useEffect(() => {\n    if (!room || !realtime.remoteState) return;\n    const remote = realtime.remoteState as any;\n    if (remote?.type === "state" && remote.state) setState(remote.state);\n  }, [realtime.remoteState, room]);\n\n  const activeDiceValue = rolling ? dicePreview : state.dice ?? dicePreview;
-  const canRoll = state.turn === 0 && state.dice == null && !state.over && !rolling;
+  const canRoll = state.turn === realtime.playerIndex && state.dice == null && !state.over && !rolling;
   const result = state.over ? (state.winner === 0 ? "win" : "loss") : null;
 
   const playersList = Array.from({ length: players }, (_, index) => ({
@@ -211,7 +211,7 @@ function LudoMatch() {
     const player = playersList[playerIdx];
     if (!player) return null;
     const isCurrent = player.active;
-    const isUser = playerIdx === 0;
+    const isUser = playerIdx === realtime.playerIndex;
 
     return (
       <div
@@ -274,7 +274,7 @@ function LudoMatch() {
         <div className="my-1 py-1">
           <LudoBoard
             state={state}
-            disabled={state.turn !== 0 || state.over || rolling || moving}
+            disabled={state.turn !== realtime.playerIndex || state.over || rolling || moving}
             onMove={(token) => {
               const next = ludoEngine.applyMove(state, { type: "move", token });\n              setState(next);\n              if (room) realtime.broadcastState({ type: "state", state: next } as any);
               setPendingMoveToken(null);
