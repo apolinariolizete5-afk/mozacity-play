@@ -56,7 +56,6 @@ export interface AppState {
   matches: MatchRecord[];
   transactions: Transaction[];
   notifications: Notification[];
-  rooms: Room[];
 }
 
 const AVATARS = ["🦁", "🐆", "🦅", "🐘", "🦈", "🐊", "🦒", "🐅"];
@@ -94,13 +93,12 @@ export function defaultState(): AppState {
       {
         id: uid(),
         title: "Bem-vindo à MozaPlay",
-        body: "A tua carteira é alimentada por depósitos reais confirmados.",
+        body: "A tua conta está pronta. Entra numa sala para jogar com outros jogadores reais.",
         kind: "system",
         read: false,
         createdAt: new Date().toISOString(),
       },
     ],
-    rooms: [],
   };
 }
 
@@ -112,15 +110,29 @@ function read(): AppState {
   const base = defaultState();
   if (typeof window !== "undefined") {
     try {
-      const saved = window.localStorage.getItem("mozaplay:profile:v2");
+      const saved = window.localStorage.getItem("mozaplay:state:v1");
       if (saved) {
-        const profile = JSON.parse(saved) as Partial<AppState["profile"]>;
-        base.profile = { ...base.profile, ...profile };
+        const persisted = JSON.parse(saved) as Partial<AppState>;
+        state = { ...base, ...persisted, profile: { ...base.profile, ...(persisted.profile ?? {}) } };
+        return state;
+      }
+      const profile = window.localStorage.getItem("mozaplay:profile:v2");
+      if (profile) {
+        const parsed = JSON.parse(profile) as Partial<AppState["profile"]>;
+        base.profile = { ...base.profile, ...parsed };
       }
     } catch {}
   }
   state = base;
   return state;
+}
+
+function write(next: AppState) {
+  state = next;
+  if (typeof window !== "undefined") {
+    try { window.localStorage.setItem("mozaplay:state:v1", JSON.stringify(next)); } catch {}
+  }
+  listeners.forEach((listener) => listener());
 }
 
 export function update(fn: (s: AppState) => AppState) {
@@ -260,70 +272,6 @@ export function placeBet(amount: number, _game: GameId) {
   // Real-money bets are authorized and settled by Supabase RPCs.
   // The client-side store never creates, debits or credits money.
   return amount <= 0;
-}
-
-export function createRoom(input: {
-  game: GameId;
-  isPrivate: boolean;
-  bet: number;
-  timer: number;
-  capacity: number;
-}): Room {
-  const s = read();
-  const room: Room = {
-    id: uid(),
-    code: roomCode(),
-    game: input.game,
-    isPrivate: input.isPrivate,
-    bet: input.bet,
-    timer: input.timer,
-    capacity: input.capacity,
-    status: "WAITING",
-    players: [{ id: s.profile.id, name: s.profile.name }],
-    hostId: s.profile.id,
-    createdAt: new Date().toISOString(),
-  };
-  update((prev) => ({ ...prev, rooms: [room, ...prev.rooms] }));
-  return room;
-}
-
-export function joinRoom(roomId: string) {
-  update((s) => ({
-    ...s,
-    rooms: s.rooms.map((r) => {
-      if (r.id !== roomId) return r;
-      if (r.players.some((p) => p.id === s.profile.id) || r.players.length >= r.capacity) return r;
-      const players = [...r.players, { id: s.profile.id, name: s.profile.name }];
-      return { ...r, players, status: players.length >= r.capacity ? "READY" : "WAITING" };
-    }),
-  }));
-}
-
-export function setRoomStatus(roomId: string, status: RoomStatus) {
-  update((s) => ({ ...s, rooms: s.rooms.map((r) => (r.id === roomId ? { ...r, status } : r)) }));
-}
-
-export function leaveRoom(roomId: string) {
-  update((s) => ({
-    ...s,
-    rooms: s.rooms.map((r) =>
-      r.id === roomId
-        ? {
-            ...r,
-            players: r.players.filter((p) => p.id !== s.profile.id),
-            status: r.hostId === s.profile.id ? "CANCELLED" : "WAITING",
-          }
-        : r,
-    ),
-  }));
-}
-
-export function getRoom(roomId: string): Room | undefined {
-  return read().rooms.find((r) => r.id === roomId);
-}
-
-export function findRoomByCode(code: string): Room | undefined {
-  return read().rooms.find((r) => r.code.toUpperCase() === code.trim().toUpperCase());
 }
 
 export const winRate = (s: Stats) => {
