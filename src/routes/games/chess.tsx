@@ -78,6 +78,7 @@ function ChessMatch() {
       playerIds: realtime.players.map((p) => p.playerId),
       winnerId: realtime.forfeitWinner !== null ? realtime.players[realtime.forfeitWinner]?.playerId ?? null : winner === null ? null : realtime.players[winner]?.playerId ?? null,
       bet,
+      persistMatch: realtime.forfeitWinner !== null ? realtime.forfeitWinner === realtime.playerIndex : realtime.playerIndex === 0,
     });
   }, [state, bet, opponent, realtime.forfeitWinner, realtime.players]);
 
