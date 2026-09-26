@@ -255,6 +255,7 @@ export function useRealtimeRoom<T>(
   const channelRef = useRef<RoomChannel | null>(null);
   const sequenceRef = useRef(0);
   const lastPresenceRef = useRef<string[]>([]);
+  const latestStateRef = useRef<T | null>(null);
   const disconnectTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -315,7 +316,7 @@ export function useRealtimeRoom<T>(
           actorId: player.playerId,
           sequence: sequenceRef.current,
           sentAt: Date.now(),
-          state: remoteState,
+          state: latestStateRef.current,
         } satisfies RoomEvent<T>,
       });
     };
@@ -370,6 +371,7 @@ export function useRealtimeRoom<T>(
       sequenceRef.current += 1;
       const deadline = Date.now() + TURN_SECONDS * 1000;
       setTurnDeadlineAt(deadline);
+      latestStateRef.current = state;
       const payload: RoomEvent<T> = {
         kind: "state",
         actorId: player.playerId,
