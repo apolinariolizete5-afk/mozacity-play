@@ -19,25 +19,21 @@ self.addEventListener("push", (event) => {
   };
 
   try {
-    if (event.data) {
-      data = { ...data, ...event.data.json() };
-    }
+    if (event.data) data = { ...data, ...event.data.json() };
   } catch {
     if (event.data) data.body = event.data.text();
   }
 
-  const options = {
-    body: data.body,
-    icon: APP_ICON,
-    badge: APP_ICON,
-    tag: data.tag || "mozaplay-notification",
-    renotify: true,
-    vibrate: [100, 50, 100],
-    data: { url: data.url || APP_URL },
-  };
-
   event.waitUntil(
-    self.registration.showNotification(data.title || APP_NAME, options),
+    self.registration.showNotification(data.title || APP_NAME, {
+      body: data.body,
+      icon: APP_ICON,
+      badge: APP_ICON,
+      tag: data.tag || "mozaplay-notification",
+      renotify: true,
+      vibrate: [100, 50, 100],
+      data: { url: data.url || APP_URL },
+    }),
   );
 });
 
