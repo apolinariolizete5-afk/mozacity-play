@@ -300,6 +300,18 @@ export async function recordMatch(input: {
   const { error: statsError } = await supabase.from("stats").upsert(nextStats, { onConflict: "user_id" });
   if (statsError) console.error("[Stats]", statsError.message);
 
+  update((current) => ({
+    ...current,
+    stats: {
+      ...current.stats,
+      total: {
+        wins: nextStats.wins,
+        losses: nextStats.losses,
+        draws: nextStats.draws,
+      },
+    },
+  }));
+
   return { ...matchRow, bet, opponents };
 }
 
