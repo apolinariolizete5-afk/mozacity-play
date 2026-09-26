@@ -26,7 +26,7 @@ export const getWalletSummary = createServerFn({ method: "GET" })
     return data as unknown as WalletSummary;
   });
 
-/** Inicia um depósito real através do gateway configurado. */
+/** Inicia um depósito real através do gateway NetShop. */
 export const startDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
@@ -45,6 +45,7 @@ export const startDeposit = createServerFn({ method: "POST" })
       _msisdn: data.msisdn,
     });
     if (error) throw new Error(error.message);
+
     const row = Array.isArray(started) ? started[0] : started;
     const key = (row as { idempotency_key: string } | null)?.idempotency_key;
     if (!key) throw new Error("deposit_not_created");
@@ -52,22 +53,24 @@ export const startDeposit = createServerFn({ method: "POST" })
     const { netshopStatus, requestDeposit } = await import("./payments/netshop.server");
     const status = netshopStatus();
 
-    if (status.configured) {
-      const result = await requestDeposit({
-        method: data.method,
-        msisdn: data.msisdn,
-        amountCents: data.amount_cents,
-        reference: key,
-      });
-      return {
-        mode: "live" as const,
-        status: result.status,
-        reference: key,
-        error: result.error ?? null,
-      };
+    if (!status.configured) {
+      throw new Error("payment_provider_not_configured");
     }
 
-    throw new Error("payment_provider_not_configured");
+    const result = await requestDeposit({
+      method: data.method,
+      msisdn: data.msisdn,
+      amountCents: data.amount_cents,
+      reference: key,
+    });
+
+    return {
+      mode: "live" as const,
+      status: result.status,
+      reference: key,
+      provider_ref: result.providerRef ?? null,
+      error: result.error ?? null,
+    };
   });
 
 export const quoteWithdrawal = createServerFn({ method: "GET" })
@@ -105,42 +108,57 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     return { payout_id: id as string };
   });
 
-/** Autoridade do servidor sobre a aposta: debita o saldo e abre a partida. */
-export const startMatch = createServerFn({ method: "POST" })
+/** Trava a caução para uma partida multiplayer antes do início. */
+export const lockRoomWager = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
       .object({
-        game: z.enum(["ludo", "checkers", "chess"]),
+        room_code: z.string().trim().min(4).max(12),
         bet_cents: z.number().int().min(0).max(50_000_000),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: id, error } = await context.supabase.rpc("start_solo_match", {
-      _game: data.game,
-      _bet_cents: data.bet_cents,
+    const { data: result, error } = await context.supabase.rpc("lock_room_wager", {
+      _room_code: data.room_code,
+      _user_id: context.user.id,
+      _amount_cents: data.bet_cents,
     });
     if (error) throw new Error(error.message);
-    return { match_id: id as string };
+    return result as { ok: boolean; locked: number };
   });
 
-/** Liquida a partida: a comissão da casa sai do pote antes de creditar o vencedor. */
-export const finishMatch = createServerFn({ method: "POST" })
+/** Liquida a partida multiplayer com a taxa da casa aplicada no pote. */
+export const settleRoomMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
       .object({
-        match_id: z.string().uuid(),
-        result: z.enum(["win", "loss", "draw"]),
+        room_code: z.string().trim().min(4).max(12),
+        winner_id: z.string().uuid(),
+        loser_id: z.string().uuid(),
+        bet_cents: z.number().int().min(0).max(50_000_000),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: out, error } = await context.supabase.rpc("finish_solo_match", {
-      _match_id: data.match_id,
-      _result: data.result,
+    if (data.winner_id === data.loser_id) {
+      throw new Error("invalid_match_participants");
+    }
+
+    // The database function also verifies auth.uid() and idempotency.
+    const { data: result, error } = await context.supabase.rpc("settle_room_match", {
+      _room_code: data.room_code,
+      _winner_id: data.winner_id,
+      _loser_id: data.loser_id,
+      _bet_cents: data.bet_cents,
     });
     if (error) throw new Error(error.message);
-    return out as unknown as { already: boolean; payout_cents: number; rake_cents: number };
+    return result as {
+      ok: boolean;
+      already?: boolean;
+      payout: number;
+      rake: number;
+    };
   });
