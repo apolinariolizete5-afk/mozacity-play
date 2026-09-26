@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, Flame, Trophy } from "lucide-react";
 import { ResultOverlay } from "@/components/MatchShell";
@@ -102,6 +102,7 @@ function playAudio(url?: string) {
 }
 
 function LudoMatch() {
+  const navigate = useNavigate();
   const { bet, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players: 2 }));
