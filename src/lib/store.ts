@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { GameId } from "./games/types";
 import type { Transaction, TransactionKind } from "./payments";
+import { supabase } from "@/integrations/supabase/client";
 
 export type RoomStatus = "WAITING" | "READY" | "STARTING" | "PLAYING" | "FINISHED" | "CANCELLED";
 
@@ -58,29 +59,22 @@ export interface AppState {
   notifications: Notification[];
 }
 
-const AVATARS = ["🦁", "🐆", "🦅", "🐘", "🦈", "🐊", "🦒", "🐅"];
 const emptyStats = (): Stats => ({ wins: 0, losses: 0, draws: 0 });
 
-export const uid = () => Math.random().toString(36).slice(2, 10);
-export const roomCode = () => {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "MP";
-  for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
-};
+export const uid = () => crypto.randomUUID();
 
 export function defaultState(): AppState {
   return {
     profile: {
-      id: uid(),
+      id: "",
       name: "Jogador",
-      avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)]!,
+      avatar: "🙂",
       phone: "",
       bio: "",
       joinedAt: new Date().toISOString(),
     },
     coins: 0,
-    timer: 10,
+    timer: 15,
     stats: {
       total: emptyStats(),
       ludo: emptyStats(),
@@ -89,189 +83,227 @@ export function defaultState(): AppState {
     },
     matches: [],
     transactions: [],
-    notifications: [
-      {
-        id: uid(),
-        title: "Bem-vindo à MozaPlay",
-        body: "A tua conta está pronta. Entra numa sala para jogar com outros jogadores reais.",
-        kind: "system",
-        read: false,
-        createdAt: new Date().toISOString(),
-      },
-    ],
+    notifications: [],
   };
 }
 
 let state: AppState | null = null;
 const listeners = new Set<() => void>();
 
-function read(): AppState {
-  if (state) return state;
-  const base = defaultState();
-  if (typeof window !== "undefined") {
-    try {
-      const saved = window.localStorage.getItem("mozaplay:state:v1");
-      if (saved) {
-        const persisted = JSON.parse(saved) as Partial<AppState>;
-        state = { ...base, ...persisted, profile: { ...base.profile, ...(persisted.profile ?? {}) } };
-        return state;
-      }
-      const profile = window.localStorage.getItem("mozaplay:profile:v2");
-      if (profile) {
-        const parsed = JSON.parse(profile) as Partial<AppState["profile"]>;
-        base.profile = { ...base.profile, ...parsed };
-      }
-    } catch {}
+async function loadStats(userId: string) {
+  const { data, error } = await supabase
+    .from("stats")
+    .select("wins, losses, draws")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[Stats]", error.message);
+    return emptyStats();
   }
-  state = base;
-  return state;
+  return {
+    wins: Number(data?.wins ?? 0),
+    losses: Number(data?.losses ?? 0),
+    draws: Number(data?.draws ?? 0),
+  };
 }
 
-function write(next: AppState) {
-  state = next;
-  if (typeof window !== "undefined") {
-    try { window.localStorage.setItem("mozaplay:state:v1", JSON.stringify(next)); } catch {}
+async function loadProfile(userId: string) {
+  const userResult = await supabase.auth.getUser();
+  const metadata = (userResult.data.user?.user_metadata ?? {}) as Record<string, unknown>;
+
+  const first = await supabase
+    .from("user_profiles")
+    .select("id, display_name, avatar, phone, bio, created_at")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const data = first.error
+    ? (
+        await supabase
+          .from("profiles")
+          .select("id, display_name, avatar, phone, bio, created_at")
+          .eq("id", userId)
+          .maybeSingle()
+      ).data
+    : first.data;
+
+  return {
+    id: userId,
+    name: String(data?.display_name ?? metadata.display_name ?? "Jogador"),
+    avatar: String(data?.avatar ?? metadata.avatar ?? "🙂"),
+    phone: String(data?.phone ?? metadata.phone ?? ""),
+    bio: String(data?.bio ?? metadata.bio ?? ""),
+    joinedAt: String(data?.created_at ?? new Date().toISOString()),
+  };
+}
+
+async function hydrate() {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) {
+    state = defaultState();
+    listeners.forEach((listener) => listener());
+    return;
   }
+
+  const [profile, stats] = await Promise.all([loadProfile(user.id), loadStats(user.id)]);
+  const next = defaultState();
+  next.profile = profile;
+  next.stats.total = stats;
+  state = next;
   listeners.forEach((listener) => listener());
 }
 
-export function update(fn: (s: AppState) => AppState) {
-  write(fn(read()));
+function read() {
+  return state ?? defaultState();
+}
+
+export function update(fn: (current: AppState) => AppState) {
+  state = fn(read());
+  listeners.forEach((listener) => listener());
 }
 
 export function useApp(): AppState {
-  const [snapshot, setSnapshot] = useState<AppState | null>(null);
+  const [snapshot, setSnapshot] = useState<AppState>(() => read());
+
   useEffect(() => {
     const sync = () => setSnapshot({ ...read() });
-    sync();
     listeners.add(sync);
+    void hydrate();
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      void hydrate();
+    });
     return () => {
       listeners.delete(sync);
+      data.subscription.unsubscribe();
     };
   }, []);
-  return snapshot ?? defaultState();
+
+  return snapshot;
 }
 
-export function useHydratedApp(): { app: AppState; ready: boolean } {
-  const [snapshot, setSnapshot] = useState<AppState | null>(null);
-  useEffect(() => {
-    const sync = () => setSnapshot({ ...read() });
-    sync();
-    listeners.add(sync);
-    return () => {
-      listeners.delete(sync);
-    };
-  }, []);
-  return { app: snapshot ?? defaultState(), ready: snapshot !== null };
+export function useHydratedApp() {
+  const app = useApp();
+  return { app, ready: Boolean(app.profile.id) };
 }
 
-/* ---------- actions ---------- */
-
-export function addTransaction(
-  kind: TransactionKind,
-  amount: number,
-  description: string,
-  reference = uid(),
+export async function addTransaction(
+  _kind: TransactionKind,
+  _amount: number,
+  _description: string,
+  _reference = uid(),
 ) {
-  update((s) => ({
-    ...s,
-    coins: Math.max(0, s.coins + amount),
-    transactions: [
-      {
-        id: uid(),
-        walletOwnerId: s.profile.id,
-        kind,
-        amount,
-        currency: "COIN" as const,
-        status: "completed" as const,
-        reference,
-        description,
-        createdAt: new Date().toISOString(),
-      },
-      ...s.transactions,
-    ].slice(0, 100),
-  }));
+  throw new Error("Transações financeiras são processadas pelos endpoints reais da carteira.");
 }
 
-export function notify(n: Omit<Notification, "id" | "read" | "createdAt">) {
-  update((s) => ({
-    ...s,
-    notifications: [
-      { ...n, id: uid(), read: false, createdAt: new Date().toISOString() },
-      ...s.notifications,
-    ].slice(0, 50),
-  }));
+export async function notify(_notification: Omit<Notification, "id" | "read" | "createdAt">) {
+  // Notifications are delivered by Lovable Cloud / Realtime / Push.
+  // No fake notifications are seeded or persisted locally.
 }
 
 export function markNotificationsRead() {
-  update((s) => ({ ...s, notifications: s.notifications.map((n) => ({ ...n, read: true })) }));
+  // Notifications are read-state managed by the backend when that endpoint is enabled.
 }
 
 export function setTimerPreference(timer: number) {
-  update((s) => ({ ...s, timer }));
+  update((current) => ({ ...current, timer: Math.max(1, Math.min(15, timer)) }));
 }
 
-export function setProfile(name: string, avatar: string, phone = "", bio = "") {
-  update((s) => {
-    const profile = { ...s.profile, name: name.trim() || "Jogador", avatar, phone: phone.trim(), bio: bio.trim() };
-    if (typeof window !== "undefined") {
-      try { window.localStorage.setItem("mozaplay:profile:v2", JSON.stringify(profile)); } catch {}
-    }
-    return { ...s, profile };
+export async function setProfile(name: string, avatar: string, phone = "", bio = "") {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) throw new Error("auth_required");
+
+  const payload = {
+    id: data.user.id,
+    display_name: name.trim() || "Jogador",
+    avatar,
+    phone: phone.trim(),
+    bio: bio.trim(),
+  };
+
+  let result = await supabase.from("user_profiles").upsert(payload);
+  if (result.error) result = await supabase.from("profiles").upsert(payload);
+  if (result.error) throw new Error(result.error.message);
+
+  await supabase.auth.updateUser({
+    data: {
+      display_name: payload.display_name,
+      avatar: payload.avatar,
+      phone: payload.phone,
+      bio: payload.bio,
+    },
   });
+
+  update((current) => ({
+    ...current,
+    profile: {
+      ...current.profile,
+      name: payload.display_name,
+      avatar: payload.avatar,
+      phone: payload.phone,
+      bio: payload.bio,
+    },
+  }));
 }
 
-export function recordMatch(input: {
+export async function recordMatch(input: {
   game: GameId;
   result: "win" | "loss" | "draw";
   opponents: string[];
+  opponentIds?: string[];
+  playerIds?: string[];
   bet: number;
+  winnerId?: string | null;
+  matchId?: string;
 }) {
-  const coins = 0;
-  update((s) => {
-    const bump = (st: Stats): Stats => ({
-      wins: st.wins + (input.result === "win" ? 1 : 0),
-      losses: st.losses + (input.result === "loss" ? 1 : 0),
-      draws: st.draws + (input.result === "draw" ? 1 : 0),
-    });
-    return {
-      ...s,
-      stats: {
-        ...s.stats,
-        total: bump(s.stats.total),
-        [input.game]: bump(s.stats[input.game]),
-      },
-      matches: [
-        {
-          id: uid(),
-          game: input.game,
-          result: input.result,
-          opponents: input.opponents,
-          coins,
-          bet: input.bet,
-          createdAt: new Date().toISOString(),
-        },
-        ...s.matches,
-      ].slice(0, 100),
-    };
-  });
-  if (coins > 0) addTransaction("prize", coins, `Prémio de partida (${input.game})`);
-  notify({
-    title: input.result === "win" ? "Vitória!" : input.result === "draw" ? "Empate" : "Derrota",
-    body:
-      input.result === "win"
-        ? `Ganhaste ${coins} moedas.`
-        : input.result === "draw"
-          ? "Aposta devolvida."
-          : "Tenta outra vez — a revanche espera.",
-    kind: "result",
-  });
+  const { data } = await supabase.auth.getUser();
+  const userId = data.user?.id;
+  if (!userId) throw new Error("auth_required");
+
+  const playerIds = input.playerIds ?? [userId, ...(input.opponentIds ?? [])].slice(0, 2);
+  const winnerId = input.winnerId ?? (input.result === "win" ? userId : input.result === "draw" ? null : playerIds[1] ?? null);
+
+  const matchRow = {
+    id: input.matchId ?? crypto.randomUUID(),
+    game_type: input.game,
+    player1_id: playerIds[0] ?? userId,
+    player2_id: playerIds[1] ?? null,
+    winner_id: winnerId,
+    status: "finished",
+    created_at: new Date().toISOString(),
+    ended_at: new Date().toISOString(),
+  };
+
+  const { error: matchError } = await supabase.from("matches").insert(matchRow);
+  if (matchError) {
+    console.error("[Match]", matchError.message);
+    throw new Error(matchError.message);
+  }
+
+  const { data: currentStats } = await supabase
+    .from("stats")
+    .select("wins, losses, draws, total_matches")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const nextStats = {
+    user_id: userId,
+    wins: Number(currentStats?.wins ?? 0) + (input.result === "win" ? 1 : 0),
+    losses: Number(currentStats?.losses ?? 0) + (input.result === "loss" ? 1 : 0),
+    draws: Number(currentStats?.draws ?? 0) + (input.result === "draw" ? 1 : 0),
+    total_matches: Number(currentStats?.total_matches ?? 0) + 1,
+  };
+
+  const { error: statsError } = await supabase.from("stats").upsert(nextStats, { onConflict: "user_id" });
+  if (statsError) console.error("[Stats]", statsError.message);
+
+  return { ...matchRow, bet, opponents };
 }
 
 export function placeBet(amount: number, _game: GameId) {
-  // Real-money bets are authorized and settled by Supabase RPCs.
-  // The client-side store never creates, debits or credits money.
-  return amount <= 0;
+  if (amount < 0) throw new Error("invalid_bet");
+  return true;
 }
 
 export const winRate = (s: Stats) => {
@@ -279,5 +311,4 @@ export const winRate = (s: Stats) => {
   return total === 0 ? 0 : Math.round((s.wins / total) * 100);
 };
 
-/** Leaderboard entries come from the backend; no seeded players are created locally. */
 export const LEADERBOARD_SEED: never[] = [];
