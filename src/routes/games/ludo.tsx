@@ -100,7 +100,7 @@ function playAudio(url?: string) {
 }
 
 function LudoMatch() {
-  const { bet, players, room } = Route.useSearch();
+  const { bet, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players: 2 }));
   const [seconds, setSeconds] = useState(TURN_SECONDS);
@@ -271,7 +271,7 @@ function LudoMatch() {
 
         {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}\n\n        <div className="grid grid-cols-2 gap-2 my-2">
           <div>{renderPlayerCorner(0)}</div>
-          <div>{players >= 2 ? renderPlayerCorner(1) : null}</div>
+          <div>{renderPlayerCorner(1)}</div>
         </div>
 
         <div className="my-1 py-1">
@@ -291,8 +291,8 @@ function LudoMatch() {
         </div>
 
         <div className="grid grid-cols-2 gap-2 my-2">
-          <div>{players >= 4 ? renderPlayerCorner(3) : null}</div>
-          <div>{players >= 3 ? renderPlayerCorner(2) : null}</div>
+          <div></div>
+          <div></div>
         </div>
 
         <Card className="p-2 text-center text-xs text-muted-foreground mt-1">
