@@ -191,7 +191,6 @@ export interface FileRouteTypes {
     | '/games/checkers'
     | '/games/chess'
     | '/games/ludo'
-    | '/api/public/push-dispatch'
     | '/api/public/webhooks/netshop'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -211,7 +210,6 @@ export interface FileRouteTypes {
     | '/games/checkers'
     | '/games/chess'
     | '/games/ludo'
-    | '/api/public/push-dispatch'
     | '/api/public/webhooks/netshop'
   id:
     | '__root__'
@@ -231,7 +229,6 @@ export interface FileRouteTypes {
     | '/games/checkers'
     | '/games/chess'
     | '/games/ludo'
-    | '/api/public/push-dispatch'
     | '/api/public/webhooks/netshop'
   fileRoutesById: FileRoutesById
 }
@@ -367,13 +364,6 @@ declare module '@tanstack/react-router' {
       path: '/games/ludo'
       fullPath: '/games/ludo'
       preLoaderRoute: typeof GamesLudoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/push-dispatch': {
-      id: '/api/public/push-dispatch'
-      path: '/api/public/push-dispatch'
-      fullPath: '/api/public/push-dispatch'
-      preLoaderRoute: typeof ApiPublicPushDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/webhooks/netshop': {
