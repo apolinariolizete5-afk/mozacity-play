@@ -256,6 +256,7 @@ export function useRealtimeRoom<T>(
   const sequenceRef = useRef(0);
   const lastPresenceRef = useRef<string[]>([]);
   const latestStateRef = useRef<T | null>(null);
+  const playerIndexRef = useRef(0);
   const disconnectTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -279,7 +280,9 @@ export function useRealtimeRoom<T>(
       nextPlayers.sort((a, b) => a.playerId.localeCompare(b.playerId));
       setPlayers(nextPlayers);
       const index = nextPlayers.findIndex((entry) => entry.playerId === player.playerId);
-      setPlayerIndex(index >= 0 ? index : 0);
+      const resolvedIndex = index >= 0 ? index : 0;
+      playerIndexRef.current = resolvedIndex;
+      setPlayerIndex(resolvedIndex);
 
       const opponentOnline = nextPlayers.some((entry) => entry.playerId !== player.playerId);
       setOpponentDisconnected(!opponentOnline && nextPlayers.length > 0);
