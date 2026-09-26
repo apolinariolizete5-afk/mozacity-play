@@ -147,10 +147,31 @@ async function hydrate() {
     return;
   }
 
-  const [profile, stats] = await Promise.all([loadProfile(user.id), loadStats(user.id)]);
+  const [profile, stats, notificationResult] = await Promise.all([
+    loadProfile(user.id),
+    loadStats(user.id),
+    supabase
+      .from("notifications")
+      .select("id, title, body, kind, read, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
   const next = defaultState();
   next.profile = profile;
   next.stats.total = stats;
+  if (!notificationResult.error) {
+    next.notifications = (notificationResult.data ?? []).map((item) => ({
+      id: String(item.id),
+      title: String(item.title ?? ""),
+      body: String(item.body ?? ""),
+      kind: (["invite", "challenge", "result", "system"].includes(String(item.kind))
+        ? String(item.kind)
+        : "system") as Notification["kind"],
+      read: Boolean(item.read),
+      createdAt: String(item.created_at ?? new Date().toISOString()),
+    }));
+  }
   state = next;
   listeners.forEach((listener) => listener());
 }
@@ -198,12 +219,19 @@ export async function addTransaction(
 }
 
 export async function notify(_notification: Omit<Notification, "id" | "read" | "createdAt">) {
-  // Notifications are delivered by Lovable Cloud / Realtime / Push.
-  // No fake notifications are seeded or persisted locally.
+  // Notifications are created by trusted server/database events. No fake local notifications.
 }
 
-export function markNotificationsRead() {
-  // Notifications are read-state managed by the backend when that endpoint is enabled.
+export async function markNotificationsRead(ids?: string[]) {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return;
+  let query = supabase.from("notifications").update({ read: true }).eq("user_id", data.user.id);
+  if (ids?.length) query = query.in("id", ids);
+  await query;
+  update((current) => ({
+    ...current,
+    notifications: current.notifications.map((n) => ids?.length && !ids.includes(n.id) ? n : { ...n, read: true }),
+  }));
 }
 
 export function setTimerPreference(timer: number) {
