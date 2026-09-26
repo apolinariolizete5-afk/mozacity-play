@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { markNotificationsRead, useApp } from "@/lib/store";
 import { enablePushNotifications, disablePushNotifications } from "@/lib/push";
-import { sendPushToSelf } from "@/lib/push.functions";
 
 export const Route = createFileRoute("/notifications")({
   head: () => ({
@@ -47,11 +46,11 @@ function NotificationsPage() {
     setMessage("");
     try {
       if (pushState === "on") {
-        await disablePushNotifications();
+        await disablePushNotifications(app.profile.id);
         setPushState("off");
         setMessage("Notificações push desativadas.");
       } else {
-        await enablePushNotifications();
+        await enablePushNotifications(app.profile.id);
         setPushState("on");
         setMessage("Notificações push ativadas.");
       }
@@ -73,14 +72,20 @@ function NotificationsPage() {
     setBusy(true);
     setMessage("");
     try {
-      const result = await sendPushToSelf({
-        data: {
+      const response = await fetch("/api/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send",
+          playerId: app.profile.id,
           title: "MozaPlay",
-          body: "As notificações push estão a funcionar.",
+          message: "As notificações push estão a funcionar.",
           url: "/notifications",
-        },
+        }),
       });
-      setMessage(result.sent > 0 ? "Push de teste enviado." : "Não há dispositivos inscritos.");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error || "push_send_failed");
+      setMessage(result.sent ? "Push de teste enviado." : "Este dispositivo ainda não está inscrito.");
     } catch (error) {
       setMessage(error instanceof Error && error.message === "push_not_configured"
         ? "Configure VAPID no Render para enviar push."
