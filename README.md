@@ -71,3 +71,13 @@ Android/iOS via "Adicionar ao ecrã principal".
 5. Health check path: `/`
 
 Também pode ser publicado diretamente pelo botão **Publish** no Lovable.
+
+
+## Voice chat (TURN)
+
+For reliable voice calls across restrictive mobile networks, configure these Render environment variables:
+- `VITE_TURN_URL`
+- `VITE_TURN_USERNAME`
+- `VITE_TURN_CREDENTIAL`
+
+The app always keeps Google STUN as a fallback. TURN credentials should come from a TURN provider; never commit them to GitHub.
