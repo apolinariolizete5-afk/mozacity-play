@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getVapidPublicKey } from "@/lib/push.functions";
 
-type PushState = "on" | "off" | "blocked" | "unsupported";
+export type PushState = "on" | "off" | "blocked" | "unsupported";
 
 export function pushSupported(): boolean {
   return (
