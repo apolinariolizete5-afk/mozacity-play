@@ -6,7 +6,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type Method = "mpesa" | "emola" | "mkesh" | "bank";
+export type Method = "mpesa" | "mola" | "mcash" | "bank";
 
 export interface NetshopResult {
   ok: boolean;
@@ -27,8 +27,8 @@ function apiUrl(): string {
 export function walletIdFor(method: Method): string | undefined {
   const map: Record<Method, string> = {
     mpesa: "NETSHOP_WALLET_ID_MPESA",
-    emola: "NETSHOP_WALLET_ID_EMOLA",
-    mkesh: "NETSHOP_WALLET_ID_MKESH",
+    mola: "NETSHOP_WALLET_ID_MOLA",
+    mcash: "NETSHOP_WALLET_ID_MCASH",
     bank: "NETSHOP_WALLET_ID_BANK",
   };
 
@@ -54,7 +54,7 @@ async function callCharge(input: {
   reference: string;
 }): Promise<NetshopResult> {
   const key = env("NETSHOP_API_KEY");
-  const walletId = walletIdFor(input.method);
+  const walletId = providerWalletEnv ? env(providerWalletEnv) : walletIdFor(input.method);
 
   if (!key) {
     return {
@@ -178,7 +178,9 @@ export function requestDeposit(input: {
   amountCents: number;
   reference: string;
 }) {
-  const raw = input.msisdn.trim().replace(/[\\s()-]/g, "");
+  const providerMethod: Method = input.method === "mola" ? "emola" : input.method === "mcash" ? "mkesh" : input.method;
+  const providerWalletEnv = input.method === "mola" ? "NETSHOP_WALLET_ID_EMOLA" : input.method === "mcash" ? "NETSHOP_WALLET_ID_MKESH" : undefined;
+const raw = input.msisdn.trim().replace(/[\\s()-]/g, "");
   const msisdn =
     raw.startsWith("+258")
       ? raw
@@ -190,6 +192,7 @@ export function requestDeposit(input: {
 
   return callCharge({
     ...input,
+    method: providerMethod,
     msisdn,
   });
 }
