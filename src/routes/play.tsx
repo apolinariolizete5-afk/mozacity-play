@@ -22,6 +22,7 @@ function Play() {
   const app = useApp();
   const [selected, setSelected] = useState<GameId>(game);
   const [timer, setTimer] = useState(TURN_SECONDS);
+  const [bet, setBet] = useState(20);
   const [searching, setSearching] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
@@ -41,9 +42,9 @@ function Play() {
     const code = roomCode;
     void navigate(
       selected === "ludo"
-        ? { to: "/games/ludo", search: { bet: 0, timer: TURN_SECONDS, players: 2, room: code } }
+        ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players: 2, room: code } }
         : selected === "checkers"
-          ? { to: "/games/checkers", search: { bet: 0, timer: TURN_SECONDS, room: code } }
+          ? { to: "/games/checkers", search: { bet, timer: TURN_SECONDS, room: code } }
           : { to: "/games/chess", search: { bet: 0, timer: TURN_SECONDS, room: code } },
     );
   }, [realtime.players.length, searching, roomCode, selected, navigate]);
@@ -62,6 +63,7 @@ function Play() {
       const room = await quickMatch({
         game: selected,
         player: { playerId: app.profile.id, name: app.profile.name },
+        bet,
         signal: controller.signal,
       });
       setRoomCode(room.code);
@@ -128,6 +130,15 @@ function Play() {
             <div className="flex items-center gap-2 text-xs font-extrabold"><Clock3 className="h-4 w-4 text-primary" /> Tempo por turno</div>
             <div className="mt-2 rounded-xl bg-primary/10 px-3 py-3 text-center text-sm font-extrabold text-primary">15 segundos</div>
             <p className="mt-1 text-[11px] text-muted-foreground">O relógio é sincronizado pelo estado Realtime da partida.</p>
+          </div>
+
+          <div className="mt-5">
+            <div className="flex items-center gap-2 text-xs font-extrabold">💰 Valor da aposta</div>
+            <div className="mt-2 flex items-center gap-2">
+              <input type="number" min={20} step={1} value={bet} onChange={(event) => setBet(Math.max(20, Number(event.target.value) || 20))} className="h-12 flex-1 rounded-xl bg-secondary px-4 text-base font-extrabold outline-none" />
+              <span className="font-extrabold">MT</span>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Mínimo: 20 MT por jogador.</p>
           </div>
 
           <div className="mt-5">
