@@ -34,7 +34,9 @@ function HistoryPage() {
         return;
       }
 
-      setCurrentUserId(user.user.id);\n\n      const { data, error } = await supabase
+      setCurrentUserId(user.user.id);
+
+      const { data, error } = await supabase
         .from("matches")
         .select("id, game_type, player1_id, player2_id, winner_id, status, created_at, ended_at")
         .or(`player1_id.eq.${user.user.id},player2_id.eq.${user.user.id}`)
