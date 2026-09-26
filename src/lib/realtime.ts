@@ -194,9 +194,6 @@ export async function quickMatch(input: {
       input.signal?.addEventListener("abort", onAbort, { once: true });
     });
 
-  await ensureSubscribed(queue);
-  throwIfAborted();
-
   const searchingPlayer: RoomPresence = {
     ...input.player,
     game: input.game,
@@ -220,6 +217,8 @@ export async function quickMatch(input: {
   };
 
   (queue as any).on("broadcast", { event: "match_assigned" }, onAssigned);
+  await ensureSubscribed(queue);
+  throwIfAborted();
   await queue.track(searchingPlayer);
 
   const buildRoom = (pair: RoomPresence[]): LobbyRoom => {
