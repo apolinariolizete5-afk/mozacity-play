@@ -392,3 +392,164 @@ export function useRealtimeRoom<T>(
     broadcastForfeit,
   };
 }
+
+export async function quickMatch(input: {
+  game: GameId;
+  player: RoomPresence;
+  bet?: number;
+  players?: number;
+  signal?: AbortSignal;
+}) {
+  const queue = supabase.channel(`mozaplay:matchmaking:${input.game}`, {
+    config: {
+      presence: { key: input.player.playerId },
+      broadcast: { self: false, ack: true },
+    },
+  });
+
+  const throwIfAborted = () => {
+    if (input.signal?.aborted) throw new Error("matchmaking_cancelled");
+  };
+
+  const wait = (ms: number) =>
+    new Promise<void>((resolve, reject) => {
+      if (input.signal?.aborted) {
+        reject(new Error("matchmaking_cancelled"));
+        return;
+      }
+      const timer = window.setTimeout(() => {
+        input.signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      const onAbort = () => {
+        window.clearTimeout(timer);
+        input.signal?.removeEventListener("abort", onAbort);
+        reject(new Error("matchmaking_cancelled"));
+      };
+      input.signal?.addEventListener("abort", onAbort, { once: true });
+    });
+
+  const desiredPlayers = input.game === "ludo" ? Math.min(4, Math.max(2, Math.round(Number(input.players ?? 2)))) : 2;
+
+  const searchingPlayer: RoomPresence = {
+    ...input.player,
+    game: input.game,
+    searching: true,
+    bet: Math.max(20, Math.round(Number(input.bet ?? 20))),
+    capacity: desiredPlayers,
+    createdAt: new Date().toISOString(),
+  };
+
+  let assignedRoom: LobbyRoom | null = null;
+  let assignmentResolve: ((room: LobbyRoom) => void) | null = null;
+  const assignment = new Promise<LobbyRoom>((resolve) => {
+    assignmentResolve = resolve;
+  });
+
+  const onAssigned = (payload: { payload?: { pair?: string[]; room?: LobbyRoom } }) => {
+    const event = payload.payload;
+    if (!event?.pair || !event.room) return;
+    if (!event.pair.includes(input.player.playerId)) return;
+    assignedRoom = event.room;
+    assignmentResolve?.(event.room);
+  };
+
+  (queue as any).on("broadcast", { event: "match_assigned" }, onAssigned);
+  await ensureSubscribed(queue);
+  throwIfAborted();
+  await queue.track(searchingPlayer);
+
+  const buildRoom = (pair: RoomPresence[]): LobbyRoom => {
+    const ids = pair.map((entry) => entry.playerId).sort();
+    const seed = ids.join(":");
+    let hash = 0;
+    for (let index = 0; index < seed.length; index += 1) {
+      hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+    }
+    const code = `Q${hash.toString(36).toUpperCase().padStart(5, "0").slice(-5)}`;
+    return {
+      id: code,
+      code,
+      game: input.game,
+      isPrivate: false,
+      bet: searchingPlayer.bet ?? 20,
+      timer: TURN_SECONDS,
+      capacity: desiredPlayers,
+      status: pair.length >= desiredPlayers ? "READY" : "WAITING",
+      players: pair.map((entry) => ({ id: entry.playerId, name: entry.name })),
+      hostId: ids[0],
+      createdAt: pair[0]?.createdAt ?? new Date().toISOString(),
+    };
+  };
+
+  try {
+    for (;;) {
+      throwIfAborted();
+      if (assignedRoom) return assignedRoom;
+
+      const entries = flattenPresence(queue.presenceState() as Record<string, unknown[]>)
+        .filter((entry) =>
+          entry.game === input.game &&
+          entry.searching === true &&
+          Number(entry.bet ?? 20) === searchingPlayer.bet &&
+          Number(entry.capacity ?? 2) === desiredPlayers &&
+          Boolean(entry.playerId),
+        );
+
+      const unique = new Map<string, RoomPresence>();
+      for (const entry of entries) unique.set(entry.playerId, entry);
+
+      const searchers = [...unique.values()].sort((a, b) => {
+        const created = (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+        return created || a.playerId.localeCompare(b.playerId);
+      });
+
+      if (searchers.length >= desiredPlayers) {
+        // Only the oldest active searcher acts as coordinator. This prevents
+        // A+B and B+C from being assigned simultaneously when 3+ players
+        // enter the queue together.
+        const pair = searchers.slice(0, desiredPlayers);
+        const coordinatorId = pair[0].playerId;
+
+        if (input.player.playerId === coordinatorId) {
+          const room = buildRoom(pair);
+          const pairIds = pair.map((entry) => entry.playerId);
+
+          await queue.send({
+            type: "broadcast",
+            event: "match_assigned",
+            payload: { pair: pairIds, room },
+          });
+
+          assignedRoom = room;
+          assignmentResolve?.(room);
+
+          // Repeat briefly so a slow second subscriber still receives the
+          // assignment before the coordinator leaves the queue.
+          await wait(180);
+          await queue.send({
+            type: "broadcast",
+            event: "match_assigned",
+            payload: { pair: pairIds, room },
+          });
+          await wait(180);
+          return room;
+        }
+      }
+
+      const received = await Promise.race([
+        assignment.then((room) => room),
+        wait(500).then(() => null),
+      ]);
+      if (received) return received;
+    }
+  } finally {
+    try { await queue.untrack(); } catch { /* channel may already be closing */ }
+    await supabase.removeChannel(queue);
+  }
+}
+export async function leaveLobbyRoom() {
+  const channel = lobbyChannels.get("lobby");
+  if (!channel || channel.state !== "joined") return;
+  await channel.untrack();
+}
