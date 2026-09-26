@@ -5,11 +5,12 @@ import { ChessBoard } from "@/components/boards/ChessBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import { chessBotMove, chessEngine, inCheck, legalMoves, type ChessMove } from "@/lib/games/chess";
 import { botName, placeBet, recordMatch, useApp } from "@/lib/store";
+import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/chess")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,
+    timer: Number(search["timer"] ?? 10) || 10,\n    room: String(search["room"] ?? ""),
   }),
   head: () => ({
     meta: [
@@ -23,16 +24,16 @@ export const Route = createFileRoute("/games/chess")({
 });
 
 function ChessMatch() {
-  const { bet, timer } = Route.useSearch();
+  const { bet, timer, room } = Route.useSearch();
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
   const [seconds, setSeconds] = useState(timer);
-  const [opponent] = useState(() => botName());
+  const [opponent] = useState(() => botName());\n  const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const staked = useRef(false);
 
   useEffect(() => {
-    if (!staked.current) {
+    if (room) return;\n    if (!staked.current) {
       staked.current = true;
       placeBet(bet, "chess");
     }
@@ -48,14 +49,14 @@ function ChessMatch() {
 
   // timeout → random legal move
   useEffect(() => {
-    if (seconds > 0 || state.over || state.turn !== "w") return;
+    if (room || seconds > 0 || state.over || state.turn !== "w") return;
     const moves = legalMoves(state);
     if (moves.length) setState((s) => chessEngine.applyMove(s, moves[0]!));
   }, [seconds, state]);
 
   // bot
   useEffect(() => {
-    if (state.over || state.turn !== "b") return;
+    if (room || state.over || state.turn !== "b") return;
     const id = setTimeout(() => {
       const move = chessBotMove(state);
       if (move) setState((s) => chessEngine.applyMove(s, move));
@@ -98,7 +99,7 @@ function ChessMatch() {
         }
         footer={
           <Card className="flex items-center justify-between p-3 text-xs">
-            <Pill tone="primary">Aposta {bet} moedas</Pill>
+            <Pill tone="primary">{room ? `Sala ${room}` : "Jogo livre"}</Pill>
             <span className="text-muted-foreground">Lances: {state.history.length}</span>
           </Card>
         }
@@ -106,7 +107,7 @@ function ChessMatch() {
         <ChessBoard
           state={state}
           disabled={state.turn !== "w" || state.over}
-          onMove={(m: ChessMove) => setState((s) => chessEngine.applyMove(s, m))}
+          onMove={(m: ChessMove) => setState((s) => { const next = chessEngine.applyMove(s, m); if (room) realtime.broadcastState({ type: "state", state: next }); return next; })}
         />
       </MatchShell>
       {result ? (
@@ -116,7 +117,7 @@ function ChessMatch() {
           onRematch={() => {
             settled.current = false;
             staked.current = true;
-            placeBet(bet, "chess");
+            if (!room) placeBet(bet, "chess");
             setState(chessEngine.createGame());
             setSeconds(timer);
           }}
