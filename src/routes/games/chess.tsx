@@ -79,7 +79,7 @@ function ChessMatch() {
       winnerId: realtime.forfeitWinner !== null ? realtime.players[realtime.forfeitWinner]?.playerId ?? null : winner === null ? null : realtime.players[winner]?.playerId ?? null,
       bet,
     });
-  }, [state, bet, opponent]);
+  }, [state, bet, opponent, realtime.forfeitWinner, realtime.players]);
 
   const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.draw ? "draw" : state.winner === realtime.playerIndex ? "win" : "loss") : null;
 
@@ -120,7 +120,7 @@ function ChessMatch() {
       {result ? (
         <ResultOverlay
           result={result}
-          coins={result === "win" ? bet * 2 : result === "draw" ? bet : 0}
+          coins={0}
           onRematch={() => {
             settled.current = false;
             setState(chessEngine.createGame());
