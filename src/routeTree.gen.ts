@@ -108,11 +108,6 @@ const GamesLudoRoute = GamesLudoRouteImport.update({
   path: '/games/ludo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
-  id: '/api/public/push-dispatch',
-  path: '/api/public/push-dispatch',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicWebhooksNetshopRoute =
   ApiPublicWebhooksNetshopRouteImport.update({
     id: '/api/public/webhooks/netshop',
