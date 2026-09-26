@@ -4,7 +4,7 @@ import { MatchShell, ResultOverlay } from "@/components/MatchShell";
 import { ChessBoard } from "@/components/boards/ChessBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import { chessEngine, inCheck, type ChessMove } from "@/lib/games/chess";
-import { placeBet, recordMatch, useApp } from "@/lib/store";
+import { recordMatch, useApp } from "@/lib/store";
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/chess")({
@@ -32,15 +32,6 @@ function ChessMatch() {
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
-  const staked = useRef(false);
-
-  useEffect(() => {
-    if (room) return;
-    if (!staked.current) {
-      staked.current = true;
-      placeBet(bet, "chess");
-    }
-  }, [bet]);
 
   useEffect(() => {
     const other = realtime.players.find((p) => p.playerId !== app.profile.id);
@@ -117,8 +108,6 @@ function ChessMatch() {
           coins={result === "win" ? bet * 2 : result === "draw" ? bet : 0}
           onRematch={() => {
             settled.current = false;
-            staked.current = true;
-            if (!room) placeBet(bet, "chess");
             setState(chessEngine.createGame());
             setSeconds(timer);
           }}
