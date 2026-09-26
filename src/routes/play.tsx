@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowRight, Bot, Clock3, Gamepad2, Loader2, Users2 } from "lucide-react";
+import { ArrowRight, Bot, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { botName, setTimerPreference, useApp } from "@/lib/store";
 
 const TIMERS = [5, 10, 15, 30];
-const BETS = [0, 25, 50, 100];
+const GAME_ICONS: Record<GameId, typeof Gamepad2> = { ludo: Dice5, checkers: CircleDot, chess: Crown };
 
 export const Route = createFileRoute("/play")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -58,15 +58,17 @@ function Play() {
           {(Object.keys(GAME_META) as GameId[]).map((id) => {
             const active = selected === id;
             return (
-              <button key={id} type="button" onClick={() => setSelected(id)} className={`group relative overflow-hidden rounded-[1.8rem] border text-left transition-all ${active ? "border-primary ring-2 ring-primary/25" : "border-border bg-card"}`}>
-                <div className="aspect-[.9] overflow-hidden sm:aspect-[.82]">
-                  <img src={GAME_META[id].cover} alt={GAME_META[id].name} className={`h-full w-full object-cover transition duration-500 ${active ? "scale-105" : "group-hover:scale-105"}`} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
-                  <div className="absolute inset-x-4 bottom-4 text-white">
-                    <p className="font-display text-2xl font-black">{GAME_META[id].name}</p>
-                    <p className="mt-1 text-xs text-white/70">{GAME_META[id].tagline}</p>
-                  </div>
-                </div>
+              <button key={id} type="button" onClick={() => setSelected(id)} className={`flex min-h-28 items-center gap-4 rounded-[1.5rem] border bg-card p-4 text-left transition-all ${active ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border"}`}>
+                {(() => { const Icon = GAME_ICONS[id]; return (
+                  <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${active ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}>
+                    <Icon className="h-6 w-6" />
+                  </span>
+                ); })()}
+                <span className="min-w-0">
+                  <span className="block font-display text-xl font-black">{GAME_META[id].name}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{GAME_META[id].tagline}</span>
+                  <span className="mt-2 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{GAME_META[id].players}</span>
+                </span>
               </button>
             );
           })}
