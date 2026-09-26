@@ -258,6 +258,7 @@ export async function quickMatch(input: {
           entry.game === input.game &&
           entry.searching === true &&
           Number(entry.bet ?? 20) === searchingPlayer.bet &&
+          Number(entry.capacity ?? 2) === desiredPlayers &&
           Boolean(entry.playerId),
         );
 
