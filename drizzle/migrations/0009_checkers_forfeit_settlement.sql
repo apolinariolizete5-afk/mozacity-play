@@ -59,7 +59,8 @@ begin
     if e.locked_two then
       update public.wallets
          set balance_cents = balance_cents + e.bet_cents,
-             updated_at = now();
+             updated_at = now()
+       where user_id = e.player_two;
       insert into public.transactions
         (user_id, kind, amount_cents, status, idempotency_key, description)
       values
