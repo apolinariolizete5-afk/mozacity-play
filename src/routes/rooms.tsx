@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lock, Globe, Plus, Share2, Users2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
@@ -26,6 +26,11 @@ function Rooms() {
   const [capacity, setCapacity] = useState(2);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  useEffect(() => {
+    const invitedCode = new URLSearchParams(window.location.search).get("code");
+    if (invitedCode) setCode(invitedCode.toUpperCase().slice(0, 6));
+  }, []);
+
   const { remoteRooms } = useRealtimeLobby(
     { playerId: app.profile.id, name: app.profile.name },
     true,
@@ -74,15 +79,10 @@ function Rooms() {
   };
 
   const shareRoom = async (room: { game: GameId; code: string; bet?: number; capacity?: number }) => {
-    const path =
-      room.game === "ludo"
-        ? `/games/ludo?room=${room.code}&players=2&bet=${room.bet}`
-        : room.game === "checkers"
-          ? `/games/checkers?room=${room.code}&bet=${room.bet}`
-          : `/games/chess?room=${room.code}&bet=${room.bet}`;
+    const path = `/rooms?code=${room.code}`;
     const url = `${window.location.origin}${path}`;
     try {
-      if (navigator.share) await navigator.share({ title: "MozaPlay", text: `Entra na minha sala ${room.code}`, url });
+      if (navigator.share) await navigator.share({ title: "MozaPlay", text: `Entra na minha sala no MozaPlay. Código: ${room.code}`, url });
       else await navigator.clipboard.writeText(url);
       setMessage("Convite pronto para partilhar.");
     } catch {
