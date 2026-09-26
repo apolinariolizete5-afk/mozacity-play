@@ -194,7 +194,7 @@ export async function quickMatch(input: {
         const pair = searchers.slice(0, 2);
         if (pair.some((entry) => entry.playerId === input.player.playerId)) {
           const ids = pair.map((entry) => entry.playerId).sort();
-          const roomCode = `QM${ids.map((id) => id.replace(/[^a-zA-Z0-9]/g, "").slice(-3)).join("")}`.toUpperCase().slice(0, 6).padEnd(6, "X");
+          const roomSeed = ids.join(":");\n          let roomHash = 0;\n          for (let index = 0; index < roomSeed.length; index += 1) roomHash = (roomHash * 31 + roomSeed.charCodeAt(index)) >>> 0;\n          const roomCode = `Q${roomHash.toString(36).toUpperCase().padStart(5, "0").slice(-5)}`;
 
           // Remove this player from the queue before entering the room.
           await queue.untrack();
