@@ -1,15 +1,14 @@
 # MozaPlay — Joga. Desafia. Compete.
 
-Plataforma mobile-first de jogos competitivos (Ludo, Damas e Xadrez) com estética de app
-Android nativa, dark mode, salas com código curto, carteira em meticais,
-ranking e suporte PWA.
+Plataforma mobile-first de jogos competitivos (Ludo, Damas e Xadrez) com estética de app Android, salas com código curto, carteira em meticais, ranking e suporte PWA.
 
 ## Stack
 
-- TanStack Start (React 19 + Vite 7, SSR)
+- TanStack Start (React 19 + Vite 8 + SSR)
 - TypeScript
-- Tailwind CSS v4 (tokens semânticos em `src/styles.css`)
-- Supabase para autenticação e carteira; estado local apenas para preferências e partidas locais
+- Tailwind CSS v4
+- Supabase para autenticação e dados da carteira
+- NetShop no servidor para iniciar depósitos quando a integração estiver configurada
 
 ## Instalação
 
@@ -22,11 +21,7 @@ npm start        # servir o build
 
 ## Arquitetura de jogos
 
-Todos os jogos implementam a mesma interface `GameEngine` (`src/lib/games/types.ts`):
-
-```ts
-createGame() · validateMove() · applyMove() · getState() · isGameOver() · getWinner()
-```
+Todos os jogos implementam a mesma interface `GameEngine` (`src/lib/games/types.ts`).
 
 | Jogo | Motor | Rota |
 | --- | --- | --- |
@@ -34,50 +29,38 @@ createGame() · validateMove() · applyMove() · getState() · isGameOver() · g
 | Damas (2) | `src/lib/games/checkers.ts` | `/games/checkers` |
 | Xadrez (2) | `src/lib/games/chess.ts` | `/games/chess` |
 
-Para adicionar um jogo novo: criar `src/lib/games/<jogo>.ts` exportando um
-`GameEngine`, registar em `GAME_META` e criar a rota `src/routes/games/<jogo>.tsx`.
+## Salas
 
-Regras cobertas: Ludo com saída no 6, capturas, casas seguras e chegada ao centro;
-Damas com capturas obrigatórias, capturas em cadeia e coroação; Xadrez com roque,
-promoção, xeque, xeque-mate e empate por afogamento. Timer por turno configurável
-(5s, 10s padrão, 15s, 30s) com jogada automática no timeout.
-
-## Salas e matchmaking
-
-Códigos curtos (`MP7K92`), salas públicas/privadas e estados
-`WAITING → READY → STARTING → PLAYING → FINISHED | CANCELLED`.
-Partida rápida procura jogadores e permite preencher vagas com bots.
+Códigos curtos, salas públicas/privadas e estados `WAITING → READY → STARTING → PLAYING → FINISHED | CANCELLED`.
 
 ## Pagamentos
 
-A carteira usa Supabase e as server functions para operações financeiras.
-Depósitos passam pelo gateway NetShop quando configurado; sem gateway configurado,
-o depósito é recusado e nenhum saldo é criado artificialmente.
+A carteira usa Supabase e server functions. Não existe provedor de pagamento demo nem crédito virtual inicial.
 
-Não existe provedor de pagamento demo nem crédito virtual inicial.
+- O depósito cria uma transação pendente e só deve creditar saldo depois da confirmação do gateway.
+- A integração NetShop é server-only e nunca expõe a chave ao browser.
+- O levantamento fica pendente para processamento até existir um fluxo B2C confirmado para a conta NetShop.
+- As migrations antigas podem conter vestígios históricos de modo de teste; a migration `0005_remove_legacy_test_mode.sql` remove essas funções/coluna da base quando aplicada.
 
-## PWA
+## Supabase
 
-`public/manifest.webmanifest` + ícones em `public/icons` (192, 512 e maskable),
-`apple-touch-icon` e `theme-color` em `src/routes/__root.tsx`. Instalável em
-Android/iOS via "Adicionar ao ecrã principal".
+A aplicação não usa `DATABASE_URL` nem `SUPABASE_SERVICE_ROLE_KEY`.
 
-## Deploy no Render
+Variáveis públicas/SSR necessárias:
 
-1. New → Web Service → conectar o repositório.
-2. Build Command: `npm install && npm run build`
-3. Start Command: `npm start`
-4. Environment: Node 20+, adicionar as variáveis acima quando necessárias.
-5. Health check path: `/`
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
-Também pode ser publicado diretamente pelo botão **Publish** no Lovable.
+Para a primeira conta de administrador, a base precisa ter o segredo interno `admin_claim_code` com mais de 20 caracteres. O código é consumido uma única vez.
 
+## Render
 
-## Voice chat (TURN)
+- Build Command: `npm install && npm run build`
+- Start Command: `npm start`
+- Node: `22.x` (o `package.json` exige Node 22+)
+- Port: `10000` quando fornecida pelo Render
+- Health check: `/`
 
-For reliable voice calls across restrictive mobile networks, configure these Render environment variables:
-- `VITE_TURN_URL`
-- `VITE_TURN_USERNAME`
-- `VITE_TURN_CREDENTIAL`
-
-The app always keeps Google STUN as a fallback. TURN credentials should come from a TURN provider; never commit them to GitHub.
+Nunca coloque chaves reais no GitHub. Configure os segredos no Render/Supabase.
