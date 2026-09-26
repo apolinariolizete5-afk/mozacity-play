@@ -51,11 +51,11 @@ function NotificationsPage() {
       if (pushState === "on") {
         await disablePushNotifications(app.profile.id);
         setPushState("off");
-        setMessage("Notificações push desativadas neste dispositivo.");
+        setMessage("Notificações desativadas neste dispositivo.");
       } else {
         await enablePushNotifications(app.profile.id);
         setPushState("on");
-        setMessage("Notificações push ativadas neste dispositivo.");
+        setMessage("Notificações ativadas através do Lovable Cloud/Realtime.");
       }
     } catch (error) {
       const code = error instanceof Error ? error.message : "push_error";
@@ -63,8 +63,8 @@ function NotificationsPage() {
       if (code === "push_permission_denied") {
         setPushState("blocked");
         setMessage("A permissão foi recusada. Ativa as notificações do MozaPlay nas definições do navegador/Android e tenta novamente.");
-      } else if (code === "push_not_configured") {
-        setMessage("O push ainda não está configurado no servidor. Falta a chave VAPID pública/privada no Render.");
+      } else if (code === "notification_unavailable") {
+        setMessage("As notificações do Lovable Cloud ainda não estão disponíveis neste navegador.");
       } else if (code === "push_invalid_subscription") {
         setMessage("A subscrição do dispositivo ficou inválida. Tenta desativar e ativar novamente.");
       } else {
@@ -93,7 +93,7 @@ function NotificationsPage() {
         ? "A permissão foi bloqueada pelo navegador. Altera a permissão nas definições do site."
         : pushState === "unsupported"
           ? "O navegador atual não suporta notificações push."
-          : "Ativa para receber avisos mesmo quando o MozaPlay não estiver aberto.";
+          : "Ativa para receber os avisos da tua conta enquanto o MozaPlay estiver aberto.";
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-28 pt-5">
@@ -116,7 +116,7 @@ function NotificationsPage() {
           disabled={busy || pushState === "unsupported" || pushState === "blocked"}
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-extrabold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Aguarda..." : pushState === "on" ? "Desativar push" : "Ativar push"}
+          {busy ? "Aguarda..." : pushState === "on" ? "Desativar notificações" : "Ativar notificações"}
         </button>
 
         {pushState === "blocked" && (
