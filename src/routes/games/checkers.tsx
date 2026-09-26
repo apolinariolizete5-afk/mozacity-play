@@ -120,8 +120,8 @@ function CheckersMatch() {
         }
         footer={
           <Card className="flex items-center justify-between p-3 text-xs">
-            <Pill tone="primary">Aposta {bet} moedas</Pill>
-            <span className="text-muted-foreground">Capturas obrigatórias ativas</span>
+            <Pill tone="primary">Damas · {moveCount} lances</Pill>
+            <span className="text-muted-foreground">Capturas obrigatórias</span>
           </Card>
         }
       >
