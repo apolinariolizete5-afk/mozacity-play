@@ -95,8 +95,8 @@ function WalletPage() {
 
   if (!user) {
     return (
-      <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
-        <PageHeader title="Carteira" subtitle="Meticais (MZN)" />
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-6 pt-5 sm:px-6">
+        <PageHeader title="Carteira" subtitle="Saldo, movimentos e conta em meticais" />
         <Card className="space-y-3 text-center">
           <WalletIcon className="mx-auto h-8 w-8 text-primary" />
           <p className="text-sm text-muted-foreground">
@@ -118,7 +118,7 @@ function WalletPage() {
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
       <PageHeader title="Carteira" subtitle="Meticais (MZN)" />
 
-      <Card className="relative overflow-hidden">
+      <Card className="relative overflow-hidden border-border bg-card/95 p-5 shadow-sm sm:p-6">
         <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/20 blur-2xl" />
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           Saldo disponível
@@ -175,7 +175,7 @@ function WalletPage() {
       {tab === "deposit" && s ? <DepositPanel summary={s} onDone={refresh} /> : null}
       {tab === "withdraw" && s ? <WithdrawPanel summary={s} onDone={refresh} /> : null}
 
-      <section className="space-y-2">
+      <section className="space-y-3">
         <h3 className="px-1 font-display text-lg font-bold">Histórico</h3>
         {txs.isLoading ? (
           <Card className="text-sm text-muted-foreground">A carregar…</Card>
