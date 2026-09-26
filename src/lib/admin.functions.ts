@@ -16,7 +16,7 @@ export interface AdminOverview {
 
 export const claimAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ code: z.string().trim().min(10).max(120) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -36,7 +36,7 @@ export const getAdminOverview = createServerFn({ method: "GET" })
 
 export const updateSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         house_fee_percent: z.number().min(5).max(15),
@@ -65,7 +65,7 @@ export const updateSettings = createServerFn({ method: "POST" })
 
 export const settlePayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         payout_id: z.string().uuid(),
