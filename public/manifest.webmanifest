@@ -20,6 +20,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/notification-badge.svg",
+      "sizes": "108x108",
+      "type": "image/svg+xml",
+      "purpose": "monochrome"
     }
   ]
 }
