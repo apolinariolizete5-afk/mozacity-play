@@ -67,12 +67,12 @@ function ChessMatch() {
   }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   useEffect(() => {
-    if (!state.over || settled.current) return;
+    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
-    const winner = chessEngine.getWinner(state);
+    const winner = realtime.forfeitWinner !== null ? realtime.forfeitWinner : chessEngine.getWinner(state);
     recordMatch({
       game: "chess",
-      result: state.draw ? "draw" : winner === realtime.playerIndex ? "win" : "loss",
+      result: realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.draw ? "draw" : winner === realtime.playerIndex ? "win" : "loss",
       opponents: [opponent],
       opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
       playerIds: realtime.players.map((p) => p.playerId),
