@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, Coins, Crown, Zap } from "lucide-react";
+import { Bell, Coins, Crown, Dice5, Swords, Zap } from "lucide-react";
 import { Wordmark } from "@/components/Logo";
 import { Button, Card, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
