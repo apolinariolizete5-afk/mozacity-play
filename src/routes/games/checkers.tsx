@@ -9,7 +9,7 @@ import {
   type CheckersMove,
 } from "@/lib/games/checkers";
 import { recordMatch, useApp } from "@/lib/store";
-import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
+import { forfeitRoomMatch, lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { useRealtimeRoom } from "@/lib/realtime";
 
 export const Route = createFileRoute("/games/checkers")({
@@ -41,7 +41,7 @@ function CheckersMatch() {
   const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
-  const [moveCount, setMoveCount] = useState(0);
+  const [moveCount, setMoveCount] = useState(0);\n  const [payoutCents, setPayoutCents] = useState(0);
   const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
   const playersReady = Boolean(room && realtime.players.length >= 2);
@@ -195,7 +195,7 @@ function CheckersMatch() {
       {result ? (
         <ResultOverlay
           result={result}
-          coins={0}
+          coins={Math.round(payoutCents / 100)}
           onRematch={() => {
             settled.current = false;
             
