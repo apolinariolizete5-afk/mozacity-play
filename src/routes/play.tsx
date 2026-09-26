@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { quickMatch, useRealtimeRoom, TURN_SECONDS } from "@/lib/realtime";
-import { setTimerPreference, useApp } from "@/lib/store";
+import { useApp } from "@/lib/store";
 
 const TIMERS = [5, 10, 15, 30];
 const GAME_ICONS: Record<GameId, typeof Gamepad2> = { ludo: Dice5, checkers: CircleDot, chess: Crown };
@@ -22,7 +22,6 @@ function Play() {
   const app = useApp();
   const [selected, setSelected] = useState<GameId>(game);
   const [timer, setTimer] = useState(TURN_SECONDS);
-  const [players, setPlayers] = useState(2);
   const [searching, setSearching] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
