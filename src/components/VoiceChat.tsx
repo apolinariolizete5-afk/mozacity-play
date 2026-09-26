@@ -9,9 +9,25 @@ type VoiceChatProps = {
   enabled?: boolean;
 };
 
-const rtcConfig: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-};
+function getRtcConfig(): RTCConfiguration {
+  const turnUrl = import.meta.env.VITE_TURN_URL as string | undefined;
+  const turnUsername = import.meta.env.VITE_TURN_USERNAME as string | undefined;
+  const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL as string | undefined;
+
+  const iceServers: RTCIceServer[] = [
+    { urls: "stun:stun.l.google.com:19302" },
+  ];
+
+  if (turnUrl && turnUsername && turnCredential) {
+    iceServers.unshift({
+      urls: turnUrl,
+      username: turnUsername,
+      credential: turnCredential,
+    });
+  }
+
+  return { iceServers };
+}
 
 export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
   const [connected, setConnected] = useState(false);
@@ -35,7 +51,7 @@ export function VoiceChat({ roomId, userId, enabled = true }: VoiceChatProps) {
     channelRef.current = channel;
 
     const createPeer = () => {
-      const peer = new RTCPeerConnection(rtcConfig);
+      const peer = new RTCPeerConnection(getRtcConfig());
       peerRef.current = peer;
       peer.onicecandidate = (event) => {
         if (event.candidate) {
