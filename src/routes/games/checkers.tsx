@@ -15,7 +15,8 @@ import { useRealtimeRoom } from "@/lib/realtime";
 export const Route = createFileRoute("/games/checkers")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Number(search["bet"] ?? 0) || 0,
-    timer: Number(search["timer"] ?? 10) || 10,\n    room: String(search["room"] ?? ""),
+    timer: Number(search["timer"] ?? 10) || 10,
+    room: String(search["room"] ?? ""),
   }),
   head: () => ({
     meta: [
@@ -39,10 +40,12 @@ function CheckersMatch() {
   const [opponent] = useState(() => botName());
   const settled = useRef(false);
   const staked = useRef(false);
-  const [moveCount, setMoveCount] = useState(0);\n  const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
+  const [moveCount, setMoveCount] = useState(0);
+  const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
   useEffect(() => {
-    if (room) return;\n    if (!staked.current) {
+    if (room) return;
+    if (!staked.current) {
       staked.current = true;
       placeBet(bet, "checkers");
     }
