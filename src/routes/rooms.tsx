@@ -1,34 +1,20 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Lock, Globe, Plus, Play, Share2 } from "lucide-react";
+import { Lock, Globe, Plus, Share2, Users2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
-import { useRealtimeLobby } from "@/lib/realtime";
-import { notify, useApp, type Room, type RoomStatus } from "@/lib/store";
+import { createRoom, joinRoom, useRealtimeLobby } from "@/lib/realtime";
+import { useApp } from "@/lib/store";
 
 export const Route = createFileRoute("/rooms")({
   head: () => ({
     meta: [
       { title: "Salas públicas e privadas — MozaPlay" },
-      {
-        name: "description",
-        content: "Cria salas gratuitas com código curto e joga com outras pessoas em tempo real.",
-      },
-      { property: "og:title", content: "Salas públicas e privadas — MozaPlay" },
-      { property: "og:description", content: "Salas MozaPlay com código curto tipo MP7K92." },
+      { name: "description", content: "Cria uma sala real e joga com outros jogadores humanos através do Realtime." },
     ],
   }),
   component: Rooms,
 });
-
-const STATUS_TONE: Record<RoomStatus, "muted" | "primary" | "accent" | "success" | "danger"> = {
-  WAITING: "muted",
-  READY: "accent",
-  STARTING: "primary",
-  PLAYING: "success",
-  FINISHED: "muted",
-  CANCELLED: "danger",
-};
 
 function Rooms() {
   const app = useApp();
@@ -38,115 +24,94 @@ function Rooms() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const { remoteRooms } = useRealtimeLobby([]);
+  const { remoteRooms } = useRealtimeLobby(
+    { playerId: app.profile.id, name: app.profile.name },
+    true,
+  );
 
-  const enter = (room: Room) => {
-    if (room.game === "ludo")
-      navigate({
-        to: "/games/ludo",
-        search: { bet: 0, timer: room.timer, players: Math.min(2, room.capacity), room: room.code },
-      });
-    else if (room.game === "checkers")
-      navigate({ to: "/games/checkers", search: { bet: 0, timer: room.timer, room: room.code } });
-    else navigate({ to: "/games/chess", search: { bet: 0, timer: room.timer, room: room.code } });
+  const goToRoom = (room: { game: GameId; code: string }) => {
+    if (room.game === "ludo") {
+      void navigate({ to: "/games/ludo", search: { bet: 0, timer: 15, players: 2, room: room.code } });
+    } else if (room.game === "checkers") {
+      void navigate({ to: "/games/checkers", search: { bet: 0, timer: 15, room: room.code } });
+    } else {
+      void navigate({ to: "/games/chess", search: { bet: 0, timer: 15, room: room.code } });
+    }
   };
 
   const submitCreate = async () => {
     try {
-      const response = await fetch("/api/multiplayer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "create",
-          game,
-          isPrivate,
-          timer: app.timer,
-          capacity: 2,
-          player: { id: app.profile.id, name: app.profile.name },
-        }),
+      const room = await createRoom({
+        game,
+        isPrivate,
+        capacity: 2,
+        player: { playerId: app.profile.id, name: app.profile.name },
       });
-      const data = await response.json();
-      if (!response.ok || !data.room) throw new Error(data.error || "Não foi possível criar a sala.");
       setCreating(false);
-      notify({
-        title: "Sala criada",
-        body: `Partilha o código ${data.room.code} para convidar amigos.`,
-        kind: "invite",
-      });
-      setMessage(`Sala ${data.room.code} criada. A aguardar outro jogador.`);
+      setMessage(`Sala ${room.code} criada. A aguardar outro jogador humano.`);
+      goToRoom(room);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível criar a sala.");
     }
   };
 
-  const shareRoom = async (room: Room) => {
-    const path = room.game === "ludo" ? `/games/ludo?room=${room.code}&players=2&bet=0` : room.game === "checkers" ? `/games/checkers?room=${room.code}&bet=0` : `/games/chess?room=${room.code}&bet=0`;
-    const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
-    try { await navigator.clipboard.writeText(url); setMessage("Link da sala copiado."); } catch { setMessage(url); }
-  };
-
-  const joinByCode = async () => {
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
+  const join = async (roomCode: string) => {
     try {
-      const response = await fetch("/api/multiplayer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "join",
-          code: normalized,
-          player: { id: app.profile.id, name: app.profile.name },
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.room) throw new Error(data.error || "Código não encontrado.");
-      setCode("");
-      setMessage(`Entraste na sala ${data.room.code}.`);
+      const room = await joinRoom(roomCode, { playerId: app.profile.id, name: app.profile.name });
+      setMessage(`Entraste na sala ${room.code}.`);
+      goToRoom(room);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível entrar na sala.");
     }
   };
 
-  const visible = remoteRooms.filter((r) => r.status !== "FINISHED");
+  const shareRoom = async (room: { game: GameId; code: string }) => {
+    const path =
+      room.game === "ludo"
+        ? `/games/ludo?room=${room.code}&players=2&bet=0`
+        : room.game === "checkers"
+          ? `/games/checkers?room=${room.code}&bet=0`
+          : `/games/chess?room=${room.code}&bet=0`;
+    const url = `${window.location.origin}${path}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "MozaPlay", text: `Entra na minha sala ${room.code}`, url });
+      else await navigator.clipboard.writeText(url);
+      setMessage("Convite pronto para partilhar.");
+    } catch {
+      setMessage(url);
+    }
+  };
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-6 pt-5 sm:px-6">
+    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-28 pt-5 sm:px-6">
       <PageHeader
         title="Salas"
-        subtitle="Públicas, privadas e por código"
-        right={
-          <Button size="sm" onClick={() => setCreating((c) => !c)}>
-            <Plus className="h-4 w-4" /> Criar
-          </Button>
-        }
+        subtitle="Partidas reais com jogadores humanos"
+        right={<Button size="sm" onClick={() => setCreating((value) => !value)}><Plus className="h-4 w-4" /> Criar</Button>}
       />
 
-      <Card className="flex gap-2 rounded-3xl border border-border bg-card/95 p-3 shadow-sm">
+      <Card className="flex gap-2 rounded-3xl p-3">
         <input
           value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="Código da sala (ex: MP7K92)"
+          onChange={(event) => setCode(event.target.value.toUpperCase())}
+          placeholder="Código de 6 caracteres"
           maxLength={6}
-          className="h-12 flex-1 rounded-2xl bg-secondary px-4 text-sm font-bold uppercase tracking-widest outline-none placeholder:font-medium placeholder:tracking-normal placeholder:text-muted-foreground"
+          className="h-12 flex-1 rounded-2xl bg-secondary px-4 text-sm font-bold uppercase tracking-widest outline-none"
         />
-        <Button onClick={joinByCode} disabled={code.length < 4}>
-          Entrar
-        </Button>
+        <Button disabled={code.length !== 6} onClick={() => void join(code)}>Entrar</Button>
       </Card>
 
-      {message ? <p className="px-1 text-xs text-accent">{message}</p> : null}
+      {message ? <p className="px-1 text-xs font-semibold text-primary">{message}</p> : null}
 
       {creating ? (
-        <Card className="space-y-3">
+        <Card className="space-y-4">
           <p className="font-display font-bold">Nova sala</p>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {(Object.keys(GAME_META) as GameId[]).map((id) => (
               <button
                 key={id}
                 onClick={() => setGame(id)}
-                className={`h-11 flex-1 rounded-2xl text-xs font-bold ${
-                  game === id ? "bg-primary text-primary-foreground" : "bg-secondary"
-                }`}
+                className={`rounded-2xl py-3 text-xs font-bold ${game === id ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
               >
                 {GAME_META[id].name}
               </button>
@@ -154,89 +119,51 @@ function Rooms() {
           </div>
           <label className="flex items-center justify-between rounded-2xl bg-secondary px-4 py-3 text-sm font-semibold">
             Sala privada
-            <input
-              type="checkbox"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="h-5 w-5 accent-[oklch(0.79_0.17_78)]"
-            />
+            <input type="checkbox" checked={isPrivate} onChange={(event) => setIsPrivate(event.target.checked)} className="h-5 w-5" />
           </label>
-          <Button size="lg" className="w-full" onClick={submitCreate}>
-            Criar sala
-          </Button>
+          <Button size="lg" className="w-full" onClick={() => void submitCreate()}>Criar sala real</Button>
         </Card>
       ) : null}
 
-      <div className="flex items-end justify-between gap-3 pt-1">
+      <div className="flex items-end justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Partidas</p>
-          <h2 className="text-lg font-bold">Salas disponíveis</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Lobby Realtime</p>
+          <h2 className="text-lg font-bold">Salas públicas</h2>
         </div>
-        <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{visible.length} salas</span>
+        <Pill tone="muted">{remoteRooms.length} disponíveis</Pill>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-      {visible.map((room) => {
-        const full = room.players.length >= room.capacity;
-                const joined = room.players.some((p) => p.id === app.profile.id);
-        return (
-          <Card key={room.id} className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-display text-base font-bold">{GAME_META[room.game].name}</p>
-                  {room.isPrivate ? (
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                  ) : (
-                    <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
+      {remoteRooms.length === 0 ? (
+        <Card className="py-10 text-center">
+          <Users2 className="mx-auto h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 font-bold">Nenhuma sala pública neste momento</p>
+          <p className="mt-1 text-sm text-muted-foreground">Cria uma sala ou usa Partida rápida para encontrar outro jogador online.</p>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {remoteRooms.map((room) => (
+            <Card key={room.code} className="space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-bold">{GAME_META[room.game].name}</p>
+                    {room.isPrivate ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}
+                  </div>
+                  <p className="mt-1 font-mono text-xs tracking-widest text-primary">{room.code}</p>
                 </div>
-                <p className="mt-1 font-mono text-xs tracking-widest text-primary">{room.code}</p>
+                <Pill tone="muted">{room.players.length}/{room.capacity}</Pill>
               </div>
-              <div className="text-right">
-                <Pill tone={STATUS_TONE[room.status]}>{room.status}</Pill>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {room.players.length}/{room.capacity} · grátis
-                </p>
+              <div className="flex flex-wrap gap-1">
+                {room.players.map((player) => <Pill key={player.id} tone="primary">{player.name}</Pill>)}
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-1">
-              {room.players.map((p) => <Pill key={p.id} tone="primary">{p.name}</Pill>)}
-            </div>
-
-            <div className="flex gap-2">
-              {!joined ? (
-                <Button variant="ghost" className="flex-1" onClick={async () => {
-                    try {
-                      const response = await fetch("/api/multiplayer", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          action: "join",
-                          code: room.code,
-                          player: { id: app.profile.id, name: app.profile.name },
-                        }),
-                      });
-                      const data = await response.json();
-                      if (!response.ok || !data.room) throw new Error(data.error || "Não foi possível entrar na sala.");
-                      setMessage(`Entraste na sala ${data.room.code}.`);
-                    } catch (error) {
-                      setMessage(error instanceof Error ? error.message : "Não foi possível entrar na sala.");
-                    }
-                  }} disabled={full}>
-                  {full ? "Cheia" : "Entrar"}
-                </Button>
-              ) : null}
-              {!full ? <Button variant="outline" className="flex-1" onClick={() => shareRoom(room)}><Share2 className="h-4 w-4" /> Partilhar</Button> : null}
-              <Button className="flex-1" onClick={() => enter(room)} disabled={!joined}>
-                <Play className="h-4 w-4" /> {joined ? "Jogar" : "Entra primeiro"}
-              </Button>
-            </div>
-          </Card>
-        );
-      })}
-      </div>
+              <div className="flex gap-2">
+                <Button className="flex-1" disabled={room.players.length >= room.capacity} onClick={() => void join(room.code)}>Entrar</Button>
+                <Button variant="outline" onClick={() => void shareRoom(room)}><Share2 className="h-4 w-4" /></Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
