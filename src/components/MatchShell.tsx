@@ -33,8 +33,8 @@ export function MatchShell({
   const low = seconds <= 3;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-3 px-3 pb-6 pt-3">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 px-3 pb-8 pt-4 sm:px-5">
+      <div className="sticky top-2 z-20 flex items-center justify-between rounded-3xl border border-border/80 bg-background/85 px-3 py-2 backdrop-blur">
         <Link
           to="/play"
           search={{ game: "ludo" }}
@@ -66,7 +66,7 @@ export function MatchShell({
         ))}
       </Card>
 
-      <div className="rounded-2xl bg-card p-3">
+      <div className="rounded-3xl border border-border bg-card/95 p-4 shadow-sm">
         <div className="flex items-center justify-between text-xs">
           <span className="flex items-center gap-1 font-semibold text-muted-foreground">
             <TimerIcon className="h-4 w-4" /> Tempo do turno
