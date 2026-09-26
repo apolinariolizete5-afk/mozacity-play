@@ -22,6 +22,7 @@ export function MatchShell({
   footer,
   voiceRoomId,
   voiceUserId,
+  onExit,
 }: {
   title: string;
   seats: Seat[];
@@ -32,6 +33,7 @@ export function MatchShell({
   footer?: ReactNode;
   voiceRoomId?: string;
   voiceUserId?: string;
+  onExit?: () => void | Promise<void>;
 }) {
   const pct = Math.max(0, Math.min(100, (seconds / limit) * 100));
   const low = seconds <= 3;
@@ -39,14 +41,15 @@ export function MatchShell({
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 px-3 pb-8 pt-4 sm:px-5">
       <div className="sticky top-2 z-20 flex items-center justify-between rounded-3xl border border-border/80 bg-background/85 px-3 py-2 backdrop-blur">
-        <Link
-          to="/play"
-          search={{ game: "ludo" }}
+        <button
+          type="button"
+          onClick={() => void onExit?.()}
           className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary"
-          aria-label="Sair da partida"
+          aria-label="Desistir e sair da partida"
+          title="Desistir e sair"
         >
           <ArrowLeft className="h-5 w-5" />
-        </Link>
+        </button>
         <p className="font-display text-sm font-bold uppercase tracking-[0.16em]">{title}</p>
         <Pill tone="success">
           <Wifi className="h-3 w-3" /> Online
