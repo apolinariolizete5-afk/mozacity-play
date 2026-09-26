@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,
+  LogOut,
   Camera,
   Check,
   ChevronRight,
@@ -45,6 +46,7 @@ function Profile() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [accountEmail, setAccountEmail] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     setName(app.profile.name);
@@ -219,6 +221,30 @@ function Profile() {
         <div className="flex items-center gap-2"><UserRound className="h-4 w-4 text-primary" /><p className="font-display font-bold">Preferências</p></div>
         <p className="text-xs text-muted-foreground">Escolhe o teu tempo preferido por turno.</p>
         <div className="flex gap-2">{[5, 10, 15, 30].map((t) => <button key={t} onClick={() => setTimerPreference(t)} className={`h-11 flex-1 rounded-2xl text-sm font-bold ${app.timer === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t}s</button>)}</div>
+      </Card>
+
+      <Card className="flex flex-col gap-4 border-destructive/20 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-display font-bold">Sessão da conta</p>
+          <p className="mt-1 text-xs text-muted-foreground">Termina a sessão neste dispositivo.</p>
+        </div>
+        <Button
+          variant="outline"
+          disabled={loggingOut}
+          onClick={async () => {
+            setLoggingOut(true);
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              setLoggingOut(false);
+              return;
+            }
+            window.location.href = "/auth";
+          }}
+          className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 sm:w-auto"
+        >
+          <LogOut className="h-4 w-4" />
+          {loggingOut ? "A terminar sessão..." : "Terminar sessão"}
+        </Button>
       </Card>
 
       <div className="grid grid-cols-3 gap-2">
