@@ -85,3 +85,75 @@ export function useRealtimeRoom<T>(
     remoteState,
   };
 }
+
+
+import type { Room } from "@/lib/store";
+
+export type LobbyRoom = Pick<
+  Room,
+  "id" | "code" | "game" | "isPrivate" | "bet" | "timer" | "capacity" | "status" | "players" | "hostId" | "createdAt"
+>;
+
+export function useRealtimeLobby(localRooms: LobbyRoom[], enabled = true) {
+  const [remoteRooms, setRemoteRooms] = useState<LobbyRoom[]>([]);
+
+  const roomsKey = useMemo(
+    () => JSON.stringify(localRooms.filter((room) => room.status !== "CANCELLED")),
+    [localRooms],
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    const channel = supabase.channel("mozaplay:lobby");
+
+    const publish = (rooms: LobbyRoom[]) => {
+      if (!active) return;
+      for (const room of rooms) {
+        void channel.send({
+          type: "broadcast",
+          event: "room-announcement",
+          payload: { room },
+        });
+      }
+    };
+
+    channel
+      .on("broadcast", { event: "room-announcement" }, ({ payload }) => {
+        const room = payload?.room as LobbyRoom | undefined;
+        if (!room?.code || room.status === "CANCELLED") return;
+        setRemoteRooms((current) => {
+          const next = current.filter((item) => item.code !== room.code);
+          return [...next, room].slice(-50);
+        });
+      })
+      .on("broadcast", { event: "room-query" }, () => {
+        publish(JSON.parse(roomsKey) as LobbyRoom[]);
+      })
+      .subscribe(async (status) => {
+        if (status !== "SUBSCRIBED") return;
+        publish(JSON.parse(roomsKey) as LobbyRoom[]);
+        await channel.send({
+          type: "broadcast",
+          event: "room-query",
+          payload: {},
+        });
+      });
+
+    const timer = window.setInterval(() => {
+      publish(JSON.parse(roomsKey) as LobbyRoom[]);
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [enabled, roomsKey]);
+
+  const visibleRemoteRooms = remoteRooms.filter(
+    (remote) => !localRooms.some((local) => local.code === remote.code),
+  );
+
+  return { remoteRooms: visibleRemoteRooms };
+}
