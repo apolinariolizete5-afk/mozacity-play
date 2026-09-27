@@ -1,6 +1,6 @@
 // public/sw.js - Service Worker PWA & Web Push
 const APP_NAME = "MozaPlay";
-const APP_ICON = "/icons/notification-badge.svg";
+const APP_ICON = "/icons/icon-192.png";
 const APP_URL = "/";
 
 self.addEventListener("install", () => {
