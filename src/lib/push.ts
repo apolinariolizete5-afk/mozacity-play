@@ -62,7 +62,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export async function enablePushNotifications(userId: string) {
   if (!userId) throw new Error("auth_required");
   if (!pushSupported()) throw new Error("notification_unavailable");
-  if (!VAPID_PUBLIC_KEY) throw new Error("push_not_configured");
+  const vapid = await resolveVapidKey();
+  if (!vapid) throw new Error("push_not_configured");
 
   const permission = await Notification.requestPermission();
   if (permission === "denied") throw new Error("push_permission_denied");
@@ -75,7 +76,7 @@ export async function enablePushNotifications(userId: string) {
   if (!subscription) {
     subscription = await ready.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
     });
   }
 
