@@ -179,33 +179,48 @@ export async function joinRoom(roomCode: string, player: RoomPresence) {
   return {
     code,
     game: existing?.game ?? "ludo",
-    bet: existing?.bet ?? 20,
+    bet: existing?.bet ?? 0,
     capacity: existing?.capacity ?? 2,
   };
 }
 
 export function useRealtimeLobby(player: RoomPresence, enabled = true) {
   const [remoteRooms, setRemoteRooms] = useState<LobbyRoom[]>([]);
-  const channelRef = useRef<RoomChannel | null>(null);
 
   useEffect(() => {
     if (!enabled || !player.playerId) return;
-    const channel = getLobbyChannel();
-    channelRef.current = channel;
+
+    // Do not reuse the shared lobby channel here. createRoom/joinRoom can
+    // subscribe that channel before this hook mounts. Supabase requires all
+    // presence listeners to be attached before subscribe(), otherwise it
+    // throws: "cannot add presence callbacks ... after subscribe()".
+    const channel = supabase.channel("mozaplay:lobby", {
+      config: {
+        presence: {},
+        broadcast: { self: false, ack: true },
+      },
+    });
 
     const sync = () => {
-      setRemoteRooms(presenceToRooms(channel.presenceState() as Record<string, unknown[]>));
+      setRemoteRooms(
+        presenceToRooms(channel.presenceState() as Record<string, unknown[]>),
+      );
     };
 
+    // IMPORTANT: every presence callback is registered before subscribe().
     channel.on("presence", { event: "sync" }, sync);
     channel.on("presence", { event: "join" }, sync);
     channel.on("presence", { event: "leave" }, sync);
 
+    let active = true;
     void ensureSubscribed(channel).then(() => {
-      sync();
+      if (active) sync();
     });
 
-    return () => {};
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
   }, [enabled, player.playerId]);
 
   return { remoteRooms };
