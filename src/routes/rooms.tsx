@@ -25,6 +25,7 @@ function Rooms() {
   const [game, setGame] = useState<GameId>("ludo");
   const [isPrivate, setIsPrivate] = useState(false);
   const [bet, setBet] = useState(0);
+  const [betInput, setBetInput] = useState("");
   const [capacity, setCapacity] = useState(2);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -32,13 +33,36 @@ function Rooms() {
   const getSettings = useServerFn(getPublicPlatformSettings);
 
   useEffect(() => {
-    void getSettings()
-      .then((settings) => {
+    let active = true;
+    const loadSettings = async () => {
+      try {
+        const settings = await getSettings();
+        if (!active) return;
         const minimum = Math.max(0, Math.ceil(settings.min_bet_cents / 100));
         setMinBetMzn(minimum);
         setBet((current) => (current > 0 ? Math.max(current, minimum) : minimum));
-      })
-      .catch(() => undefined);
+        setBetInput((current) => {
+          const parsed = Number(current);
+          if (!current || !Number.isFinite(parsed) || parsed < minimum) return String(minimum);
+          return current;
+        });
+      } catch {
+        // Keep the current value; the server remains the source of truth.
+      }
+    };
+
+    void loadSettings();
+    const timer = window.setInterval(() => void loadSettings(), 10000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadSettings();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -82,7 +106,13 @@ function Rooms() {
       return;
     }
     try {
-      const wager = Math.max(minBetMzn ?? 0, Math.round(Number(bet) || 0));
+      const entered = Number(betInput);
+      if (!Number.isFinite(entered) || entered < (minBetMzn ?? 0)) {
+        setMessage(`O valor mínimo da aposta é ${minBetMzn ?? 0} MT.`);
+        return;
+      }
+      const wager = Math.round(entered);
+      setBet(wager);
       const room = await createRoom({
         game,
         isPrivate,
@@ -196,15 +226,29 @@ function Rooms() {
             )}
 
             <div>
-              <label className="text-xs font-bold text-muted-foreground">Aposta (MZN) — Mínimo {minBetMzn} MT</label>
+              <label className="text-xs font-bold text-muted-foreground">Valor da aposta (MZN)</label>
               <input
                 type="number"
                 min={minBetMzn ?? undefined}
-                step={5}
-                value={bet}
-                onChange={(e) => setBet(Math.max(minBetMzn ?? 0, Number(e.target.value)))}
-                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold"
+                step={1}
+                value={betInput}
+                onChange={(e) => setBetInput(e.target.value)}
+                onBlur={() => {
+                  const value = Number(betInput);
+                  if (!Number.isFinite(value) || value < (minBetMzn ?? 0)) {
+                    setBetInput(String(minBetMzn ?? 0));
+                    setBet(minBetMzn ?? 0);
+                  } else {
+                    const normalized = String(Math.round(value));
+                    setBetInput(normalized);
+                    setBet(Number(normalized));
+                  }
+                }}
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
               />
+              <p className="mt-1 text-[11px] font-bold text-primary">
+                Valor mínimo: {minBetMzn ?? "…"} MT
+              </p>
             </div>
 
             <div className="flex items-center gap-2 pt-1">
