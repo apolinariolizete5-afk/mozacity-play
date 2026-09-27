@@ -850,10 +850,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      send_test_notification: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
       register_room_match: {
         Args: {
           _bet_cents: number
@@ -933,7 +929,7 @@ export type Database = {
         | "fee"
         | "adjustment"
         | "bonus"
-      tx_status: "pending" | "processing" | "completed" | "failed" | "reversed"
+      tx_status: "pending" | "completed" | "failed" | "reversed"
       wallet_method: "mpesa" | "mola" | "mcash" | "bank"
     }
     CompositeTypes: {
