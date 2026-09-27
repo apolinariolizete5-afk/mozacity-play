@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Share2, Users2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
@@ -26,6 +26,7 @@ function Rooms() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [bet, setBet] = useState(0);
   const [betInput, setBetInput] = useState("");
+  const betInputEditingRef = useRef(false);
   const [capacity, setCapacity] = useState(2);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -41,11 +42,13 @@ function Rooms() {
         const minimum = Math.max(0, Math.ceil(settings.min_bet_cents / 100));
         setMinBetMzn(minimum);
         setBet((current) => (current > 0 ? Math.max(current, minimum) : minimum));
-        setBetInput((current) => {
-          const parsed = Number(current);
-          if (!current || !Number.isFinite(parsed) || parsed < minimum) return String(minimum);
-          return current;
-        });
+        if (!betInputEditingRef.current) {
+          setBetInput((current) => {
+            const parsed = Number(current);
+            if (!current || !Number.isFinite(parsed) || parsed < minimum) return String(minimum);
+            return current;
+          });
+        }
       } catch {
         // Keep the current value; the server remains the source of truth.
       }
@@ -232,8 +235,13 @@ function Rooms() {
                 min={minBetMzn ?? undefined}
                 step={1}
                 value={betInput}
-                onChange={(e) => setBetInput(e.target.value)}
+                onFocus={() => {
+                  betInputEditingRef.current = true;
+                }}
+                onChange={(event) => setBetInput(event.target.value)}
                 onBlur={() => {
+                  betInputEditingRef.current = false;
+                  
                   const value = Number(betInput);
                   if (!Number.isFinite(value) || value < (minBetMzn ?? 0)) {
                     setBetInput(String(minBetMzn ?? 0));
