@@ -45,6 +45,13 @@ function Play() {
   useEffect(() => setSelected(game), [game]);
 
   useEffect(() => {
+    if (selected === "ludo" && players > 2) {
+      setBet(0);
+      setBetInput("0");
+    }
+  }, [players, selected]);
+
+  useEffect(() => {
     let active = true;
     const loadSettings = async () => {
       try {
@@ -191,13 +198,14 @@ function Play() {
                 min={minBetMzn ?? undefined}
                 step={1}
                 value={betInput}
+                disabled={selected === "ludo" && players > 2}
                 onFocus={() => {
                   betInputEditingRef.current = true;
                 }}
                 onChange={(event) => setBetInput(event.target.value)}
                 onBlur={() => {
                   betInputEditingRef.current = false;
-                  
+
                   const value = Number(betInput);
                   if (!Number.isFinite(value) || value < (minBetMzn ?? 0)) {
                     setBetInput(String(minBetMzn ?? 0));
@@ -208,11 +216,15 @@ function Play() {
                     setBet(Number(normalized));
                   }
                 }}
-                className="h-12 flex-1 rounded-xl bg-secondary px-4 text-base font-extrabold outline-none"
+                className="h-12 flex-1 rounded-xl bg-secondary px-4 text-base font-extrabold outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
               <span className="font-extrabold">MT</span>
             </div>
-            <p className="mt-1 text-[11px] font-bold text-primary">Valor mínimo: {minBetMzn ?? "…"} MT.</p>
+            <p className="mt-1 text-[11px] font-bold text-primary">
+              {selected === "ludo" && players > 2
+                ? "Ludo com 3 ou 4 jogadores: partida sem aposta."
+                : `Valor mínimo: ${minBetMzn ?? "…"} MT.`}
+            </p>
           </div>
 
           <div className="mt-5">
