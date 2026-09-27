@@ -1,0 +1,21 @@
+name: MozaPlay Push Dispatch
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch pending push notifications
+        env:
+          PUSH_DISPATCH_TOKEN: ${{ secrets.PUSH_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$PUSH_DISPATCH_TOKEN"
+          curl --fail --silent --show-error --max-time 30 \
+            -X GET \
+            "https://mozaplay.onrender.com/api/public/push-dispatch" \
+            -H "Authorization: Bearer $PUSH_DISPATCH_TOKEN"
