@@ -418,7 +418,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
                 </div>
                 <Pill
                   tone={
-                    p.status === "completed" ? "success" : p.status === "pending" ? "accent" : "danger"
+                    p.status === "completed" ? "success" : p.status === "pending" || p.status === "processing" ? "accent" : "danger"
                   }
                 >
                   {p.status}
