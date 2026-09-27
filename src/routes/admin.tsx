@@ -274,17 +274,15 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
         {form ? (
           <>
             <Field
-              label={`Comissão da casa (rake): ${form.house_fee_percent}%`}
+              label="Comissão da casa (rake)"
               hint="Entre 5% e 15%, deduzida do pote antes de pagar o vencedor."
             >
-              <input
-                type="range"
+              <NumInput
+                value={form.house_fee_percent}
                 min={5}
                 max={15}
                 step={0.5}
-                className="w-full accent-primary"
-                value={form.house_fee_percent}
-                onChange={(e) => setForm({ ...form, house_fee_percent: Number(e.target.value) })}
+                onChange={(v) => setForm({ ...form, house_fee_percent: v })}
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
@@ -333,15 +331,13 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
                 onChange={(e) => setForm({ ...form, rollover_enabled: e.target.checked })}
               />
             </label>
-            <Field label={`Multiplicador de rollover: ${form.rollover_multiplier}x`}>
-              <input
-                type="range"
-                min={0}
-                max={3}
-                step={0.5}
-                className="w-full accent-primary"
+            <Field label="Multiplicador de rollover">
+              <NumInput
                 value={form.rollover_multiplier}
-                onChange={(e) => setForm({ ...form, rollover_multiplier: Number(e.target.value) })}
+                min={0}
+                max={10}
+                step={0.5}
+                onChange={(v) => setForm({ ...form, rollover_multiplier: v })}
               />
             </Field>
             {save.isError ? (
@@ -505,48 +501,69 @@ function Field({
   );
 }
 
-function NumInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function NumInput({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
   const [text, setText] = useState(String(value));
   const editingRef = useRef(false);
 
   useEffect(() => {
-    if (!editingRef.current) {
-      setText(String(value));
-    }
+    if (!editingRef.current) setText(String(value));
   }, [value]);
+
+  const commit = (raw: string) => {
+    const normalized = raw.replace(",", ".").trim();
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed)) {
+      setText(String(value));
+      return;
+    }
+    let next = parsed;
+    if (typeof min === "number") next = Math.max(min, next);
+    if (typeof max === "number") next = Math.min(max, next);
+    if (step > 0) next = Math.round(next / step) * step;
+    next = Math.round(next * 100) / 100;
+    setText(String(next));
+    onChange(next);
+  };
 
   return (
     <input
       type="text"
       inputMode="decimal"
+      autoComplete="off"
       className="h-11 w-full rounded-2xl border border-border bg-secondary px-3 text-sm tabular-nums outline-none focus:border-primary"
       value={text}
-      onFocus={() => {
+      onFocus={(event) => {
         editingRef.current = true;
+        event.currentTarget.select();
       }}
-      onChange={(e) => {
-        const next = e.target.value;
+      onChange={(event) => {
+        const next = event.target.value;
         setText(next);
-
         const normalized = next.replace(",", ".");
         if (normalized === "" || normalized === "-" || normalized === ".") return;
-
-        const n = Number(normalized);
-        if (Number.isFinite(n)) onChange(n);
+        const parsed = Number(normalized);
+        if (Number.isFinite(parsed)) onChange(parsed);
       }}
       onBlur={() => {
         editingRef.current = false;
-        const normalized = text.replace(",", ".");
-        const n = Number(normalized);
-
-        if (!Number.isFinite(n)) {
-          setText(String(value));
-          return;
+        commit(text);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
         }
-
-        const rounded = Math.round(n * 100) / 100;
-        setText(String(rounded));
-        onChange(rounded);
       }}
     />
   );
