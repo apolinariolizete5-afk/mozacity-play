@@ -234,7 +234,7 @@ function RootComponent() {
               id: notification.id,
               title: notification.title,
               body: notification.body,
-              kind: notification.kind,
+              kind: (notification.kind === "match" || notification.kind === "prize" ? "result" : "system") as "result" | "system",
               read: notification.read,
               createdAt: notification.created_at,
             },
