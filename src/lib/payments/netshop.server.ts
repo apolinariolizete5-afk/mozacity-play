@@ -273,7 +273,7 @@ export async function requestDisbursement(input: {
 
   try {
     const response = await fetch(
-      `${apiUrl().replace(/\\/$/, "")}/disbursements`,
+      `${apiUrl().replace(/\/$/, "")}/disbursements`,
       {
         method: "POST",
         headers: {
