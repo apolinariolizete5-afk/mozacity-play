@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Clock3, Gamepad2, Loader2, Users2, Dice5, CircleDot, Crown } from "lucide-react";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { leaveLobbyRoom, quickMatch, useRealtimeRoom, TURN_SECONDS } from "@/lib/realtime";
 import { useApp } from "@/lib/store";
+import { getPublicPlatformSettings } from "@/lib/platform.functions";
 
 const TIMERS = [5, 10, 15, 30];
 const GAME_ICONS: Record<GameId, typeof Gamepad2> = { ludo: Dice5, checkers: CircleDot, chess: Crown };
@@ -23,6 +25,9 @@ function Play() {
   const [selected, setSelected] = useState<GameId>(game);
   const [timer, setTimer] = useState(TURN_SECONDS);
   const [bet, setBet] = useState(20);
+  const [betInput, setBetInput] = useState("20");
+  const [minBetMzn, setMinBetMzn] = useState<number | null>(null);
+  const getSettings = useServerFn(getPublicPlatformSettings);
   const [players, setPlayers] = useState(2);
   const [searching, setSearching] = useState(false);
   const [roomCode, setRoomCode] = useState("");
@@ -37,6 +42,36 @@ function Play() {
   );
 
   useEffect(() => setSelected(game), [game]);
+
+  useEffect(() => {
+    let active = true;
+    const loadSettings = async () => {
+      try {
+        const settings = await getSettings();
+        if (!active) return;
+        const minimum = Math.max(0, Math.ceil(settings.min_bet_cents / 100));
+        setMinBetMzn(minimum);
+        setBet((current) => Math.max(current, minimum));
+        setBetInput((current) => {
+          const value = Number(current);
+          return !current || !Number.isFinite(value) || value < minimum ? String(minimum) : current;
+        });
+      } catch {
+        // The server remains the source of truth.
+      }
+    };
+    void loadSettings();
+    const timerId = window.setInterval(() => void loadSettings(), 10000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadSettings();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timerId);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     if (!searching || !roomCode || realtime.players.length < players) return;
@@ -55,6 +90,17 @@ function Play() {
   // while another player may still be connecting or searching.
   const startQuickMatch = async () => {
     if (!app.profile.id) { await navigate({ to: "/auth" }); return; }
+    const entered = Number(betInput);
+    const minimum = minBetMzn ?? 0;
+    if (!Number.isFinite(entered) || entered < minimum) {
+      setError(`O valor mínimo da aposta é ${minimum} MT.`);
+      setBetInput(String(minimum));
+      setBet(minimum);
+      return;
+    }
+    const wager = Math.round(entered);
+    setBet(wager);
+    setBetInput(String(wager));
     setSearching(true);
     searchAbortRef.current?.abort();
     const controller = new AbortController();
@@ -64,7 +110,7 @@ function Play() {
       const room = await quickMatch({
         game: selected,
         player: { playerId: app.profile.id, name: app.profile.name },
-        bet,
+        bet: wager,
         players: selected === "ludo" ? players : 2,
         signal: controller.signal,
       });
@@ -137,10 +183,28 @@ function Play() {
           <div className="mt-5">
             <div className="flex items-center gap-2 text-xs font-extrabold">💰 Valor da aposta</div>
             <div className="mt-2 flex items-center gap-2">
-              <input type="number" min={20} step={1} value={bet} onChange={(event) => setBet(Math.max(20, Number(event.target.value) || 20))} className="h-12 flex-1 rounded-xl bg-secondary px-4 text-base font-extrabold outline-none" />
+              <input
+                type="number"
+                min={minBetMzn ?? undefined}
+                step={1}
+                value={betInput}
+                onChange={(event) => setBetInput(event.target.value)}
+                onBlur={() => {
+                  const value = Number(betInput);
+                  if (!Number.isFinite(value) || value < (minBetMzn ?? 0)) {
+                    setBetInput(String(minBetMzn ?? 0));
+                    setBet(minBetMzn ?? 0);
+                  } else {
+                    const normalized = String(Math.round(value));
+                    setBetInput(normalized);
+                    setBet(Number(normalized));
+                  }
+                }}
+                className="h-12 flex-1 rounded-xl bg-secondary px-4 text-base font-extrabold outline-none"
+              />
               <span className="font-extrabold">MT</span>
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">Mínimo: 20 MT por jogador.</p>
+            <p className="mt-1 text-[11px] font-bold text-primary">Valor mínimo: {minBetMzn ?? "…"} MT.</p>
           </div>
 
           <div className="mt-5">
