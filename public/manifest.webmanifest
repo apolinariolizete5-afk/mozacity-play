@@ -22,10 +22,10 @@
       "purpose": "maskable"
     },
     {
-      "src": "/icons/notification-badge.svg",
-      "sizes": "108x108",
-      "type": "image/svg+xml",
-      "purpose": "monochrome"
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
