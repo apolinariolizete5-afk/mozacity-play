@@ -304,14 +304,7 @@ export async function recordMatch(input: {
   return input;
 }
 
-export function placeBet(amount: number, _game: GameId) {
-  if (amount < 0) throw new Error("invalid_bet");
-  return true;
-}
-
 export const winRate = (s: Stats) => {
   const total = s.wins + s.losses + s.draws;
   return total === 0 ? 0 : Math.round((s.wins / total) * 100);
 };
-
-export const LEADERBOARD_SEED: never[] = [];
