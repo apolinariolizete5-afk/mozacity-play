@@ -26,6 +26,7 @@ function Play() {
   const [timer, setTimer] = useState(TURN_SECONDS);
   const [bet, setBet] = useState(20);
   const [betInput, setBetInput] = useState("20");
+  const betInputEditingRef = useRef(false);
   const [minBetMzn, setMinBetMzn] = useState<number | null>(null);
   const getSettings = useServerFn(getPublicPlatformSettings);
   const [players, setPlayers] = useState(2);
@@ -52,10 +53,12 @@ function Play() {
         const minimum = Math.max(0, Math.ceil(settings.min_bet_cents / 100));
         setMinBetMzn(minimum);
         setBet((current) => Math.max(current, minimum));
-        setBetInput((current) => {
-          const value = Number(current);
-          return !current || !Number.isFinite(value) || value < minimum ? String(minimum) : current;
-        });
+        if (!betInputEditingRef.current) {
+          setBetInput((current) => {
+            const value = Number(current);
+            return !current || !Number.isFinite(value) || value < minimum ? String(minimum) : current;
+          });
+        }
       } catch {
         // The server remains the source of truth.
       }
@@ -188,8 +191,13 @@ function Play() {
                 min={minBetMzn ?? undefined}
                 step={1}
                 value={betInput}
+                onFocus={() => {
+                  betInputEditingRef.current = true;
+                }}
                 onChange={(event) => setBetInput(event.target.value)}
                 onBlur={() => {
+                  betInputEditingRef.current = false;
+                  
                   const value = Number(betInput);
                   if (!Number.isFinite(value) || value < (minBetMzn ?? 0)) {
                     setBetInput(String(minBetMzn ?? 0));
