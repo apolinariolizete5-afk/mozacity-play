@@ -47,7 +47,7 @@ function DiceFace({ value, rolling }: { value: number; rolling?: boolean }) {
 export const Route = createFileRoute("/games/ludo")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
-    bet: Math.max(20, Number(search["bet"] ?? 20) || 20),
+    bet: Math.max(0, Number(search["bet"] ?? 0) || 0),
     timer: TURN_SECONDS,
     players: Math.min(4, Math.max(2, Number(search["players"] ?? 2) || 2)),
     room: String(search["room"] ?? ""),
@@ -149,7 +149,7 @@ function LudoMatch() {
     if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
     if (players !== 2) {
       roomRegistered.current = true;
-      setEscrowReady(bet >= 20);
+      setEscrowReady(bet === 0);
       return;
     }
     const playerIds = realtime.players.map((player) => player.playerId);
@@ -168,7 +168,7 @@ function LudoMatch() {
           setEscrowReady(result.status === "playing");
         });
       }
-      setEscrowReady(players !== 2 || bet >= 20);
+      setEscrowReady(players !== 2 ? bet === 0 : true);
       return null;
     }).catch((error) => {
       roomRegistered.current = false;
