@@ -369,3 +369,32 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_overview() FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.admin_overview() TO authenticated;
+
+
+CREATE OR REPLACE FUNCTION public.admin_reject_payout(
+  _payout_id uuid,
+  _reason text DEFAULT 'admin_rejected'
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  p record;
+BEGIN
+  IF uid IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE user_id = uid AND role = 'admin'
+  ) THEN RAISE EXCEPTION 'admin_required'; END IF;
+
+  SELECT * INTO p FROM public.payout_requests WHERE id = _payout_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'payout_not_found'; END IF;
+  IF p.status::text <> 'pending' THEN RAISE EXCEPTION 'only_pending_payout_can_be_rejected'; END IF;
+
+  RETURN public.refund_failed_payout(_payout_id, coalesce(_reason, 'admin_rejected'));
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_reject_payout(uuid,text) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.admin_reject_payout(uuid,text) TO authenticated;
