@@ -118,10 +118,10 @@ function Play() {
       if (room.players.length >= 2) {
         await navigate(
           selected === "ludo"
-            ? { to: "/games/ludo", search: { bet, timer: TURN_SECONDS, players, room: room.code } }
+            ? { to: "/games/ludo", search: { bet: wager, timer: TURN_SECONDS, players, room: room.code } }
             : selected === "checkers"
-              ? { to: "/games/checkers", search: { bet, timer: TURN_SECONDS, room: room.code } }
-              : { to: "/games/chess", search: { bet, timer: TURN_SECONDS, room: room.code } },
+              ? { to: "/games/checkers", search: { bet: wager, timer: TURN_SECONDS, room: room.code } }
+              : { to: "/games/chess", search: { bet: wager, timer: TURN_SECONDS, room: room.code } },
         );
       }
     } catch (err) {
