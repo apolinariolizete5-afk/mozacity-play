@@ -933,7 +933,7 @@ export type Database = {
         | "fee"
         | "adjustment"
         | "bonus"
-      tx_status: "pending" | "completed" | "failed" | "reversed"
+      tx_status: "pending" | "processing" | "completed" | "failed" | "reversed"
       wallet_method: "mpesa" | "mola" | "mcash" | "bank"
     }
     CompositeTypes: {
