@@ -2,7 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type PushState = "on" | "off" | "unsupported" | "blocked";
 const PREF_KEY = "mozaplay:notifications-enabled:v3";
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+let VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+async function resolveVapidKey(): Promise<string | undefined> {
+  if (VAPID_PUBLIC_KEY) return VAPID_PUBLIC_KEY;
+  try {
+    const { getVapidPublicKey } = await import("./push.functions");
+    const r = await getVapidPublicKey();
+    VAPID_PUBLIC_KEY = r.key ?? undefined;
+  } catch {
+    /* sem chave */
+  }
+  return VAPID_PUBLIC_KEY;
+}
 export const SERVICE_WORKER_PATH = "/sw.js";
 export const NOTIFICATION_ICON_PATH = "/icons/notification-badge.svg";
 
@@ -50,7 +62,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export async function enablePushNotifications(userId: string) {
   if (!userId) throw new Error("auth_required");
   if (!pushSupported()) throw new Error("notification_unavailable");
-  if (!VAPID_PUBLIC_KEY) throw new Error("push_not_configured");
+  const vapid = await resolveVapidKey();
+  if (!vapid) throw new Error("push_not_configured");
 
   const permission = await Notification.requestPermission();
   if (permission === "denied") throw new Error("push_permission_denied");
@@ -63,7 +76,7 @@ export async function enablePushNotifications(userId: string) {
   if (!subscription) {
     subscription = await ready.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      applicationServerKey: urlBase64ToUint8Array(vapid) as BufferSource,
     });
   }
 

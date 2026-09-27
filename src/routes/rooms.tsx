@@ -224,7 +224,7 @@ function Rooms() {
               <Button size="sm" onClick={submitCreate} className="flex-1 font-bold">
                 Criar e Entrar
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => setCreating(false)}>
+              <Button size="sm" variant="outline" onClick={() => setCreating(false)}>
                 Cancelar
               </Button>
             </div>
@@ -274,7 +274,7 @@ function Rooms() {
                 <div className="flex items-center justify-between pt-2">
                   <span className="font-mono text-xs font-bold text-foreground">Código: {r.code}</span>
                   <div className="flex gap-1.5">
-                    <Button size="sm" variant="secondary" onClick={() => void shareRoom(r)}>
+                    <Button size="sm" variant="outline" onClick={() => void shareRoom(r)}>
                       <Share2 className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="sm" onClick={() => void join(r.code)}>

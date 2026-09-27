@@ -279,10 +279,13 @@ export type Database = {
           created_at: string
           destination: string
           error: string | null
+          fee_cents: number
           id: string
           method: Database["public"]["Enums"]["wallet_method"]
+          net_cents: number
           processed_at: string | null
           provider_ref: string | null
+          provider_status: string | null
           status: Database["public"]["Enums"]["tx_status"]
           user_id: string
         }
@@ -291,10 +294,13 @@ export type Database = {
           created_at?: string
           destination: string
           error?: string | null
+          fee_cents?: number
           id?: string
           method: Database["public"]["Enums"]["wallet_method"]
+          net_cents?: number
           processed_at?: string | null
           provider_ref?: string | null
+          provider_status?: string | null
           status?: Database["public"]["Enums"]["tx_status"]
           user_id: string
         }
@@ -303,10 +309,13 @@ export type Database = {
           created_at?: string
           destination?: string
           error?: string | null
+          fee_cents?: number
           id?: string
           method?: Database["public"]["Enums"]["wallet_method"]
+          net_cents?: number
           processed_at?: string | null
           provider_ref?: string | null
+          provider_status?: string | null
           status?: Database["public"]["Enums"]["tx_status"]
           user_id?: string
         }
@@ -404,6 +413,7 @@ export type Database = {
           id: string
           last_seen_at: string
           p256dh: string
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -413,6 +423,7 @@ export type Database = {
           id?: string
           last_seen_at?: string
           p256dh: string
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -422,6 +433,7 @@ export type Database = {
           id?: string
           last_seen_at?: string
           p256dh?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -719,12 +731,26 @@ export type Database = {
         Args: { _amount_cents: number; _reason: string; _user_id: string }
         Returns: undefined
       }
+      admin_claim_payout: { Args: { _payout_id: string }; Returns: Json }
+      admin_list_users: { Args: never; Returns: Json }
       admin_overview: { Args: never; Returns: Json }
+      admin_record_payout_provider: {
+        Args: { _payout_id: string; _provider_ref: string }
+        Returns: undefined
+      }
+      admin_reject_payout: {
+        Args: { _payout_id: string; _reason: string }
+        Returns: undefined
+      }
       admin_set_blocked: {
         Args: { _blocked: boolean; _user_id: string }
         Returns: undefined
       }
       admin_set_test_mode: { Args: { _enabled: boolean }; Returns: undefined }
+      admin_set_user_blocked: {
+        Args: { _blocked: boolean; _user_id: string }
+        Returns: Json
+      }
       admin_settle_payout: {
         Args: {
           _error?: string
@@ -734,18 +760,32 @@ export type Database = {
         }
         Returns: undefined
       }
-      admin_update_settings: {
-        Args: {
-          _house_fee_percent: number
-          _min_deposit_cents: number
-          _min_withdrawal_cents: number
-          _rollover_enabled: boolean
-          _rollover_multiplier: number
-          _withdrawal_fee_fixed_cents: number
-          _withdrawal_fee_percent: number
-        }
-        Returns: undefined
-      }
+      admin_update_settings:
+        | {
+            Args: {
+              _house_fee_percent: number
+              _min_bet_cents: number
+              _min_deposit_cents: number
+              _min_withdrawal_cents: number
+              _rollover_enabled: boolean
+              _rollover_multiplier: number
+              _withdrawal_fee_fixed_cents: number
+              _withdrawal_fee_percent: number
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _house_fee_percent: number
+              _min_deposit_cents: number
+              _min_withdrawal_cents: number
+              _rollover_enabled: boolean
+              _rollover_multiplier: number
+              _withdrawal_fee_fixed_cents: number
+              _withdrawal_fee_percent: number
+            }
+            Returns: undefined
+          }
       app_settings: {
         Args: never
         Returns: {
@@ -773,6 +813,10 @@ export type Database = {
       }
       bootstrap_me: {
         Args: { _display_name?: string; _phone?: string }
+        Returns: undefined
+      }
+      cancel_failed_deposit: {
+        Args: { _idempotency_key: string }
         Returns: undefined
       }
       cancel_room_escrow: { Args: { _room_code: string }; Returns: Json }
@@ -825,6 +869,7 @@ export type Database = {
         Args: { _match_id: string; _result: string }
         Returns: Json
       }
+      forfeit_room_match: { Args: { _room_code: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -850,9 +895,19 @@ export type Database = {
         }
         Returns: undefined
       }
-      send_test_notification: {
-        Args: Record<PropertyKey, never>
+      process_netshop_payout_webhook: {
+        Args: {
+          _payout_id: string
+          _provider_ref: string
+          _reason: string
+          _status: string
+          _token: string
+        }
         Returns: string
+      }
+      refund_failed_payout: {
+        Args: { _payout_id: string; _reason: string }
+        Returns: undefined
       }
       register_room_match: {
         Args: {
@@ -870,8 +925,15 @@ export type Database = {
           _destination: string
           _method: Database["public"]["Enums"]["wallet_method"]
         }
-        Returns: string
+        Returns: {
+          fee_cents: number
+          gross_cents: number
+          net_cents: number
+          payout_id: string
+          status: string
+        }[]
       }
+      send_test_notification: { Args: never; Returns: undefined }
       settle_deposit: {
         Args: {
           _idempotency_key: string
@@ -933,7 +995,7 @@ export type Database = {
         | "fee"
         | "adjustment"
         | "bonus"
-      tx_status: "pending" | "processing" | "completed" | "failed" | "reversed"
+      tx_status: "pending" | "completed" | "failed" | "reversed"
       wallet_method: "mpesa" | "mola" | "mcash" | "bank"
     }
     CompositeTypes: {

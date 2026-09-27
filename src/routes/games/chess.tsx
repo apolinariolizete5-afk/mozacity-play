@@ -137,7 +137,7 @@ function ChessMatch() {
       <MatchShell
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
-          if (opponent) await realtime.forfeit(opponent.playerId);
+          if (opponent) await realtime.broadcastForfeit(opponent.playerId);
           await navigate({ to: "/play", search: { game: "chess" } });
         }}
         title="Xadrez"

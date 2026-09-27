@@ -54,6 +54,12 @@ export const startDeposit = createServerFn({ method: "POST" })
     const status = netshopStatus();
 
     if (!status.configured) {
+      const { data: settings } = await context.supabase.rpc("app_settings");
+      if ((settings as { test_mode_enabled?: boolean } | null)?.test_mode_enabled) {
+        const { error: testError } = await context.supabase.rpc("settle_own_test_deposit", { _idempotency_key: key });
+        if (testError) throw new Error(testError.message);
+        return { mode: "test" as const, status: "completed", reference: key, provider_ref: null, error: null };
+      }
       await context.supabase.rpc("cancel_failed_deposit", {
         _idempotency_key: key,
       });
@@ -78,7 +84,7 @@ export const startDeposit = createServerFn({ method: "POST" })
     }
 
     return {
-      mode: "live" as const,
+      mode: "live" as "live" | "test",
       status: result.status,
       reference: key,
       provider_ref: result.providerRef ?? null,
@@ -155,7 +161,7 @@ export const lockRoomWager = createServerFn({ method: "POST" })
     z
       .object({
         room_code: z.string().trim().min(4).max(12),
-        bet_cents: z.number().int().min(2000).max(50_000_000),
+        bet_cents: z.number().int().min(0).max(50_000_000),
       })
       .parse(input),
   )
@@ -211,5 +217,6 @@ export const forfeitRoomMatch = createServerFn({ method: "POST" })
       payout_cents?: number;
       rake_cents?: number;
       result_id?: string | null;
+      payout?: number;
     };
   });

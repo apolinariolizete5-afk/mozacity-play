@@ -171,7 +171,7 @@ function CheckersMatch() {
             } catch (error) {
               console.error("[MozaPlay] Falha ao desistir:", error);
             }
-            await realtime.forfeit(opponent.playerId);
+            await realtime.broadcastForfeit(opponent.playerId);
           }
           await navigate({ to: "/play", search: { game: "checkers" } });
         }}
