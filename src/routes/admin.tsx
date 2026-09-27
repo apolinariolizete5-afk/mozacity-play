@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ban, KeyRound, Loader2, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { formatMzn, METHOD_LABELS } from "@/lib/money";
@@ -506,9 +506,10 @@ function Field({
 
 function NumInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [text, setText] = useState(String(value));
+  const editingRef = useRef(false);
 
   useEffect(() => {
-    if (Number(text.replace(",", ".")) !== value) {
+    if (!editingRef.current) {
       setText(String(value));
     }
   }, [value]);
@@ -519,21 +520,29 @@ function NumInput({ value, onChange }: { value: number; onChange: (v: number) =>
       inputMode="decimal"
       className="h-11 w-full rounded-2xl border border-border bg-secondary px-3 text-sm tabular-nums outline-none focus:border-primary"
       value={text}
+      onFocus={() => {
+        editingRef.current = true;
+      }}
       onChange={(e) => {
         const next = e.target.value;
         setText(next);
+
         const normalized = next.replace(",", ".");
         if (normalized === "" || normalized === "-" || normalized === ".") return;
+
         const n = Number(normalized);
         if (Number.isFinite(n)) onChange(n);
       }}
       onBlur={() => {
+        editingRef.current = false;
         const normalized = text.replace(",", ".");
         const n = Number(normalized);
+
         if (!Number.isFinite(n)) {
           setText(String(value));
           return;
         }
+
         const rounded = Math.round(n * 100) / 100;
         setText(String(rounded));
         onChange(rounded);
