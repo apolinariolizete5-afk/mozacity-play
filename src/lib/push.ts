@@ -17,6 +17,7 @@ async function resolveVapidKey(): Promise<string | undefined> {
 }
 export const SERVICE_WORKER_PATH = "/sw.js";
 export const NOTIFICATION_ICON_PATH = "/icons/icon-192.png";
+export const NOTIFICATION_BADGE_PATH = "/icons/notification-badge.svg";
 
 export async function registerAppServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
@@ -165,7 +166,7 @@ export function subscribeToRealtimeNotifications(
               void registration.showNotification(notification.title, {
                 body: notification.body,
                 icon: NOTIFICATION_ICON_PATH,
-                badge: NOTIFICATION_ICON_PATH,
+                badge: NOTIFICATION_BADGE_PATH,
                 tag: "mozaplay-" + notification.id,
                 data: { url: notification.url || "/notifications" },
               });
