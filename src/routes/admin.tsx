@@ -12,7 +12,7 @@ import {
   getAdminOverview,
   getAdminUsers,
   setAdminUserBlocked,
-  settlePayout,
+  approvePayout,
   updateSettings,
 } from "@/lib/admin.functions";
 
@@ -130,7 +130,7 @@ function AdminPage() {
 function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
   const overviewFn = useServerFn(getAdminOverview);
   const saveFn = useServerFn(updateSettings);
-  const settleFn = useServerFn(settlePayout);
+  const approveFn = useServerFn(approvePayout);
   const usersFn = useServerFn(getAdminUsers);
   const blockUserFn = useServerFn(setAdminUserBlocked);
 
@@ -200,9 +200,8 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
     },
   });
 
-  const settle = useMutation({
-    mutationFn: (v: { id: string; status: "completed" | "failed" }) =>
-      settleFn({ data: { payout_id: v.id, status: v.status } }),
+  const approve = useMutation({
+    mutationFn: (id: string) => approveFn({ data: { payout_id: id } }),
     onSuccess: () => {
       onRefresh();
       void overview.refetch();
@@ -430,8 +429,8 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
                   <Button
                     size="sm"
                     className="flex-1"
-                    disabled={settle.isPending}
-                    onClick={() => settle.mutate({ id: p.id, status: "completed" })}
+                    disabled={approve.isPending}
+                    onClick={() => approve.mutate(p.id)}
                   >
                     <ShieldCheck className="h-4 w-4" /> Aprovar
                   </Button>
