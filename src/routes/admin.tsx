@@ -186,10 +186,11 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
           rollover_multiplier: Number(form!.rollover_multiplier),
         },
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
       onRefresh();
       void overview.refetch();
-      void settings.refetch();
+      const refreshed = await settings.refetch();
+      if (refreshed.data) setForm(refreshed.data);
       void payouts.refetch();
     },
   });
