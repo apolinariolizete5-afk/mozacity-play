@@ -26,10 +26,14 @@ function Ranking() {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const { data: results, error } = await supabase
+      let resultQuery = supabase
         .from("match_results")
         .select("user_id, game, result")
         .limit(5000);
+      if (scope !== "global") {
+        resultQuery = resultQuery.eq("game", scope);
+      }
+      const { data: results, error } = await resultQuery;
 
       if (error) {
         console.error("[Ranking]", error.message);
@@ -87,7 +91,7 @@ function Ranking() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [scope]);
 
   const visible = [...rows].sort((a, b) => {
     if (scope === "global") return b.points - a.points || b.wins - a.wins;
