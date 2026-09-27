@@ -310,9 +310,9 @@ export function useRealtimeRoom<T>(
     channel.on("presence", { event: "sync" }, syncPresence);
     channel.on("presence", { event: "join" }, syncPresence);
     channel.on("presence", { event: "leave" }, syncPresence);
-    channel.on("broadcast", { event: "state" }, onState);
-    channel.on("broadcast", { event: "request_state" }, onRequestState);
-    channel.on("broadcast", { event: "forfeit" }, onForfeit);
+    (channel as any).on("broadcast", { event: "state" }, onState);
+    (channel as any).on("broadcast", { event: "request_state" }, onRequestState);
+    (channel as any).on("broadcast", { event: "forfeit" }, onForfeit);
 
     channel.subscribe((status) => {
       if (!active) return;
@@ -522,7 +522,7 @@ export async function quickMatch(input: {
           });
 
           assignedRoom = room;
-          assignmentResolve?.(room);
+          (assignmentResolve as ((r: typeof room) => void) | null)?.(room);
 
           // Repeat briefly so a slow second subscriber still receives the
           // assignment before the coordinator leaves the queue.
