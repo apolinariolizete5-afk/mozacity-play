@@ -1,6 +1,7 @@
 // public/sw.js - Service Worker PWA & Web Push
 const APP_NAME = "MozaPlay";
 const APP_ICON = "/icons/icon-192.png";
+const NOTIFICATION_BADGE = "/icons/notification-badge.svg";
 const APP_URL = "/";
 
 self.addEventListener("install", () => {
@@ -28,7 +29,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title || APP_NAME, {
       body: data.body,
       icon: APP_ICON,
-      badge: APP_ICON,
+      badge: NOTIFICATION_BADGE,
       tag: data.tag || "mozaplay-notification",
       renotify: true,
       vibrate: [100, 50, 100],
