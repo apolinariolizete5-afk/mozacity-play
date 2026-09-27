@@ -343,8 +343,10 @@ BEGIN
     coalesce(sum(case when kind::text = 'withdrawal' then abs(amount_cents) else 0 end),0),
     coalesce(sum(case when kind::text = 'bet' then abs(amount_cents) else 0 end),0),
     coalesce(sum(case when kind::text = 'prize' and coalesce(metadata,'{}'::jsonb) ? 'rake_cents'
-                      then coalesce((metadata->>'rake_cents')::bigint,0) else 0 end),0)
-    INTO deposits, withdrawals, bet_volume, rake
+                      then coalesce((metadata->>'rake_cents')::bigint,0) else 0 end),0),
+    coalesce(sum(case when kind::text = 'withdrawal' and coalesce(metadata,'{}'::jsonb) ? 'fee_cents'
+                      then coalesce((metadata->>'fee_cents')::bigint,0) else 0 end),0)
+    INTO deposits, withdrawals, bet_volume, rake, withdrawal_fees
     FROM public.transactions
    WHERE status::text = 'completed';
 
