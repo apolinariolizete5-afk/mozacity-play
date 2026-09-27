@@ -505,14 +505,38 @@ function Field({
 }
 
 function NumInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+
+  useEffect(() => {
+    if (Number(text.replace(",", ".")) !== value) {
+      setText(String(value));
+    }
+  }, [value]);
+
   return (
     <input
-      className="h-11 w-full rounded-2xl border border-border bg-secondary px-3 text-sm tabular-nums outline-none focus:border-primary"
+      type="text"
       inputMode="decimal"
-      value={String(value)}
+      className="h-11 w-full rounded-2xl border border-border bg-secondary px-3 text-sm tabular-nums outline-none focus:border-primary"
+      value={text}
       onChange={(e) => {
-        const n = Number(e.target.value.replace(",", "."));
+        const next = e.target.value;
+        setText(next);
+        const normalized = next.replace(",", ".");
+        if (normalized === "" || normalized === "-" || normalized === ".") return;
+        const n = Number(normalized);
         if (Number.isFinite(n)) onChange(n);
+      }}
+      onBlur={() => {
+        const normalized = text.replace(",", ".");
+        const n = Number(normalized);
+        if (!Number.isFinite(n)) {
+          setText(String(value));
+          return;
+        }
+        const rounded = Math.round(n * 100) / 100;
+        setText(String(rounded));
+        onChange(rounded);
       }}
     />
   );
