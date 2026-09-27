@@ -116,9 +116,20 @@ export function notificationsEnabled(): boolean {
   return typeof window !== "undefined" && localStorage.getItem(PREF_KEY) === "1";
 }
 
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  kind: "deposit" | "withdrawal" | "match" | "prize" | "system";
+  read: boolean;
+  url?: string;
+  created_at: string;
+}
+
 export function subscribeToRealtimeNotifications(
   userId: string,
-  onNotification?: (n: { id: string; title: string; body: string; url?: string }) => void,
+  onNotification?: (n: AppNotification) => void,
 ) {
   if (!userId) return () => {};
   const channel = supabase
@@ -132,16 +143,19 @@ export function subscribeToRealtimeNotifications(
         filter: "user_id=eq." + userId,
       },
       (payload) => {
-        const notification = payload.new as { id: string; title: string; body: string; url?: string };
+        const notification = payload.new as AppNotification;
         onNotification?.(notification);
 
         if (notificationsEnabled() && "Notification" in window && Notification.permission === "granted") {
           try {
-            new Notification(notification.title, {
-              body: notification.body,
-              icon: NOTIFICATION_ICON_PATH,
-              badge: NOTIFICATION_ICON_PATH,
-              tag: "mozaplay-" + notification.id,
+            navigator.serviceWorker.ready.then((registration) => {
+              void registration.showNotification(notification.title, {
+                body: notification.body,
+                icon: NOTIFICATION_ICON_PATH,
+                badge: NOTIFICATION_ICON_PATH,
+                tag: "mozaplay-" + notification.id,
+                data: { url: notification.url || "/notifications" },
+              });
             });
           } catch (e) {
             console.debug("[Notification] Visualização nativa indisponível:", e);
