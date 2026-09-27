@@ -16,7 +16,7 @@ async function resolveVapidKey(): Promise<string | undefined> {
   return VAPID_PUBLIC_KEY;
 }
 export const SERVICE_WORKER_PATH = "/sw.js";
-export const NOTIFICATION_ICON_PATH = "/icons/notification-badge.svg";
+export const NOTIFICATION_ICON_PATH = "/icons/icon-192.png";
 
 export async function registerAppServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
