@@ -28,7 +28,7 @@ function Rooms() {
   const [capacity, setCapacity] = useState(2);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [minBetMzn, setMinBetMzn] = useState(20);
+  const [minBetMzn, setMinBetMzn] = useState<number | null>(null);
   const getSettings = useServerFn(getPublicPlatformSettings);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ function Rooms() {
   );
 
   const goToRoom = (room: { game: GameId; code: string; bet?: number; capacity?: number }) => {
-    const wager = Math.max(minBetMzn, Math.round(Number(room.bet ?? bet) || minBetMzn));
+    const wager = Math.max(minBetMzn ?? 0, Math.round(Number(room.bet ?? bet) || 0));
     if (room.game === "ludo") {
       void navigate({
         to: "/games/ludo",
@@ -78,7 +78,7 @@ function Rooms() {
       return;
     }
     try {
-      const wager = Math.max(minBetMzn, Math.round(Number(bet) || minBetMzn));
+      const wager = Math.max(minBetMzn ?? 0, Math.round(Number(bet) || 0));
       const room = await createRoom({
         game,
         isPrivate,
@@ -195,10 +195,10 @@ function Rooms() {
               <label className="text-xs font-bold text-muted-foreground">Aposta (MZN) — Mínimo {minBetMzn} MT</label>
               <input
                 type="number"
-                min={minBetMzn}
+                min={minBetMzn ?? undefined}
                 step={5}
                 value={bet}
-                onChange={(e) => setBet(Math.max(minBetMzn, Number(e.target.value)))}
+                onChange={(e) => setBet(Math.max(minBetMzn ?? 0, Number(e.target.value)))}
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold"
               />
             </div>
