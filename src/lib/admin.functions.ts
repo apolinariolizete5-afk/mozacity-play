@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requestDisbursement, type Method } from "@/lib/payments/netshop.server";
 
 export interface AdminOverview {
   players: number;
@@ -113,7 +112,7 @@ export const approvePayout = createServerFn({ method: "POST" })
     const payout = (Array.isArray(claimed) ? claimed[0] : claimed) as {
       payout_id: string;
       amount_cents: number;
-      method: Method;
+      method: "mpesa" | "mola" | "mcash" | "bank";
       destination: string;
       status: string;
       provider_ref?: string | null;
@@ -123,6 +122,7 @@ export const approvePayout = createServerFn({ method: "POST" })
 
     // A provider request is idempotent on payout_id. A retry after a timeout
     // therefore reuses the same provider operation instead of creating a new one.
+    const { requestDisbursement } = await import("@/lib/payments/netshop.server");
     const result = await requestDisbursement({
       payoutId: payout.payout_id,
       method: payout.method,
