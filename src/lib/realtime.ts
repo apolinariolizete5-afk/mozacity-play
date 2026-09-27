@@ -97,7 +97,7 @@ function presenceToRooms(state: Record<string, unknown[]>) {
         code: entry.roomCode,
         game: entry.game,
         isPrivate: Boolean(entry.isPrivate),
-        bet: Math.max(20, Number(entry.bet ?? 20)),
+        bet: Math.max(0, Number(entry.bet ?? 0)),
         timer: TURN_SECONDS,
         capacity: Math.min(entry.game === "ludo" ? 4 : 2, Math.max(2, entry.capacity ?? 2)),
         status: "WAITING",
@@ -130,7 +130,7 @@ export async function createRoom(input: {
   const channel = getLobbyChannel();
   await ensureSubscribed(channel);
   const code = makeRoomCode();
-  const bet = Math.max(20, Math.round(Number(input.bet ?? 20)));
+  const bet = Math.max(0, Math.round(Number(input.bet ?? 0)));
   const room: LobbyRoom = {
     id: code,
     code,
@@ -172,7 +172,7 @@ export async function joinRoom(roomCode: string, player: RoomPresence) {
     game: existing?.game ?? "ludo",
     isPrivate: existing?.isPrivate ?? false,
     capacity: existing?.capacity ?? 2,
-    bet: existing?.bet ?? 20,
+    bet: existing?.bet ?? 0,
     hostId: existing?.hostId ?? player.playerId,
   });
 
@@ -435,7 +435,7 @@ export async function quickMatch(input: {
     ...input.player,
     game: input.game,
     searching: true,
-    bet: Math.max(20, Math.round(Number(input.bet ?? 20))),
+    bet: Math.max(0, Math.round(Number(input.bet ?? 0))),
     capacity: desiredPlayers,
     createdAt: new Date().toISOString(),
   };
@@ -472,7 +472,7 @@ export async function quickMatch(input: {
       code,
       game: input.game,
       isPrivate: false,
-      bet: searchingPlayer.bet ?? 20,
+      bet: searchingPlayer.bet ?? 0,
       timer: TURN_SECONDS,
       capacity: desiredPlayers,
       status: pair.length >= desiredPlayers ? "READY" : "WAITING",
@@ -491,7 +491,7 @@ export async function quickMatch(input: {
         .filter((entry) =>
           entry.game === input.game &&
           entry.searching === true &&
-          Number(entry.bet ?? 20) === searchingPlayer.bet &&
+          Number(entry.bet ?? 0) === searchingPlayer.bet &&
           Number(entry.capacity ?? 2) === desiredPlayers &&
           Boolean(entry.playerId),
         );
