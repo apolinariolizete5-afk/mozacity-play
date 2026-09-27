@@ -99,6 +99,13 @@
       "when": 1790482093422,
       "tag": "0012_real_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790482093423,
+      "tag": "0013_cleanup_overloaded_wallet_rpc",
+      "breakpoints": true
     }
   ]
 }
