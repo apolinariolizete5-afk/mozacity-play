@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requestDisbursement, type Method } from "@/lib/payments/netshop.server";
 
 export interface AdminOverview {
   players: number;
@@ -98,25 +99,56 @@ export const updateSettings = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const settlePayout = createServerFn({ method: "POST" })
+export const approvePayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z
-      .object({
-        payout_id: z.string().uuid(),
-        status: z.enum(["completed", "failed"]),
-        provider_ref: z.string().trim().max(120).optional(),
-        error: z.string().trim().max(240).optional(),
-      })
-      .parse(input),
+    z.object({ payout_id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("admin_settle_payout", {
+    const { data: claimed, error: claimError } = await context.supabase.rpc("admin_claim_payout", {
       _payout_id: data.payout_id,
-      _status: data.status,
-      _provider_ref: data.provider_ref ?? "",
-      ...(data.error ? { _error: data.error } : {}),
     });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    if (claimError) throw new Error(claimError.message);
+
+    const payout = (Array.isArray(claimed) ? claimed[0] : claimed) as {
+      payout_id: string;
+      amount_cents: number;
+      method: Method;
+      destination: string;
+      status: string;
+      provider_ref?: string | null;
+    };
+
+    if (!payout?.payout_id) throw new Error("payout_not_created");
+
+    // A provider request is idempotent on payout_id. A retry after a timeout
+    // therefore reuses the same provider operation instead of creating a new one.
+    const result = await requestDisbursement({
+      payoutId: payout.payout_id,
+      method: payout.method,
+      destination: payout.destination,
+      amountCents: payout.amount_cents,
+    });
+
+    if (!result.ok) {
+      const { error: refundError } = await context.supabase.rpc("refund_failed_payout", {
+        _payout_id: payout.payout_id,
+        _reason: result.error ?? "provider_rejected",
+      });
+      if (refundError) throw new Error(refundError.message);
+      throw new Error(result.error ?? "payout_failed");
+    }
+
+    const { error: recordError } = await context.supabase.rpc("admin_record_payout_provider", {
+      _payout_id: payout.payout_id,
+      _provider_ref: result.providerRef ?? "",
+    });
+    if (recordError) throw new Error(recordError.message);
+
+    return {
+      ok: true,
+      status: "processing" as const,
+      payout_id: payout.payout_id,
+      provider_ref: result.providerRef ?? null,
+    };
   });
