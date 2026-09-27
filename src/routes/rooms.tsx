@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Plus, Share2, Users2 } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { createRoom, joinRoom, useRealtimeLobby } from "@/lib/realtime";
 import { useApp } from "@/lib/store";
+import { getPublicPlatformSettings } from "@/lib/platform.functions";
 
 export const Route = createFileRoute("/rooms")({
   head: () => ({
@@ -26,6 +28,14 @@ function Rooms() {
   const [capacity, setCapacity] = useState(2);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [minBetMzn, setMinBetMzn] = useState(20);
+  const getSettings = useServerFn(getPublicPlatformSettings);
+
+  useEffect(() => {
+    void getSettings()
+      .then((settings) => setMinBetMzn(Math.max(0, Math.ceil(settings.min_bet_cents / 100))))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const invitedCode = new URLSearchParams(window.location.search).get("code");
@@ -38,7 +48,7 @@ function Rooms() {
   );
 
   const goToRoom = (room: { game: GameId; code: string; bet?: number; capacity?: number }) => {
-    const wager = Math.max(20, Math.round(Number(room.bet ?? bet) || 20));
+    const wager = Math.max(minBetMzn, Math.round(Number(room.bet ?? bet) || minBetMzn));
     if (room.game === "ludo") {
       void navigate({
         to: "/games/ludo",
@@ -68,7 +78,7 @@ function Rooms() {
       return;
     }
     try {
-      const wager = Math.max(20, Math.round(Number(bet) || 20));
+      const wager = Math.max(minBetMzn, Math.round(Number(bet) || minBetMzn));
       const room = await createRoom({
         game,
         isPrivate,
@@ -182,13 +192,13 @@ function Rooms() {
             )}
 
             <div>
-              <label className="text-xs font-bold text-muted-foreground">Aposta (MZN) — Mínimo 20 MT</label>
+              <label className="text-xs font-bold text-muted-foreground">Aposta (MZN) — Mínimo {minBetMzn} MT</label>
               <input
                 type="number"
-                min={20}
+                min={minBetMzn}
                 step={5}
                 value={bet}
-                onChange={(e) => setBet(Math.max(20, Number(e.target.value)))}
+                onChange={(e) => setBet(Math.max(minBetMzn, Number(e.target.value)))}
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold"
               />
             </div>
