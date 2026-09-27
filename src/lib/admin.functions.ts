@@ -152,3 +152,21 @@ export const approvePayout = createServerFn({ method: "POST" })
       provider_ref: result.providerRef ?? null,
     };
   });
+
+
+export const rejectPayout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({
+      payout_id: z.string().uuid(),
+      reason: z.string().trim().max(240).optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("admin_reject_payout", {
+      _payout_id: data.payout_id,
+      _reason: data.reason ?? "admin_rejected",
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, status: "failed" as const };
+  });
