@@ -22,7 +22,7 @@ function env(name: string): string | undefined {
 }
 
 function apiUrl(): string {
-  return env("NETSHOP_API_URL") ?? "https://www.netshop.co.mz/api/v1";
+  return env("NETSHOP_BASE_URL") ?? env("NETSHOP_API_URL") ?? "https://www.netshop.co.mz/api/v1";
 }
 
 export function walletIdFor(method: Method): string | undefined {
@@ -232,11 +232,115 @@ const raw = input.msisdn.trim().replace(/[\s()-]/g, "");
  * O levantamento continua pendente até ligarmos o fluxo B2C
  * confirmado pela NetShop para esta conta.
  */
+export async function requestDisbursement(input: {
+  payoutId: string;
+  method: Method;
+  destination: string;
+  amountCents: number;
+}): Promise<NetshopResult> {
+  const key = env("NETSHOP_API_KEY");
+  const walletId = walletIdFor(input.method);
+
+  if (!key) return { ok: false, status: "failed", error: "provider_not_configured" };
+  if (!walletId) return { ok: false, status: "failed", error: "wallet_not_configured" };
+
+  const raw = input.destination.trim().replace(/[\\s()-]/g, "");
+  const msisdn =
+    input.method === "bank"
+      ? input.destination.trim()
+      : raw.startsWith("+258")
+        ? raw
+        : raw.startsWith("258")
+          ? `+${raw}`
+          : /^8\\d{8}$/.test(raw)
+            ? `+258${raw}`
+            : raw;
+
+  console.info("[NetShop] disbursement request", {
+    payout_id: input.payoutId,
+    method: input.method,
+    amount_mzn: input.amountCents / 100,
+    destination: input.method === "bank" ? "***" : msisdn.slice(0, 5) + "******",
+  });
+
+  const providerMethod: ProviderMethod =
+    input.method === "mola" ? "emola" :
+    input.method === "mcash" ? "mkesh" :
+    input.method;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    const response = await fetch(
+      `${apiUrl().replace(/\\/$/, "")}/disbursements`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "X-Wallet-ID": walletId,
+          "Idempotency-Key": input.payoutId,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          amount: input.amountCents / 100,
+          currency: "MZN",
+          method: providerMethod,
+          msisdn,
+          reference: input.payoutId,
+        }),
+      },
+    );
+
+    const rawResponse = await response.text();
+    let payload: Record<string, unknown> = {};
+    try { payload = JSON.parse(rawResponse) as Record<string, unknown>; }
+    catch { payload = { raw: rawResponse }; }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: "failed",
+        error: String(payload.message ?? payload.error ?? `HTTP ${response.status}`),
+      };
+    }
+
+    const providerRef = String(
+      payload.transactionID ??
+      payload.transaction_id ??
+      payload.provider_ref ??
+      payload.id ??
+      payload.reference ??
+      "",
+    );
+
+    // Even if the provider responds synchronously with success, the database
+    // remains processing until the signed webhook confirms final delivery.
+    return {
+      ok: true,
+      status: "pending",
+      ...(providerRef ? { providerRef } : {}),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: "failed",
+      error: error instanceof Error
+        ? error.message
+        : "provider_request_failed",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function requestPayout(): Promise<NetshopResult> {
   return {
     ok: false,
     status: "failed",
-    error: "payout_endpoint_not_configured",
+    error: "deprecated_use_requestDisbursement",
   };
 }
 
