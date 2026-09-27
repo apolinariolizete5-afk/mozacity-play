@@ -155,7 +155,7 @@ export const lockRoomWager = createServerFn({ method: "POST" })
     z
       .object({
         room_code: z.string().trim().min(4).max(12),
-        bet_cents: z.number().int().min(2000).max(50_000_000),
+        bet_cents: z.number().int().min(0).max(50_000_000),
       })
       .parse(input),
   )
@@ -211,5 +211,6 @@ export const forfeitRoomMatch = createServerFn({ method: "POST" })
       payout_cents?: number;
       rake_cents?: number;
       result_id?: string | null;
+      payout?: number;
     };
   });
