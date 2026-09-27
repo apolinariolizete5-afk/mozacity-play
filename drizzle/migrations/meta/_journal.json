@@ -15,6 +15,90 @@
       "when": 1790477270551,
       "tag": "0001_complete_missing_rpcs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790482093411,
+      "tag": "0001_cancel_failed_deposit",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790482093412,
+      "tag": "0002_harden_room_match_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790482093413,
+      "tag": "0003_secure_match_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790482093414,
+      "tag": "0004_admin_panel_and_user_controls",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790482093415,
+      "tag": "0005_notification_test",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790482093416,
+      "tag": "0006_push_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790482093417,
+      "tag": "0007_admin_schema_repair",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790482093418,
+      "tag": "0008_admin_min_bet_control",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790482093419,
+      "tag": "0009_checkers_forfeit_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790482093420,
+      "tag": "0010_real_netshop_b2c_payouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790482093421,
+      "tag": "0011_netshop_b2c_payout_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790482093422,
+      "tag": "0012_real_notifications",
+      "breakpoints": true
     }
   ]
 }
