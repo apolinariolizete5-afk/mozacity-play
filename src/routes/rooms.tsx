@@ -24,7 +24,7 @@ function Rooms() {
   const [creating, setCreating] = useState(false);
   const [game, setGame] = useState<GameId>("ludo");
   const [isPrivate, setIsPrivate] = useState(false);
-  const [bet, setBet] = useState(20);
+  const [bet, setBet] = useState(0);
   const [capacity, setCapacity] = useState(2);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -33,7 +33,11 @@ function Rooms() {
 
   useEffect(() => {
     void getSettings()
-      .then((settings) => setMinBetMzn(Math.max(0, Math.ceil(settings.min_bet_cents / 100))))
+      .then((settings) => {
+        const minimum = Math.max(0, Math.ceil(settings.min_bet_cents / 100));
+        setMinBetMzn(minimum);
+        setBet((current) => (current > 0 ? Math.max(current, minimum) : minimum));
+      })
       .catch(() => undefined);
   }, []);
 
