@@ -23,11 +23,32 @@ export const Route = createFileRoute("/api/public/webhooks/netshop")({
         }
         const reference = String(p["reference"] ?? p["idempotency_key"] ?? "").trim();
         const status = String(p["status"] ?? "").toLowerCase();
-        const providerRef = String(p["transaction_id"] ?? p["provider_ref"] ?? p["id"] ?? "").trim();
+        const providerRef = String(p["transaction_id"] ?? p["provider_ref"] ?? p["transactionID"] ?? p["id"] ?? "").trim();
+        const type = String(p["type"] ?? p["event_type"] ?? "").toLowerCase();
         if (!reference) return json({ error: "missing_reference" }, 400);
+
         const ok = ["success", "completed", "paid", "succeeded"].includes(status);
-        const failed = ["failed", "cancelled", "canceled", "rejected"].includes(status);
+        const failed = ["failed", "cancelled", "canceled", "rejected", "error"].includes(status);
         if (!ok && !failed) return json({ received: true });
+
+        const isPayout =
+          type === "disbursement" ||
+          type === "payout" ||
+          p["is_payout"] === true ||
+          p["object"] === "disbursement";
+
+        if (isPayout) {
+          const { error } = await supabase.rpc("process_netshop_payout_webhook", {
+            _token: token,
+            _payout_id: reference,
+            _status: status,
+            _provider_ref: providerRef,
+            _reason: String(p["reason"] ?? p["message"] ?? "provider_rejected"),
+          });
+          if (error) return json({ error: "payout_settlement_failed" }, 500);
+          return json({ received: true, type: "payout" });
+        }
+
         const { error } = await supabase.rpc("settle_deposit", {
           _idempotency_key: reference,
           _status: ok ? "completed" : "failed",
@@ -35,7 +56,7 @@ export const Route = createFileRoute("/api/public/webhooks/netshop")({
           _token: token,
         });
         if (error) return json({ error: "settle_failed" }, 500);
-        return json({ received: true });
+        return json({ received: true, type: "deposit" });
       },
     },
   },
