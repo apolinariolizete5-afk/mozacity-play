@@ -32,7 +32,7 @@ export const startDeposit = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        amount_cents: z.number().int().min(5000).max(50_000_000),
+        amount_cents: z.number().int().min(0).max(50_000_000),
         method: z.enum(METHODS),
         msisdn: z.string().trim().min(6).max(20),
       })
@@ -105,20 +105,23 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        amount_cents: z.number().int().min(5000),
+        amount_cents: z.number().int().min(0),
         method: z.enum(METHODS),
         destination: z.string().trim().min(6).max(64),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { data: id, error } = await context.supabase.rpc("request_withdrawal", {
+    const { data: result, error } = await context.supabase.rpc("request_withdrawal", {
       _amount_cents: data.amount_cents,
       _method: data.method,
       _destination: data.destination,
     });
     if (error) throw new Error(error.message);
-    return { payout_id: id as string };
+    const row = Array.isArray(result) ? result[0] : result;
+    const payoutId = (row as { payout_id?: string } | null)?.payout_id;
+    if (!payoutId) throw new Error("payout_not_created");
+    return row as { payout_id: string; gross_cents: number; fee_cents: number; net_cents: number; status: string };
   });
 
 /** Regista a partida multiplayer no banco antes de qualquer débito. */
@@ -130,7 +133,7 @@ export const registerRoomMatch = createServerFn({ method: "POST" })
       game: z.enum(["ludo", "checkers", "chess"]),
       player_one_id: z.string().uuid(),
       player_two_id: z.string().uuid(),
-      bet_cents: z.number().int().min(2000).max(50_000_000),
+      bet_cents: z.number().int().min(0).max(50_000_000),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
