@@ -2,7 +2,19 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type PushState = "on" | "off" | "unsupported" | "blocked";
 const PREF_KEY = "mozaplay:notifications-enabled:v3";
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+let VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+async function resolveVapidKey(): Promise<string | undefined> {
+  if (VAPID_PUBLIC_KEY) return VAPID_PUBLIC_KEY;
+  try {
+    const { getVapidPublicKey } = await import("./push.functions");
+    const r = await getVapidPublicKey();
+    VAPID_PUBLIC_KEY = r.key ?? undefined;
+  } catch {
+    /* sem chave */
+  }
+  return VAPID_PUBLIC_KEY;
+}
 export const SERVICE_WORKER_PATH = "/sw.js";
 export const NOTIFICATION_ICON_PATH = "/icons/notification-badge.svg";
 
