@@ -317,3 +317,65 @@ $$;
 
 REVOKE ALL ON FUNCTION public.process_netshop_payout_webhook(text,uuid,text,text,text) FROM public;
 GRANT EXECUTE ON FUNCTION public.process_netshop_payout_webhook(text,uuid,text,text,text) TO anon, authenticated;
+
+
+-- Include both pending and processing orders in the admin queue.
+CREATE OR REPLACE FUNCTION public.admin_overview()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  uid uuid := auth.uid();
+  deposits bigint := 0;
+  withdrawals bigint := 0;
+  withdrawal_fees bigint := 0;
+  rake bigint := 0;
+  bet_volume bigint := 0;
+  balance bigint := 0;
+  players bigint := 0;
+  pending_count bigint := 0;
+  pending_amount bigint := 0;
+BEGIN
+  IF uid IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.user_roles WHERE user_id = uid AND role = 'admin'
+  ) THEN RAISE EXCEPTION 'admin_required'; END IF;
+
+  SELECT count(*) INTO players FROM auth.users u
+   WHERE coalesce(lower(u.raw_user_meta_data->>'is_anonymous'), 'false')
+         NOT IN ('true','1','yes');
+
+  SELECT coalesce(sum(balance_cents),0) INTO balance FROM public.wallets;
+
+  SELECT
+    coalesce(sum(case when kind::text = 'deposit' then abs(amount_cents) else 0 end),0),
+    coalesce(sum(case when kind::text = 'withdrawal' then abs(amount_cents) else 0 end),0),
+    coalesce(sum(case when kind::text = 'bet' then abs(amount_cents) else 0 end),0),
+    coalesce(sum(case when kind::text = 'prize' and coalesce(metadata,'{}'::jsonb) ? 'rake_cents'
+                      then coalesce((metadata->>'rake_cents')::bigint,0) else 0 end),0)
+    INTO deposits, withdrawals, bet_volume, rake
+    FROM public.transactions
+   WHERE status::text = 'completed';
+
+  SELECT count(*), coalesce(sum(amount_cents),0)
+    INTO pending_count, pending_amount
+    FROM public.payout_requests
+   WHERE status::text IN ('pending','processing');
+
+  RETURN jsonb_build_object(
+    'players', players,
+    'balance_cents', balance,
+    'deposits_cents', deposits,
+    'withdrawals_cents', withdrawals,
+    'withdrawal_fees_cents', withdrawal_fees,
+    'rake_cents', rake,
+    'bet_volume_cents', bet_volume,
+    'pending_payouts', pending_count,
+    'pending_payouts_cents', pending_amount
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_overview() FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.admin_overview() TO authenticated;
