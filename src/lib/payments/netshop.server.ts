@@ -244,7 +244,7 @@ export async function requestDisbursement(input: {
   if (!key) return { ok: false, status: "failed", error: "provider_not_configured" };
   if (!walletId) return { ok: false, status: "failed", error: "wallet_not_configured" };
 
-  const raw = input.destination.trim().replace(/[\\s()-]/g, "");
+  const raw = input.destination.trim().replace(/[\s()-]/g, "");
   const msisdn =
     input.method === "bank"
       ? input.destination.trim()
@@ -252,7 +252,7 @@ export async function requestDisbursement(input: {
         ? raw
         : raw.startsWith("258")
           ? `+${raw}`
-          : /^8\\d{8}$/.test(raw)
+          : /^8\d{8}$/.test(raw)
             ? `+258${raw}`
             : raw;
 
