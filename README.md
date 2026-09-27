@@ -39,8 +39,8 @@ A carteira usa Supabase e server functions. Não existe provedor de pagamento de
 
 - O depósito cria uma transação pendente e só deve creditar saldo depois da confirmação do gateway.
 - A integração NetShop é server-only e nunca expõe a chave ao browser.
-- O levantamento fica pendente para processamento até existir um fluxo B2C confirmado para a conta NetShop.
-- As migrations antigas podem conter vestígios históricos de modo de teste; a migration `0005_remove_legacy_test_mode.sql` remove essas funções/coluna da base quando aplicada.
+- O levantamento entra em `processing` quando o administrador o envia ao gateway e só passa a `completed`/`failed` através da confirmação do provedor.
+- Não existe fallback de depósito de teste no fluxo de produção.
 
 ## Supabase
 
@@ -63,4 +63,4 @@ Para a primeira conta de administrador, a base precisa ter o segredo interno `ad
 - Port: `10000` quando fornecida pelo Render
 - Health check: `/`
 
-Nunca coloque chaves reais no GitHub. Configure os segredos no Render/Supabase.
+Nunca coloque chaves reais no GitHub. Configure os segredos no Render/Lovable Cloud. A aplicação também usa `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` para web push.
