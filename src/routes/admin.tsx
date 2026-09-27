@@ -13,6 +13,7 @@ import {
   getAdminUsers,
   setAdminUserBlocked,
   approvePayout,
+  rejectPayout,
   updateSettings,
 } from "@/lib/admin.functions";
 
@@ -131,6 +132,7 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
   const overviewFn = useServerFn(getAdminOverview);
   const saveFn = useServerFn(updateSettings);
   const approveFn = useServerFn(approvePayout);
+  const rejectFn = useServerFn(rejectPayout);
   const usersFn = useServerFn(getAdminUsers);
   const blockUserFn = useServerFn(setAdminUserBlocked);
 
@@ -210,8 +212,18 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
     },
   });
 
+  const reject = useMutation({
+    mutationFn: (id: string) => rejectFn({ data: { payout_id: id, reason: "admin_rejected" } }),
+    onSuccess: () => {
+      onRefresh();
+      void overview.refetch();
+      void settings.refetch();
+      void payouts.refetch();
+    },
+  });
+
   const o = overview.data;
-  const firstError = overview.error ?? settings.error ?? payouts.error ?? users.error;
+  const firstError = overview.error ?? settings.error ?? payouts.error ?? users.error ?? approve.error ?? reject.error;
 
   return (
     <main className="mx-auto w-full max-w-md space-y-4 px-4 pb-4">
@@ -429,19 +441,19 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
                   <Button
                     size="sm"
                     className="flex-1"
-                    disabled={approve.isPending}
+                    disabled={approve.isPending || reject.isPending}
                     onClick={() => approve.mutate(p.id)}
                   >
-                    <ShieldCheck className="h-4 w-4" /> Aprovar
+                    <ShieldCheck className="h-4 w-4" /> Aprovar e enviar
                   </Button>
                   <Button
                     size="sm"
                     variant="danger"
                     className="flex-1"
-                    disabled={settle.isPending}
-                    onClick={() => settle.mutate({ id: p.id, status: "failed" })}
+                    disabled={approve.isPending || reject.isPending}
+                    onClick={() => reject.mutate(p.id)}
                   >
-                    Recusar
+                    Recusar e devolver
                   </Button>
                 </div>
               ) : null}
