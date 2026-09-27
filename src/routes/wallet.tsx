@@ -436,7 +436,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
 function depositError(message: string, minDepositCents = 5000): string {
   const map: Record<string, string> = {
     below_min_deposit: `O depósito mínimo é ${formatMzn(minDepositCents)}.`,
-    below_min_withdrawal: "O levantamento mínimo é 50 MT.",
+    below_min_withdrawal: "O levantamento está abaixo do mínimo configurado.",
     insufficient_funds: "Saldo insuficiente.",
     rollover_pending: "Ainda tens saldo por apostar antes de levantar.",
     amount_too_small_for_fee: "Valor demasiado baixo para cobrir a taxa.",
