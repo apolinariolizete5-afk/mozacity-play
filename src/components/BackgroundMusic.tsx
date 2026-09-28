@@ -4,48 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Track = {
   name: string;
   src?: string;
+  youtubeId?: string;
   bpm: number;
   chords: number[][];
   melody: number[];
 };
 
 const TRACKS: Track[] = [
-  {
-    name: "Djimetta — Cuidado",
-    src: "/music/djimetta-cuidado.mp3",
-    bpm: 104,
-    chords: [
-      [261.63, 329.63, 392.0],
-      [220.0, 261.63, 329.63],
-      [174.61, 220.0, 261.63],
-      [196.0, 246.94, 293.66],
-    ],
-    melody: [523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440.0, 493.88],
-  },
-  {
-    name: "Lil Nas X — Old Town Road",
-    src: "/music/lil-nas-x-old-town-road.mp3",
-    bpm: 112,
-    chords: [
-      [293.66, 349.23, 440.0],
-      [246.94, 293.66, 369.99],
-      [196.0, 246.94, 293.66],
-      [220.0, 277.18, 329.63],
-    ],
-    melody: [587.33, 659.25, 739.99, 659.25, 587.33, 523.25, 493.88, 523.25],
-  },
-  {
-    name: "Mr Bow",
-    src: "/music/mr-bow.mp3",
-    bpm: 96,
-    chords: [
-      [220.0, 277.18, 329.63],
-      [246.94, 311.13, 369.99],
-      [261.63, 329.63, 392.0],
-      [196.0, 246.94, 293.66],
-    ],
-    melody: [440.0, 493.88, 587.33, 493.88, 440.0, 392.0, 440.0, 493.88],
-  },
+  { name: "Djimetta — Cuidado", src: "/music/djimetta-cuidado.mp3", bpm: 104, chords: [[261.63,329.63,392],[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66]], melody: [523.25,587.33,659.25,587.33,523.25,493.88,440,493.88] },
+  { name: "Lil Nas X — Old Town Road", youtubeId: "r7qovpFAGrQ", bpm: 112, chords: [[293.66,349.23,440],[246.94,293.66,369.99],[196,246.94,293.66],[220,277.18,329.63]], melody: [587.33,659.25,739.99,659.25,587.33,523.25,493.88,523.25] },
+  { name: "Mr Bow", src: "/music/mr-bow.mp3", bpm: 96, chords: [[220,277.18,329.63],[246.94,311.13,369.99],[261.63,329.63,392],[196,246.94,293.66]], melody: [440,493.88,587.33,493.88,440,392,440,493.88] },
 ];
 
 const STORAGE_KEY = "mozaplay:music:v1";
@@ -63,6 +31,7 @@ export function BackgroundMusic() {
   const stepRef = useRef(0);
   const generationRef = useRef(0);
   const htmlAudioRef = useRef<HTMLAudioElement | null>(null);
+  const youtubeFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     try {
@@ -70,9 +39,7 @@ export function BackgroundMusic() {
       if (typeof saved.muted === "boolean") setMuted(saved.muted);
       if (typeof saved.volume === "number") setVolume(Math.min(0.45, Math.max(0, saved.volume)));
       if (typeof saved.trackIndex === "number") setTrackIndex(Math.abs(saved.trackIndex) % TRACKS.length);
-    } catch {
-      // Ignore malformed local preferences.
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -85,27 +52,30 @@ export function BackgroundMusic() {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (htmlAudioRef.current) {
-      htmlAudioRef.current.pause();
-      htmlAudioRef.current.currentTime = 0;
-    }
-    if (audioContextRef.current) {
-      void audioContextRef.current.suspend();
-    }
+    htmlAudioRef.current?.pause();
+    if (htmlAudioRef.current) htmlAudioRef.current.currentTime = 0;
+    if (youtubeFrameRef.current) youtubeFrameRef.current.src = "about:blank";
+    if (audioContextRef.current) void audioContextRef.current.suspend();
   }, []);
 
   const startMusic = useCallback(async (requestedIndex?: number) => {
     if (typeof window === "undefined") return;
 
     const nextIndex = requestedIndex ?? trackIndex;
-    let ctx = audioContextRef.current;
-    if (!ctx) {
-      ctx = new AudioContext();
-      audioContextRef.current = ctx;
-      const master = ctx.createGain();
-      master.gain.value = muted ? 0 : volume;
-      master.connect(ctx.destination);
-      masterRef.current = master;
+    const track = TRACKS[nextIndex];
+
+    if (track.youtubeId) {
+      htmlAudioRef.current?.pause();
+      if (youtubeFrameRef.current) {
+        const params = new URLSearchParams({
+          autoplay: "1", controls: "0", disablekb: "1", fs: "0",
+          iv_load_policy: "3", loop: "1", modestbranding: "1",
+          playsinline: "1", playlist: track.youtubeId,
+        });
+        youtubeFrameRef.current.src =
+          `https://www.youtube.com/embed/${track.youtubeId}?${params.toString()}`;
+      }
+      return;
     }
 
     if (track.src) {
@@ -118,14 +88,21 @@ export function BackgroundMusic() {
       player.src = track.src;
       player.loop = true;
       player.volume = muted ? 0 : volume;
-      try {
-        await player.play();
-      } catch (error) {
+      try { await player.play(); } catch (error) {
         console.warn("Não foi possível iniciar a faixa de música:", error);
       }
       return;
     }
 
+    let ctx = audioContextRef.current;
+    if (!ctx) {
+      ctx = new AudioContext();
+      audioContextRef.current = ctx;
+      const master = ctx.createGain();
+      master.gain.value = muted ? 0 : volume;
+      master.connect(ctx.destination);
+      masterRef.current = master;
+    }
     if (ctx.state === "suspended") await ctx.resume();
     if (!masterRef.current) return;
 
@@ -133,8 +110,6 @@ export function BackgroundMusic() {
     generationRef.current += 1;
     const generation = generationRef.current;
     stepRef.current = 0;
-
-    const track = TRACKS[nextIndex];
     const beat = 60 / track.bpm;
 
     const scheduleStep = () => {
@@ -200,6 +175,7 @@ export function BackgroundMusic() {
   };
 
   const changeTrack = async () => {
+    stopMusic();
     const next = (trackIndex + 1) % TRACKS.length;
     setTrackIndex(next);
     if (enabled) await startMusic(next);
@@ -208,37 +184,37 @@ export function BackgroundMusic() {
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
-    if (htmlAudioRef.current) {
-      htmlAudioRef.current.volume = muted ? 0 : volume;
-    }
+    if (htmlAudioRef.current) htmlAudioRef.current.volume = next ? 0 : volume;
     if (masterRef.current && audioContextRef.current) {
       masterRef.current.gain.setTargetAtTime(next ? 0 : volume, audioContextRef.current.currentTime, 0.03);
     }
   };
 
-  useEffect(() => {
-    return () => {
-      stopMusic();
-      if (htmlAudioRef.current) {
-      htmlAudioRef.current.pause();
-      htmlAudioRef.current.src = "";
-    }
+  useEffect(() => () => {
+    stopMusic();
+    htmlAudioRef.current?.pause();
+    if (htmlAudioRef.current) htmlAudioRef.current.src = "";
+    if (youtubeFrameRef.current) youtubeFrameRef.current.src = "about:blank";
     if (audioContextRef.current) void audioContextRef.current.close();
-    };
   }, [stopMusic]);
 
   useEffect(() => {
     if (masterRef.current && audioContextRef.current) {
-      masterRef.current.gain.setTargetAtTime(
-        muted ? 0 : volume,
-        audioContextRef.current.currentTime,
-        0.03,
-      );
+      masterRef.current.gain.setTargetAtTime(muted ? 0 : volume, audioContextRef.current.currentTime, 0.03);
     }
+    if (htmlAudioRef.current) htmlAudioRef.current.volume = muted ? 0 : volume;
   }, [muted, volume]);
 
   return (
     <div className="fixed bottom-[5.25rem] right-3 z-[65]">
+      <iframe
+        ref={youtubeFrameRef}
+        title="MozaPlay background music"
+        className="pointer-events-none absolute h-px w-px opacity-0"
+        allow="autoplay; encrypted-media"
+        src="about:blank"
+      />
+
       {expanded && (
         <div className="mb-2 w-64 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur">
           <div className="flex items-center gap-2">
@@ -249,53 +225,23 @@ export function BackgroundMusic() {
               <p className="text-xs font-bold">Música MozaPlay</p>
               <p className="truncate text-[11px] text-muted-foreground">{TRACKS[trackIndex].name}</p>
             </div>
-            <button
-              type="button"
-              onClick={changeTrack}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-input"
-              aria-label="Próxima música"
-              title="Próxima música"
-            >
+            <button type="button" onClick={changeTrack} className="grid h-8 w-8 place-items-center rounded-xl border border-input" aria-label="Próxima música" title="Próxima música">
               <SkipForward className="h-4 w-4" />
             </button>
           </div>
           <div className="mt-3 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-input"
-              aria-label={muted ? "Ativar som" : "Silenciar música"}
-            >
+            <button type="button" onClick={toggleMute} className="grid h-8 w-8 place-items-center rounded-xl border border-input" aria-label={muted ? "Ativar som" : "Silenciar música"}>
               {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
-            <input
-              aria-label="Volume da música"
-              type="range"
-              min="0"
-              max="0.45"
-              step="0.01"
-              value={volume}
-              onChange={(event) => setVolume(Number(event.target.value))}
-              className="w-full"
-            />
+            <input aria-label="Volume da música" type="range" min="0" max="0.45" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="w-full" />
           </div>
-          <button
-            type="button"
-            onClick={() => void toggleMusic()}
-            className="mt-3 w-full rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
-          >
+          <button type="button" onClick={() => void toggleMusic()} className="mt-3 w-full rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground">
             {enabled ? "Parar música" : "Ligar música"}
           </button>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card/95 text-foreground shadow-xl backdrop-blur"
-        aria-label="Abrir música"
-        title="Música"
-      >
+      <button type="button" onClick={() => setExpanded((value) => !value)} className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card/95 text-foreground shadow-xl backdrop-blur" aria-label="Abrir música" title="Música">
         <Music2 className={enabled && !muted ? "h-5 w-5 animate-pulse" : "h-5 w-5"} />
       </button>
     </div>
