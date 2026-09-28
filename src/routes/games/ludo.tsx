@@ -152,6 +152,10 @@ function LudoMatch() {
   const disconnectedPlayerRef = useRef<string | null>(null);
 
 useEffect(() => {
+    if (LUDO_TEST_MODE) {
+      setEscrowReady(true);
+      return;
+    }
     if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
 
     const playerIds = realtime.players.map((p) => p.playerId);
