@@ -267,7 +267,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
 
       {callState === "calling" && (
         <div className="flex items-center gap-2 bg-card/90 p-1.5 rounded-2xl border border-border">
-          <Pill variant="warning" className="animate-pulse gap-1 text-xs">
+          <Pill tone="accent" className="animate-pulse gap-1 text-xs">
             <PhoneCall className="h-3 w-3" /> A chamar...
           </Pill>
           <Button size="sm" variant="danger" onClick={hangUp}>
@@ -296,7 +296,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
 
       {callState === "connected" && (
         <div className="flex items-center gap-2 bg-card/90 p-1.5 rounded-2xl border border-emerald-500/30">
-          <Pill variant="success" className="gap-1 text-xs">
+          <Pill tone="success" className="gap-1 text-xs">
             <Volume2 className="h-3 w-3" /> Em chamada
           </Pill>
           <Button size="sm" variant="outline" onClick={toggleMute} title={muted ? "Ativar microfone" : "Silenciar"}>
