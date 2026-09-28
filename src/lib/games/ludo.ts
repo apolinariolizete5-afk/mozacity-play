@@ -102,13 +102,13 @@ export function eliminateLudoPlayer(state: LudoState, player: number): LudoState
 
 export function ludoTimeout(state: LudoState): LudoState {
   if (state.over) return state;
-  const next = clone(state);
-  next.dice = null;
-  next.sixStreak = 0;
-  next.bonusRoll = false;
-  next.turn = nextActiveTurn(next, next.turn);
-  next.log.unshift("Tempo esgotado. A vez passou ao próximo jogador.");
-  return next;
+  const value = 1 + Math.floor(Math.random() * 6);
+  const rolled = ludoEngine.applyMove(state, { type: "roll", value });
+  if (rolled.over || rolled.dice == null) return rolled;
+  const choices = movableTokens(rolled);
+  if (!choices.length) return rolled;
+  const token = choices[Math.floor(Math.random() * choices.length)];
+  return ludoEngine.applyMove(rolled, { type: "move", token });
 }
 
 export const LUDO_NAMES = ["Verde", "Amarelo", "Azul", "Vermelho"] as const;
