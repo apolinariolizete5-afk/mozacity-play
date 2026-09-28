@@ -532,7 +532,7 @@ export async function quickMatch(input: {
 
           assignedRoom = room;
           input.onMatchFound?.(room);
-          assignmentResolve?.(room);
+          (assignmentResolve as ((room: LobbyRoom) => void) | null)?.(room);
 
           await new Promise((r) => setTimeout(r, 200));
           await queue.send({
