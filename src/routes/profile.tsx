@@ -14,12 +14,14 @@ import {
   ShieldCheck,
   Trophy,
   UserRound,
+  Music2,
 } from "lucide-react";
 import { Button, Card, PageHeader } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { setProfile, setTimerPreference, useApp, winRate } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { disablePushNotifications, enablePushNotifications, getPushState, type PushState } from "@/lib/push";
+import { getMusicEnabled, requestMusicControl, MUSIC_EVENT } from "@/components/BackgroundMusic";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -51,6 +53,7 @@ function Profile() {
   const [pushState, setPushState] = useState<PushState>("off");
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState("");
+  const [musicEnabled, setMusicEnabled] = useState(getMusicEnabled);
   const [gameStats, setGameStats] = useState<Record<GameId, { wins: number; losses: number }>>({
     ludo: { wins: 0, losses: 0 },
     checkers: { wins: 0, losses: 0 },
@@ -106,6 +109,20 @@ function Profile() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    const syncMusic = (event: Event) => {
+      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
+      if (typeof detail?.enabled === "boolean") setMusicEnabled(detail.enabled);
+    };
+    window.addEventListener(MUSIC_EVENT, syncMusic);
+    return () => window.removeEventListener(MUSIC_EVENT, syncMusic);
+  }, []);
+
+  const toggleMusic = () => {
+    requestMusicControl("toggle");
+    setMusicEnabled((value) => !value);
+  };
 
   const togglePush = async () => {
     setPushBusy(true);
@@ -285,6 +302,27 @@ function Profile() {
         <div className="flex items-center gap-2"><UserRound className="h-4 w-4 text-primary" /><p className="font-display font-bold">Preferências</p></div>
         <p className="text-xs text-muted-foreground">Escolhe o teu tempo preferido por turno.</p>
         <div className="flex gap-2">{[5, 10, 15].map((t) => <button key={t} onClick={() => setTimerPreference(t)} className={`h-11 flex-1 rounded-2xl text-sm font-bold ${app.timer === t ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{t}s</button>)}</div>
+      </Card>
+
+      <Card className="space-y-4 border-primary/20">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Music2 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-display font-bold">Música do MozaPlay</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              A música toca automaticamente fora das partidas e para quando um jogo começa.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant={musicEnabled ? "primary" : "outline"}
+          onClick={toggleMusic}
+          className="w-full sm:w-auto"
+        >
+          {musicEnabled ? "Desativar música" : "Ativar música"}
+        </Button>
       </Card>
 
       <Card className="flex flex-col gap-4 border-destructive/20 sm:flex-row sm:items-center sm:justify-between">
