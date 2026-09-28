@@ -353,7 +353,7 @@ function LudoMatch() {
           </div>
         </div>
 
-        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} /> : null}
+        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} userName={app.profile.name} /> : null}
 
         <div className="grid grid-cols-2 gap-2 my-2">
           {playersList.map((_, index) => <div key={index}>{renderPlayerCorner(index)}</div>)}
