@@ -160,6 +160,8 @@ function CheckersMatch() {
   return (
     <>
       <MatchShell
+        voiceRoomId={room || undefined}
+        voiceUserId={app.profile.id}
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
           if (room && opponent) {
