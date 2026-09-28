@@ -11,6 +11,7 @@ import {
   claimAdmin,
   getAdminOverview,
   getAdminUsers,
+  getAdminSettings,
   setAdminUserBlocked,
   approvePayout,
   rejectPayout,
@@ -139,19 +140,10 @@ function AdminDashboard({ onRefresh }: { onRefresh: () => void }) {
   const overview = useQuery({ queryKey: ["admin-overview"], queryFn: () => overviewFn() });
   const users = useQuery({ queryKey: ["admin-users"], queryFn: () => usersFn() });
 
+  const settingsFn = useServerFn(getAdminSettings);
   const settings = useQuery({
     queryKey: ["admin-settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("platform_settings")
-        .select(
-          "house_fee_percent, withdrawal_fee_percent, withdrawal_fee_fixed_cents, min_deposit_cents, min_withdrawal_cents, min_bet_cents, rollover_enabled, rollover_multiplier",
-        )
-        .eq("id", 1)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return data as unknown as Settings;
-    },
+    queryFn: () => settingsFn(),
   });
 
   const payouts = useQuery({
