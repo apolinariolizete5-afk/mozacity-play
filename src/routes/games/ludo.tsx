@@ -147,39 +147,106 @@ function LudoMatch() {
   const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);
   const disconnectedPlayerRef = useRef<string | null>(null);
 
-  useEffect(() => {
+useEffect(() => {
     if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
-    if (players !== 2) {
-      roomRegistered.current = true;
-      setEscrowReady(bet === 0);
-      return;
-    }
-    const playerIds = realtime.players.map((player) => player.playerId);
-    if (playerIds.length < 2) return;
+
+    const playerIds = realtime.players.map((p) => p.playerId);
+    if (playerIds.length < players) return;
+
     roomRegistered.current = true;
-    void registerRoomMatch({ data: {
-      room_code: room,
-      game: "ludo",
-      player_one_id: playerIds[0],
-      player_two_id: playerIds[1],
-      bet_cents: Math.round(bet * 100),
-    }}).then(() => {
-      if (players === 2 && bet > 0 && !wagerLocked.current) {
-        return lockRoomWager({ data: { room_code: room, bet_cents: Math.round(bet * 100) } }).then((result) => {
+
+    void registerRoomMatchMulti({
+      data: {
+        room_code: room,
+        game: "ludo",
+        player_ids: playerIds,
+        bet_cents: Math.round(bet * 100),
+      },
+    })
+      .then(async () => {
+        if (bet > 0 && !wagerLocked.current) {
+          const result = await lockRoomWager({
+            data: { room_code: room, bet_cents: Math.round(bet * 100) },
+          });
           wagerLocked.current = true;
           setEscrowReady(result.status === "playing");
-        });
-      }
-      setEscrowReady(players !== 2 ? bet === 0 : true);
-      return null;
-    }).catch((error) => {
-      roomRegistered.current = false;
-      wagerLocked.current = false;
-      setEscrowReady(false);
-      console.error("[MozaPlay] Falha ao preparar aposta:", error);
-    });
+        } else {
+          setEscrowReady(true);
+        }
+      })
+      .catch((error) => {
+        roomRegistered.current = false;
+        wagerLocked.current = false;
+        setEscrowReady(false);
+        console.error("[MozaPlay] Falha ao registar aposta Ludo:", error);
+      });
   }, [bet, players, playersReady, room, realtime.players]);
 
+  useEffect(() => {
+    if (!ready || state.over) return;
+
+    if (realtime.players.length < players) {
+      if (disconnectCountdown === null) {
+        const knownMissing = realtime.players.find((p) => p.playerId !== app.profile.id)?.playerId ?? null;
+        disconnectedPlayerRef.current = knownMissing;
+        setDisconnectCountdown(20);
+      }
+    } else {
+      disconnectedPlayerRef.current = null;
+      setDisconnectCountdown(null);
+    }
+  }, [realtime.players.length, players, ready, state.over, disconnectCountdown, app.profile.id]);
+
+  useEffect(() => {
+    if (disconnectCountdown === null || disconnectCountdown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setDisconnectCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          window.clearInterval(timer);
+          if (!settled.current && room) {
+            settled.current = true;
+            const myId = app.profile.id;
+            void settleRoomMatchMulti({
+              data: { room_code: room, winner_id: myId },
+            }).catch((error) => console.error("[MozaPlay] Falha na liquidação por desconexão:", error));
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [disconnectCountdown, room, app.profile.id]);
+
+  useEffect(() => {
+    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
+    settled.current = true;
+
+    const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
+    const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
+
+    if (room && bet > 0 && winnerId) {
+      void settleRoomMatchMulti({
+        data: {
+          room_code: room,
+          winner_id: winnerId,
+        },
+      }).catch((error) => console.error("[MozaPlay] Falha na liquidação do prêmio:", error));
+    }
+
+    void recordMatch({
+      game: "ludo",
+      result: winnerId === app.profile.id ? "win" : "loss",
+      opponents,
+      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
+      playerIds: realtime.players.map((p) => p.playerId),
+      winnerId,
+      bet,
+      persistMatch: realtime.playerIndex === 0,
+    });
+  }, [bet, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players, room, app.profile.id]);
 
   const handleAnimatingChange = useCallback((animating: boolean) => {
     setMoving(animating);
@@ -223,33 +290,6 @@ function LudoMatch() {
     [applyMove, moving, rolling, room, realtime, state, ready],
   );
 
-
-  useEffect(() => {
-    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
-    settled.current = true;
-    const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
-    const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
-    const loserIndex = winnerIndex === null ? null : winnerIndex === 0 ? 1 : 0;
-    const loserId = loserIndex === null ? null : realtime.players[loserIndex]?.playerId ?? null;
-    if (room && players === 2 && bet > 0 && winnerId && loserId) {
-      void settleRoomMatch({ data: {
-        room_code: room,
-        winner_id: winnerId,
-        loser_id: loserId,
-        bet_cents: Math.round(bet * 100),
-      }}).catch((error) => console.error("[MozaPlay] Falha na liquidação:", error));
-    }
-    void recordMatch({
-      game: "ludo",
-      result: realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.winner === realtime.playerIndex ? "win" : "loss",
-      opponents,
-      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
-      playerIds: realtime.players.map((p) => p.playerId),
-      winnerId: realtime.players[realtime.forfeitWinner ?? state.winner ?? 0]?.playerId ?? null,
-      bet,
-      persistMatch: realtime.forfeitWinner !== null ? realtime.forfeitWinner === realtime.playerIndex : realtime.playerIndex === 0,
-    });
-  }, [bet, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players]);
 
   useEffect(() => {
     if (!room) return;
@@ -418,104 +458,4 @@ function LudoMatch() {
       </div>
     </div>
   );
-}  useEffect(() => {
-    if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
-
-    const playerIds = realtime.players.map((p) => p.playerId);
-    if (playerIds.length < players) return;
-
-    roomRegistered.current = true;
-
-    void registerRoomMatchMulti({
-      data: {
-        room_code: room,
-        game: "ludo",
-        player_ids: playerIds,
-        bet_cents: Math.round(bet * 100),
-      },
-    })
-      .then(async () => {
-        if (bet > 0 && !wagerLocked.current) {
-          const result = await lockRoomWager({
-            data: { room_code: room, bet_cents: Math.round(bet * 100) },
-          });
-          wagerLocked.current = true;
-          setEscrowReady(result.status === "playing");
-        } else {
-          setEscrowReady(true);
-        }
-      })
-      .catch((error) => {
-        roomRegistered.current = false;
-        wagerLocked.current = false;
-        setEscrowReady(false);
-        console.error("[MozaPlay] Falha ao registar aposta Ludo:", error);
-      });
-  }, [bet, players, playersReady, room, realtime.players]);
-
-  useEffect(() => {
-    if (!ready || state.over) return;
-
-    if (realtime.players.length < players) {
-      if (disconnectCountdown === null) {
-        const knownMissing = realtime.players.find((p) => p.playerId !== app.profile.id)?.playerId ?? null;
-        disconnectedPlayerRef.current = knownMissing;
-        setDisconnectCountdown(20);
-      }
-    } else {
-      disconnectedPlayerRef.current = null;
-      setDisconnectCountdown(null);
-    }
-  }, [realtime.players.length, players, ready, state.over, disconnectCountdown, app.profile.id]);
-
-  useEffect(() => {
-    if (disconnectCountdown === null || disconnectCountdown <= 0) return;
-
-    const timer = window.setInterval(() => {
-      setDisconnectCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          window.clearInterval(timer);
-          if (!settled.current && room) {
-            settled.current = true;
-            const myId = app.profile.id;
-            void settleRoomMatchMulti({
-              data: { room_code: room, winner_id: myId },
-            }).catch((error) => console.error("[MozaPlay] Falha na liquidação por desconexão:", error));
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [disconnectCountdown, room, app.profile.id]);
-
-  useEffect(() => {
-    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
-    settled.current = true;
-
-    const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
-    const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
-
-    if (room && bet > 0 && winnerId) {
-      void settleRoomMatchMulti({
-        data: {
-          room_code: room,
-          winner_id: winnerId,
-        },
-      }).catch((error) => console.error("[MozaPlay] Falha na liquidação do prêmio:", error));
-    }
-
-    void recordMatch({
-      game: "ludo",
-      result: winnerId === app.profile.id ? "win" : "loss",
-      opponents,
-      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
-      playerIds: realtime.players.map((p) => p.playerId),
-      winnerId,
-      bet,
-      persistMatch: realtime.playerIndex === 0,
-    });
-  }, [bet, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players, room, app.profile.id]);
-
+}
