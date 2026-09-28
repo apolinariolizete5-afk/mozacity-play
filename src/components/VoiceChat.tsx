@@ -78,7 +78,12 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
         remoteAudioRef.current.srcObject = event.streams[0];
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
-        void remoteAudioRef.current.play().catch(() => {});
+        const playRemote = () => {
+          void remoteAudioRef.current?.play().catch((error) => {
+            console.warn("[Voice] Reprodução de áudio remoto bloqueada:", error);
+          });
+        };
+        playRemote();
       }
       setCallState("connected");
     };
@@ -104,11 +109,12 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
     channel
       .on("broadcast", { event: "call_invite" }, ({ payload }) => {
         if (payload?.to === userId || (!payload?.to && payload?.from !== userId)) {
-          if (callState === "idle") {
+          setCallState((current) => {
+            if (current !== "idle") return current;
             setCallerId(payload.from);
             setCallerName(payload.fromName || "Adversário");
-            setCallState("incoming");
-          }
+            return "incoming";
+          });
         }
       })
       .on("broadcast", { event: "call_rejected" }, ({ payload }) => {
@@ -175,7 +181,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
       void channel.unsubscribe();
       channelRef.current = null;
     };
-  }, [roomId, userId, enabled, callState]);
+  }, [roomId, userId, enabled]);
 
   const startCall = async () => {
     try {
@@ -212,7 +218,8 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
           payload: { from: userId, to: callerId, description: peer.localDescription },
         });
       }
-      setCallState("connected");
+      // A chamada só passa a "ligada" quando a ligação WebRTC realmente
+      // começa a entregar áudio pelo ontrack.
     } catch {
       rejectCall();
     }
