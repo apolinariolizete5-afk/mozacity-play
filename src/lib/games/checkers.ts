@@ -28,11 +28,10 @@ const on = (r: number, f: number) => r >= 0 && r < 8 && f >= 0 && f < 8;
 
 export function checkersTimeout(state: CheckersState): CheckersState {
   if (state.over) return state;
-  const next = clone(state);
-  next.over = true;
-  next.winner = next.turn === 0 ? 1 : 0;
-  next.chain = null;
-  return next;
+  const moves = legalMoves(state);
+  if (!moves.length) return state;
+  const move = moves[Math.floor(Math.random() * moves.length)];
+  return checkersEngine.applyMove(state, move);
 }
 
 export const isDarkSquare = (i: number) => (rank(i) + file(i)) % 2 === 1;
