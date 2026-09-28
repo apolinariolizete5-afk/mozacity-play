@@ -5,7 +5,7 @@ import { ResultOverlay } from "@/components/MatchShell";
 import { VoiceChat } from "@/components/VoiceChat";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
-import { ludoEngine, ludoTimeout, type LudoMove, type LudoState } from "@/lib/games/ludo";
+import { eliminateLudoPlayer, ludoEngine, ludoTimeout, type LudoMove, type LudoState } from "@/lib/games/ludo";
 import { recordMatch, useApp } from "@/lib/store";
 import { lockRoomWager, registerRoomMatchMulti, settleRoomMatchMulti } from "@/lib/wallet.functions";
 import { cn } from "@/lib/utils";
@@ -191,19 +191,18 @@ useEffect(() => {
   }, [bet, players, playersReady, room, realtime.players]);
 
   useEffect(() => {
-    if (!ready || state.over) return;
-
-    if (realtime.players.length < players) {
-      if (disconnectCountdown === null) {
-        const knownMissing = realtime.players.find((p) => p.playerId !== app.profile.id)?.playerId ?? null;
-        disconnectedPlayerRef.current = knownMissing;
-        setDisconnectCountdown(20);
-      }
-    } else {
-      disconnectedPlayerRef.current = null;
-      setDisconnectCountdown(null);
-    }
-  }, [realtime.players.length, players, ready, state.over, disconnectCountdown, app.profile.id]);
+    if (!ready || state.over || realtime.eliminatedPlayerIds.length === 0) return;
+    const eliminatedIndexes = realtime.eliminatedPlayerIds
+      .map((id) => realtime.players.findIndex((p) => p.playerId === id))
+      .filter((index) => index >= 0 && index < players);
+    if (!eliminatedIndexes.length) return;
+    setState((current) => {
+      let next = current;
+      for (const index of eliminatedIndexes) next = eliminateLudoPlayer(next, index);
+      if (next !== current && room) void realtime.broadcastState(next);
+      return next;
+    });
+  }, [ready, state.over, realtime.eliminatedPlayerIds, realtime.players, players, room, realtime]);
 
   useEffect(() => {
     if (disconnectCountdown === null || disconnectCountdown <= 0) return;
