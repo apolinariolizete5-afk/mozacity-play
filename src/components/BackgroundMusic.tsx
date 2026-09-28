@@ -1,249 +1,193 @@
-import { Music2, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
 type Track = {
   name: string;
-  src?: string;
-  youtubeId?: string;
-  bpm: number;
-  chords: number[][];
-  melody: number[];
+  youtubeId: string;
 };
 
+export const MUSIC_ENABLED_KEY = "mozaplay:music:enabled:v2";
+export const MUSIC_EVENT = "mozaplay:music-control";
+
 const TRACKS: Track[] = [
-  { name: "Djimetta — Cuidado", src: "/music/djimetta-cuidado.mp3", bpm: 104, chords: [[261.63,329.63,392],[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66]], melody: [523.25,587.33,659.25,587.33,523.25,493.88,440,493.88] },
-  { name: "Lil Nas X — Old Town Road", youtubeId: "r7qovpFAGrQ", bpm: 112, chords: [[293.66,349.23,440],[246.94,293.66,369.99],[196,246.94,293.66],[220,277.18,329.63]], melody: [587.33,659.25,739.99,659.25,587.33,523.25,493.88,523.25] },
-  { name: "Mr Bow", src: "/music/mr-bow.mp3", bpm: 96, chords: [[220,277.18,329.63],[246.94,311.13,369.99],[261.63,329.63,392],[196,246.94,293.66]], melody: [440,493.88,587.33,493.88,440,392,440,493.88] },
+  { name: "Djimetta — Cuidado", youtubeId: "W276kT7uMao" },
+  { name: "Lil Nas X — Old Town Road", youtubeId: "r7qovpFAGrQ" },
+  { name: "Mr Bow", youtubeId: "eLimdnRXCf4" },
 ];
 
-const STORAGE_KEY = "mozaplay:music:v1";
+const SEGMENT_SECONDS = 30;
+
+function readEnabledPreference() {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(MUSIC_ENABLED_KEY) !== "0";
+}
 
 export function BackgroundMusic() {
-  const [enabled, setEnabled] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [trackIndex, setTrackIndex] = useState(0);
-  const [volume, setVolume] = useState(0.22);
-  const [expanded, setExpanded] = useState(false);
-
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const masterRef = useRef<GainNode | null>(null);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [enabled, setEnabled] = useState(readEnabledPreference);
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
   const timerRef = useRef<number | null>(null);
-  const stepRef = useRef(0);
+  const trackRef = useRef(0);
   const generationRef = useRef(0);
-  const htmlAudioRef = useRef<HTMLAudioElement | null>(null);
-  const youtubeFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const enabledRef = useRef(enabled);
 
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      if (typeof saved.muted === "boolean") setMuted(saved.muted);
-      if (typeof saved.volume === "number") setVolume(Math.min(0.45, Math.max(0, saved.volume)));
-      if (typeof saved.trackIndex === "number") setTrackIndex(Math.abs(saved.trackIndex) % TRACKS.length);
-    } catch {}
-  }, []);
+  const isGame = pathname.startsWith("/games/");
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ muted, volume, trackIndex }));
-  }, [muted, volume, trackIndex]);
-
-  const stopMusic = useCallback(() => {
+  const stopPlayback = useCallback(() => {
     generationRef.current += 1;
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    htmlAudioRef.current?.pause();
-    if (htmlAudioRef.current) htmlAudioRef.current.currentTime = 0;
-    if (youtubeFrameRef.current) youtubeFrameRef.current.src = "about:blank";
-    if (audioContextRef.current) void audioContextRef.current.suspend();
+    if (frameRef.current) frameRef.current.src = "about:blank";
   }, []);
 
-  const startMusic = useCallback(async (requestedIndex?: number) => {
-    if (typeof window === "undefined") return;
+  const playSegment = useCallback((requestedIndex?: number) => {
+    if (typeof window === "undefined" || !enabledRef.current || document.hidden) return;
 
-    const nextIndex = requestedIndex ?? trackIndex;
+    const nextIndex = requestedIndex ?? trackRef.current;
     const track = TRACKS[nextIndex];
+    trackRef.current = nextIndex;
 
-    if (track.youtubeId) {
-      htmlAudioRef.current?.pause();
-      if (youtubeFrameRef.current) {
-        const params = new URLSearchParams({
-          autoplay: "1", controls: "0", disablekb: "1", fs: "0",
-          iv_load_policy: "3", loop: "1", modestbranding: "1",
-          playsinline: "1", playlist: track.youtubeId,
-        });
-        youtubeFrameRef.current.src =
-          `https://www.youtube.com/embed/${track.youtubeId}?${params.toString()}`;
-      }
-      return;
-    }
+    const start = Math.floor(Math.random() * 91);
+    const params = new URLSearchParams({
+      autoplay: "1",
+      controls: "0",
+      disablekb: "1",
+      fs: "0",
+      playsinline: "1",
+      rel: "0",
+      start: String(start),
+      end: String(start + SEGMENT_SECONDS),
+      origin: window.location.origin,
+    });
 
-    if (track.src) {
-      let player = htmlAudioRef.current;
-      if (!player) {
-        player = new Audio();
-        player.preload = "auto";
-        htmlAudioRef.current = player;
-      }
-      player.src = track.src;
-      player.loop = true;
-      player.volume = muted ? 0 : volume;
-      try { await player.play(); } catch (error) {
-        console.warn("Não foi possível iniciar a faixa de música:", error);
-      }
-      return;
-    }
-
-    let ctx = audioContextRef.current;
-    if (!ctx) {
-      ctx = new AudioContext();
-      audioContextRef.current = ctx;
-      const master = ctx.createGain();
-      master.gain.value = muted ? 0 : volume;
-      master.connect(ctx.destination);
-      masterRef.current = master;
-    }
-    if (ctx.state === "suspended") await ctx.resume();
-    if (!masterRef.current) return;
-
-    masterRef.current.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.03);
     generationRef.current += 1;
     const generation = generationRef.current;
-    stepRef.current = 0;
-    const beat = 60 / track.bpm;
 
-    const scheduleStep = () => {
-      if (generationRef.current !== generation || !audioContextRef.current || !masterRef.current) return;
-      const audio = audioContextRef.current;
-      const master = masterRef.current;
-      const step = stepRef.current++;
-      const chord = track.chords[Math.floor(step / 8) % track.chords.length];
-      const melody = track.melody[step % track.melody.length];
-      const now = audio.currentTime + 0.015;
+    if (frameRef.current) {
+      frameRef.current.src =
+        `https://www.youtube-nocookie.com/embed/${track.youtubeId}?${params.toString()}`;
+    }
 
-      chord.forEach((frequency, index) => {
-        const osc = audio.createOscillator();
-        const gain = audio.createGain();
-        osc.type = index === 0 ? "triangle" : "sine";
-        osc.frequency.value = frequency / (index === 0 ? 2 : 1);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(index === 0 ? 0.045 : 0.022, now + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + beat * 0.92);
-        osc.connect(gain).connect(master);
-        osc.start(now);
-        osc.stop(now + beat);
-      });
+    timerRef.current = window.setTimeout(() => {
+      if (generationRef.current !== generation || !enabledRef.current || document.hidden) return;
+      const next = Math.random() < 0.35
+        ? trackRef.current
+        : Math.floor(Math.random() * TRACKS.length);
+      playSegment(next);
+    }, SEGMENT_SECONDS * 1000);
+  }, []);
 
-      const lead = audio.createOscillator();
-      const leadGain = audio.createGain();
-      lead.type = "sine";
-      lead.frequency.value = melody;
-      leadGain.gain.setValueAtTime(0.0001, now);
-      leadGain.gain.exponentialRampToValueAtTime(0.035, now + 0.018);
-      leadGain.gain.exponentialRampToValueAtTime(0.0001, now + beat * 0.72);
-      lead.connect(leadGain).connect(master);
-      lead.start(now);
-      lead.stop(now + beat * 0.78);
+  const setMusicEnabled = useCallback((value: boolean) => {
+    enabledRef.current = value;
+    setEnabled(value);
+    window.localStorage.setItem(MUSIC_ENABLED_KEY, value ? "1" : "0");
+    window.dispatchEvent(new CustomEvent(MUSIC_EVENT, { detail: { enabled: value } }));
 
-      if (step % 2 === 0) {
-        const bass = audio.createOscillator();
-        const bassGain = audio.createGain();
-        bass.type = "triangle";
-        bass.frequency.value = chord[0] / 2;
-        bassGain.gain.setValueAtTime(0.0001, now);
-        bassGain.gain.exponentialRampToValueAtTime(0.05, now + 0.012);
-        bassGain.gain.exponentialRampToValueAtTime(0.0001, now + beat * 0.45);
-        bass.connect(bassGain).connect(master);
-        bass.start(now);
-        bass.stop(now + beat * 0.5);
-      }
-
-      timerRef.current = window.setTimeout(scheduleStep, beat * 1000 * 0.94);
-    };
-
-    scheduleStep();
-  }, [muted, trackIndex, volume]);
-
-  const toggleMusic = async () => {
-    if (enabled) {
-      stopMusic();
-      setEnabled(false);
+    if (!value || isGame || document.hidden) {
+      stopPlayback();
     } else {
-      setEnabled(true);
-      await startMusic();
+      playSegment();
     }
-  };
-
-  const changeTrack = async () => {
-    stopMusic();
-    const next = (trackIndex + 1) % TRACKS.length;
-    setTrackIndex(next);
-    if (enabled) await startMusic(next);
-  };
-
-  const toggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    if (htmlAudioRef.current) htmlAudioRef.current.volume = next ? 0 : volume;
-    if (masterRef.current && audioContextRef.current) {
-      masterRef.current.gain.setTargetAtTime(next ? 0 : volume, audioContextRef.current.currentTime, 0.03);
-    }
-  };
-
-  useEffect(() => () => {
-    stopMusic();
-    htmlAudioRef.current?.pause();
-    if (htmlAudioRef.current) htmlAudioRef.current.src = "";
-    if (youtubeFrameRef.current) youtubeFrameRef.current.src = "about:blank";
-    if (audioContextRef.current) void audioContextRef.current.close();
-  }, [stopMusic]);
+  }, [isGame, playSegment, stopPlayback]);
 
   useEffect(() => {
-    if (masterRef.current && audioContextRef.current) {
-      masterRef.current.gain.setTargetAtTime(muted ? 0 : volume, audioContextRef.current.currentTime, 0.03);
+    enabledRef.current = enabled;
+  }, [enabled]);
+
+  useEffect(() => {
+    const onControl = (event: Event) => {
+      const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
+      if (typeof detail?.enabled !== "boolean") return;
+      enabledRef.current = detail.enabled;
+      setEnabled(detail.enabled);
+      if (!detail.enabled || isGame || document.hidden) stopPlayback();
+      else playSegment();
+    };
+
+    window.addEventListener(MUSIC_EVENT, onControl);
+    return () => window.removeEventListener(MUSIC_EVENT, onControl);
+  }, [isGame, playSegment, stopPlayback]);
+
+  useEffect(() => {
+    if (isGame || !enabled) {
+      stopPlayback();
+      return;
     }
-    if (htmlAudioRef.current) htmlAudioRef.current.volume = muted ? 0 : volume;
-  }, [muted, volume]);
+    playSegment();
+    return stopPlayback;
+  }, [isGame, enabled, playSegment, stopPlayback]);
+
+  useEffect(() => {
+    const resume = () => {
+      if (!document.hidden && enabledRef.current && !pathname.startsWith("/games/")) {
+        playSegment();
+      }
+    };
+    const pause = () => stopPlayback();
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) pause();
+      else resume();
+    });
+    window.addEventListener("pagehide", pause);
+    window.addEventListener("beforeunload", pause);
+
+    return () => {
+      document.removeEventListener("visibilitychange", () => {
+        if (document.hidden) pause();
+        else resume();
+      });
+      window.removeEventListener("pagehide", pause);
+      window.removeEventListener("beforeunload", pause);
+    };
+  }, [pathname, playSegment, stopPlayback]);
+
+  useEffect(() => {
+    const unlock = () => {
+      if (enabledRef.current && !pathname.startsWith("/games/") && !document.hidden) {
+        playSegment();
+      }
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [pathname, playSegment]);
+
+  useEffect(() => {
+    const onRequest = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: string }>).detail;
+      if (detail?.action === "toggle") setMusicEnabled(!enabledRef.current);
+      if (detail?.action === "stop") setMusicEnabled(false);
+      if (detail?.action === "start") setMusicEnabled(true);
+      if (detail?.action === "next" && enabledRef.current && !isGame) {
+        playSegment((trackRef.current + 1) % TRACKS.length);
+      }
+    };
+    window.addEventListener(MUSIC_EVENT, onRequest);
+    return () => window.removeEventListener(MUSIC_EVENT, onRequest);
+  }, [isGame, playSegment, setMusicEnabled]);
 
   return (
-    <div className="fixed bottom-[5.25rem] right-3 z-[65]">
-      <iframe
-        ref={youtubeFrameRef}
-        title="MozaPlay background music"
-        className="pointer-events-none absolute h-px w-px opacity-0"
-        allow="autoplay; encrypted-media"
-        src="about:blank"
-      />
-
-      {expanded && (
-        <div className="mb-2 w-64 rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur">
-          <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
-              <Music2 className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold">Música MozaPlay</p>
-              <p className="truncate text-[11px] text-muted-foreground">{TRACKS[trackIndex].name}</p>
-            </div>
-            <button type="button" onClick={changeTrack} className="grid h-8 w-8 place-items-center rounded-xl border border-input" aria-label="Próxima música" title="Próxima música">
-              <SkipForward className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <button type="button" onClick={toggleMute} className="grid h-8 w-8 place-items-center rounded-xl border border-input" aria-label={muted ? "Ativar som" : "Silenciar música"}>
-              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <input aria-label="Volume da música" type="range" min="0" max="0.45" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="w-full" />
-          </div>
-          <button type="button" onClick={() => void toggleMusic()} className="mt-3 w-full rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground">
-            {enabled ? "Parar música" : "Ligar música"}
-          </button>
-        </div>
-      )}
-
-      <button type="button" onClick={() => setExpanded((value) => !value)} className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card/95 text-foreground shadow-xl backdrop-blur" aria-label="Abrir música" title="Música">
-        <Music2 className={enabled && !muted ? "h-5 w-5 animate-pulse" : "h-5 w-5"} />
-      </button>
-    </div>
+    <iframe
+      ref={frameRef}
+      title="Música MozaPlay"
+      className="pointer-events-none fixed bottom-[-1px] left-[-1px] h-[200px] w-[200px] opacity-0"
+      allow="autoplay; encrypted-media"
+      src="about:blank"
+    />
   );
+}
+
+export function getMusicEnabled() {
+  return readEnabledPreference();
+}
+
+export function requestMusicControl(action: "toggle" | "start" | "stop" | "next") {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(MUSIC_EVENT, { detail: { action } }));
 }
