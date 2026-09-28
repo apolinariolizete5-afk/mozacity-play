@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Track = {
   name: string;
+  src?: string;
   bpm: number;
   chords: number[][];
   melody: number[];
@@ -10,7 +11,8 @@ type Track = {
 
 const TRACKS: Track[] = [
   {
-    name: "Maputo Drive",
+    name: "Djimetta — Cuidado",
+    src: "/music/djimetta-cuidado.mp3",
     bpm: 104,
     chords: [
       [261.63, 329.63, 392.0],
@@ -21,7 +23,8 @@ const TRACKS: Track[] = [
     melody: [523.25, 587.33, 659.25, 587.33, 523.25, 493.88, 440.0, 493.88],
   },
   {
-    name: "Beira Lights",
+    name: "Lil Nas X — Old Town Road",
+    src: "/music/lil-nas-x-old-town-road.mp3",
     bpm: 112,
     chords: [
       [293.66, 349.23, 440.0],
@@ -32,7 +35,8 @@ const TRACKS: Track[] = [
     melody: [587.33, 659.25, 739.99, 659.25, 587.33, 523.25, 493.88, 523.25],
   },
   {
-    name: "Nampula Night",
+    name: "Mr Bow",
+    src: "/music/mr-bow.mp3",
     bpm: 96,
     chords: [
       [220.0, 277.18, 329.63],
@@ -58,6 +62,7 @@ export function BackgroundMusic() {
   const timerRef = useRef<number | null>(null);
   const stepRef = useRef(0);
   const generationRef = useRef(0);
+  const htmlAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     try {
@@ -80,6 +85,10 @@ export function BackgroundMusic() {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+    if (htmlAudioRef.current) {
+      htmlAudioRef.current.pause();
+      htmlAudioRef.current.currentTime = 0;
+    }
     if (audioContextRef.current) {
       void audioContextRef.current.suspend();
     }
@@ -97,6 +106,24 @@ export function BackgroundMusic() {
       master.gain.value = muted ? 0 : volume;
       master.connect(ctx.destination);
       masterRef.current = master;
+    }
+
+    if (track.src) {
+      let player = htmlAudioRef.current;
+      if (!player) {
+        player = new Audio();
+        player.preload = "auto";
+        htmlAudioRef.current = player;
+      }
+      player.src = track.src;
+      player.loop = true;
+      player.volume = muted ? 0 : volume;
+      try {
+        await player.play();
+      } catch (error) {
+        console.warn("Não foi possível iniciar a faixa de música:", error);
+      }
+      return;
     }
 
     if (ctx.state === "suspended") await ctx.resume();
@@ -181,6 +208,9 @@ export function BackgroundMusic() {
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
+    if (htmlAudioRef.current) {
+      htmlAudioRef.current.volume = muted ? 0 : volume;
+    }
     if (masterRef.current && audioContextRef.current) {
       masterRef.current.gain.setTargetAtTime(next ? 0 : volume, audioContextRef.current.currentTime, 0.03);
     }
@@ -189,7 +219,11 @@ export function BackgroundMusic() {
   useEffect(() => {
     return () => {
       stopMusic();
-      if (audioContextRef.current) void audioContextRef.current.close();
+      if (htmlAudioRef.current) {
+      htmlAudioRef.current.pause();
+      htmlAudioRef.current.src = "";
+    }
+    if (audioContextRef.current) void audioContextRef.current.close();
     };
   }, [stopMusic]);
 
