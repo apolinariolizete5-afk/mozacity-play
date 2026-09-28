@@ -282,14 +282,14 @@ export function useRealtimeRoom<T>(
       const opponentOnline = nextOnline.some((entry) => entry.playerId !== player.playerId);
       setOpponentDisconnected(!opponentOnline && nextPlayers.length > 0);
 
-      if (opponentOnline) {
-        hadOpponentRef.current = true;
+      const departed = [...knownPlayersRef.current.values()].find((entry) => entry.playerId !== player.playerId && !nextOnline.some((online) => online.playerId === entry.playerId));
+      if (opponentOnline) hadOpponentRef.current = true;
+      if (!departed) {
         if (disconnectTimerRef.current) window.clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
-      } else if (hadOpponentRef.current && nextOnline.length > 0 && !disconnectTimerRef.current) {
-        const departed = [...knownPlayersRef.current.values()].find((entry) => entry.playerId !== player.playerId && !nextOnline.some((online) => online.playerId === entry.playerId));
+      } else if (hadOpponentRef.current && !disconnectTimerRef.current) {
         disconnectTimerRef.current = window.setTimeout(() => {
-          if (!active || !departed) return;
+          if (!active) return;
           if (nextOnline.length <= 1) {
             setForfeitWinner(playerIndexRef.current);
           } else {
