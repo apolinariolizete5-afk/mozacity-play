@@ -202,7 +202,7 @@ useEffect(() => {
       if (next !== current && room) void realtime.broadcastState(next);
       return next;
     });
-  }, [ready, state.over, realtime.eliminatedPlayerIds, realtime.players, players, room, realtime]);
+  }, [ready, state.over, realtime.eliminatedPlayerIds, realtime.players, players, room, realtime.broadcastState]);
 
   useEffect(() => {
     if (disconnectCountdown === null || disconnectCountdown <= 0) return;
