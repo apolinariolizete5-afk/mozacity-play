@@ -414,6 +414,7 @@ export async function quickMatch(input: {
   bet?: number;
   players?: number;
   signal?: AbortSignal;
+  onMatchFound?: (room: LobbyRoom) => void;
 }) {
   const queue = supabase.channel(`mozaplay:matchmaking:${input.game}`, {
     config: {
@@ -425,24 +426,6 @@ export async function quickMatch(input: {
   const throwIfAborted = () => {
     if (input.signal?.aborted) throw new Error("matchmaking_cancelled");
   };
-
-  const wait = (ms: number) =>
-    new Promise<void>((resolve, reject) => {
-      if (input.signal?.aborted) {
-        reject(new Error("matchmaking_cancelled"));
-        return;
-      }
-      const timer = window.setTimeout(() => {
-        input.signal?.removeEventListener("abort", onAbort);
-        resolve();
-      }, ms);
-      const onAbort = () => {
-        window.clearTimeout(timer);
-        input.signal?.removeEventListener("abort", onAbort);
-        reject(new Error("matchmaking_cancelled"));
-      };
-      input.signal?.addEventListener("abort", onAbort, { once: true });
-    });
 
   const desiredPlayers = input.game === "ludo" ? Math.min(4, Math.max(2, Math.round(Number(input.players ?? 2)))) : 2;
 
@@ -466,6 +449,7 @@ export async function quickMatch(input: {
     if (!event?.pair || !event.room) return;
     if (!event.pair.includes(input.player.playerId)) return;
     assignedRoom = event.room;
+    input.onMatchFound?.(event.room);
     assignmentResolve?.(event.room);
   };
 
@@ -497,10 +481,23 @@ export async function quickMatch(input: {
     };
   };
 
+  const cleanup = async () => {
+    try {
+      await queue.untrack();
+      (queue as any).off("broadcast", { event: "match_assigned" });
+      await queue.unsubscribe();
+    } catch {
+      // Ignore unsubscribe error on abort
+    }
+  };
+
   try {
     for (;;) {
       throwIfAborted();
-      if (assignedRoom) return assignedRoom;
+      if (assignedRoom) {
+        await cleanup();
+        return assignedRoom;
+      }
 
       const entries = flattenPresence(queue.presenceState() as Record<string, unknown[]>)
         .filter((entry) =>
@@ -520,9 +517,6 @@ export async function quickMatch(input: {
       });
 
       if (searchers.length >= desiredPlayers) {
-        // Only the oldest active searcher acts as coordinator. This prevents
-        // A+B and B+C from being assigned simultaneously when 3+ players
-        // enter the queue together.
         const pair = searchers.slice(0, desiredPlayers);
         const coordinatorId = pair[0].playerId;
 
@@ -537,30 +531,38 @@ export async function quickMatch(input: {
           });
 
           assignedRoom = room;
-          (assignmentResolve as ((r: typeof room) => void) | null)?.(room);
+          input.onMatchFound?.(room);
+          assignmentResolve?.(room);
 
-          // Repeat briefly so a slow second subscriber still receives the
-          // assignment before the coordinator leaves the queue.
-          await wait(180);
+          await new Promise((r) => setTimeout(r, 200));
           await queue.send({
             type: "broadcast",
             event: "match_assigned",
             payload: { pair: pairIds, room },
           });
-          await wait(180);
+          await new Promise((r) => setTimeout(r, 200));
+
+          await cleanup();
           return room;
         }
       }
 
-      const received = await Promise.race([
-        assignment.then((room) => room),
-        wait(500).then(() => null),
+      await Promise.race([
+        assignment,
+        new Promise<void>((res, rej) => {
+          const t = setTimeout(res, 400);
+          if (input.signal) {
+            input.signal.addEventListener("abort", () => {
+              clearTimeout(t);
+              rej(new Error("matchmaking_cancelled"));
+            }, { once: true });
+          }
+        }),
       ]);
-      if (received) return received;
     }
-  } finally {
-    try { await queue.untrack(); } catch { /* channel may already be closing */ }
-    await supabase.removeChannel(queue);
+  } catch (err) {
+    await cleanup();
+    throw err;
   }
 }
 export async function leaveLobbyRoom() {
