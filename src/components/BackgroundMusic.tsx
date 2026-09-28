@@ -116,7 +116,7 @@ export function BackgroundMusic() {
     }, TITLE_SECONDS * 1000);
   }, []);
 
-  const fadeTo = useCallback((target: number, durationMs: number, done?: () => void) => {
+  const fadeTo = useCallback((target: number, durationMs: number, done?: () => void, from = 100) => {
     const player = playerRef.current;
     if (!player) {
       done?.();
@@ -126,7 +126,7 @@ export function BackgroundMusic() {
     if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
 
     const steps = Math.max(1, Math.round(durationMs / 50));
-    const start = 100;
+    const start = from;
     const delta = target - start;
     let step = 0;
 
@@ -186,7 +186,7 @@ export function BackgroundMusic() {
             target.setVolume(0);
             target.playVideo();
             playingRef.current = true;
-            fadeTo(100, 1800);
+            fadeTo(100, 1800, undefined, 0);
           },
           onAutoplayBlocked: () => {
             playingRef.current = false;
@@ -205,8 +205,15 @@ export function BackgroundMusic() {
         playerRef.current?.setVolume(0);
         playerRef.current?.playVideo();
         playingRef.current = true;
-        fadeTo(100, 1800);
+        fadeTo(100, 1800, undefined, 0);
       });
+      timerRef.current = window.setTimeout(() => {
+        if (generationRef.current !== generation || !enabledRef.current || document.hidden || isGame) return;
+        const next = Math.random() < 0.35
+          ? trackRef.current
+          : Math.floor(Math.random() * TRACKS.length);
+        playSegment(next);
+      }, (SEGMENT_SECONDS - FADE_SECONDS) * 1000);
       return;
     }
 
@@ -289,7 +296,7 @@ export function BackgroundMusic() {
       if (player && playerReadyRef.current && !playingRef.current) {
         player.playVideo();
         playingRef.current = true;
-        fadeTo(100, 1000);
+        fadeTo(100, 1000, undefined, 0);
       }
     };
 
