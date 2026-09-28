@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, Flame, Trophy } from "lucide-react";
+import { AlertCircle, ArrowDown, Flame, Trophy } from "lucide-react";
 import { ResultOverlay } from "@/components/MatchShell";
 import { VoiceChat } from "@/components/VoiceChat";
 import { LudoBoard } from "@/components/boards/LudoBoard";
 import { Card, Pill } from "@/components/ui/primitives";
 import { ludoEngine, ludoTimeout, type LudoMove, type LudoState } from "@/lib/games/ludo";
 import { recordMatch, useApp } from "@/lib/store";
-import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
+import { lockRoomWager, registerRoomMatchMulti, settleRoomMatchMulti } from "@/lib/wallet.functions";
 import { cn } from "@/lib/utils";
 import { useRealtimeRoom } from "@/lib/realtime";
 import "@/styles/ludo-motion.css";
@@ -143,7 +143,7 @@ function LudoMatch() {
   }, []);
 
   const roomRegistered = useRef(false);
-  const wagerLocked = useRef(false);
+  const wagerLocked = useRef(false);\n  const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);\n  const disconnectedPlayerRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
@@ -353,7 +353,7 @@ function LudoMatch() {
           </div>
         </div>
 
-        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} userName={app.profile.name} /> : null}
+        {disconnectCountdown !== null && disconnectCountdown > 0 && (\n          <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl bg-destructive px-5 py-3 text-white shadow-xl animate-pulse">\n            <AlertCircle className="h-5 w-5" />\n            <span className="text-xs font-bold">\n              Adversário desconectado. Aguardando reconexão: {disconnectCountdown}s (Vitória automática por W.O.)\n            </span>\n          </div>\n        )}\n\n        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} userName={app.profile.name} /> : null}
 
         <div className="grid grid-cols-2 gap-2 my-2">
           {playersList.map((_, index) => <div key={index}>{renderPlayerCorner(index)}</div>)}
@@ -407,4 +407,104 @@ function LudoMatch() {
       </div>
     </div>
   );
-}
+}  useEffect(() => {
+    if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;
+
+    const playerIds = realtime.players.map((p) => p.playerId);
+    if (playerIds.length < players) return;
+
+    roomRegistered.current = true;
+
+    void registerRoomMatchMulti({
+      data: {
+        room_code: room,
+        game: "ludo",
+        player_ids: playerIds,
+        bet_cents: Math.round(bet * 100),
+      },
+    })
+      .then(async () => {
+        if (bet > 0 && !wagerLocked.current) {
+          const result = await lockRoomWager({
+            data: { room_code: room, bet_cents: Math.round(bet * 100) },
+          });
+          wagerLocked.current = true;
+          setEscrowReady(result.status === "playing");
+        } else {
+          setEscrowReady(true);
+        }
+      })
+      .catch((error) => {
+        roomRegistered.current = false;
+        wagerLocked.current = false;
+        setEscrowReady(false);
+        console.error("[MozaPlay] Falha ao registar aposta Ludo:", error);
+      });
+  }, [bet, players, playersReady, room, realtime.players]);
+
+  useEffect(() => {
+    if (!ready || state.over) return;
+
+    if (realtime.players.length < players) {
+      if (disconnectCountdown === null) {
+        const knownMissing = realtime.players.find((p) => p.playerId !== app.profile.id)?.playerId ?? null;
+        disconnectedPlayerRef.current = knownMissing;
+        setDisconnectCountdown(20);
+      }
+    } else {
+      disconnectedPlayerRef.current = null;
+      setDisconnectCountdown(null);
+    }
+  }, [realtime.players.length, players, ready, state.over, disconnectCountdown, app.profile.id]);
+
+  useEffect(() => {
+    if (disconnectCountdown === null || disconnectCountdown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setDisconnectCountdown((prev) => {
+        if (prev === null || prev <= 1) {
+          window.clearInterval(timer);
+          if (!settled.current && room) {
+            settled.current = true;
+            const myId = app.profile.id;
+            void settleRoomMatchMulti({
+              data: { room_code: room, winner_id: myId },
+            }).catch((error) => console.error("[MozaPlay] Falha na liquidação por desconexão:", error));
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [disconnectCountdown, room, app.profile.id]);
+
+  useEffect(() => {
+    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
+    settled.current = true;
+
+    const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
+    const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
+
+    if (room && bet > 0 && winnerId) {
+      void settleRoomMatchMulti({
+        data: {
+          room_code: room,
+          winner_id: winnerId,
+        },
+      }).catch((error) => console.error("[MozaPlay] Falha na liquidação do prêmio:", error));
+    }
+
+    void recordMatch({
+      game: "ludo",
+      result: winnerId === app.profile.id ? "win" : "loss",
+      opponents,
+      opponentIds: realtime.players.filter((p) => p.playerId !== app.profile.id).map((p) => p.playerId),
+      playerIds: realtime.players.map((p) => p.playerId),
+      winnerId,
+      bet,
+      persistMatch: realtime.playerIndex === 0,
+    });
+  }, [bet, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players, room, app.profile.id]);
+
