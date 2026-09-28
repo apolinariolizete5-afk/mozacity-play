@@ -13,6 +13,9 @@ import { useRealtimeRoom } from "@/lib/realtime";
 import "@/styles/ludo-motion.css";
 
 const TURN_SECONDS = 15;
+// Teste temporário do Ludo: por padrão fica ativo durante a fase de testes.
+// Para reativar o fluxo financeiro, defina VITE_LUDO_TEST_MODE=false.
+const LUDO_TEST_MODE = import.meta.env.VITE_LUDO_TEST_MODE !== "false";
 
 const PLAYER_COLORS = [
   { border: "border-emerald-500", bg: "bg-emerald-950/70", ring: "ring-emerald-400", text: "text-emerald-400" },
@@ -103,7 +106,8 @@ function playAudio(url?: string) {
 
 function LudoMatch() {
   const navigate = useNavigate();
-  const { bet, room, players } = Route.useSearch();
+  const { bet: routeBet, room, players } = Route.useSearch();
+  const bet = LUDO_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players }));
   const [seconds, setSeconds] = useState(TURN_SECONDS);
@@ -204,7 +208,7 @@ useEffect(() => {
       setDisconnectCountdown((prev) => {
         if (prev === null || prev <= 1) {
           window.clearInterval(timer);
-          if (!settled.current && room) {
+          if (!LUDO_TEST_MODE && !settled.current && room) {
             settled.current = true;
             const myId = app.profile.id;
             void settleRoomMatchMulti({
@@ -227,7 +231,7 @@ useEffect(() => {
     const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
     const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
 
-    if (room && bet > 0 && winnerId) {
+    if (!LUDO_TEST_MODE && room && bet > 0 && winnerId) {
       void settleRoomMatchMulti({
         data: {
           room_code: room,
@@ -385,7 +389,7 @@ useEffect(() => {
       <div className="ludo-match-shell max-w-lg mx-auto">
         <div className="flex items-center justify-between py-1 px-2">
           <Pill tone="primary" className="text-xs">
-            <Trophy className="h-3.5 w-3.5" /> {bet} MT
+            <Trophy className="h-3.5 w-3.5" /> {LUDO_TEST_MODE ? "MODO TESTE · SEM DINHEIRO" : `${bet} MT`}
           </Pill>
           <div className="flex items-center gap-2">
             {state.bonusRoll && (
@@ -399,7 +403,7 @@ useEffect(() => {
           <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl bg-destructive px-5 py-3 text-white shadow-xl animate-pulse">
             <AlertCircle className="h-5 w-5" />
             <span className="text-xs font-bold">
-              Adversário desconectado. Aguardando reconexão: {disconnectCountdown}s (Vitória automática por W.O.)
+              {players > 2 ? "Jogador desconectado. Aguardando reconexão" : "Adversário desconectado. Aguardando reconexão"}: {disconnectCountdown}s
             </span>
           </div>
         )}
