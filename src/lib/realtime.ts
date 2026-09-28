@@ -286,8 +286,18 @@ export function useRealtimeRoom<T>(
         if (disconnectTimerRef.current) window.clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
       } else if (hadOpponentRef.current && nextOnline.length > 0 && !disconnectTimerRef.current) {
+        const departed = [...knownPlayersRef.current.values()].find((entry) => entry.playerId !== player.playerId && !nextOnline.some((online) => online.playerId === entry.playerId));
         disconnectTimerRef.current = window.setTimeout(() => {
-          if (active) setForfeitWinner(playerIndexRef.current);
+          if (!active || !departed) return;
+          if (nextOnline.length <= 1) {
+            setForfeitWinner(playerIndexRef.current);
+          } else {
+            void channel.send({
+              type: "broadcast",
+              event: "eliminate",
+              payload: { kind: "eliminate", playerId: departed.playerId, actorId: player.playerId, sentAt: Date.now() },
+            });
+          }
         }, DISCONNECT_GRACE_SECONDS * 1000);
       }
     };
