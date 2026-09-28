@@ -135,6 +135,8 @@ function ChessMatch() {
   return (
     <>
       <MatchShell
+        voiceRoomId={room || undefined}
+        voiceUserId={app.profile.id}
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
           if (opponent) await realtime.broadcastForfeit(opponent.playerId);
