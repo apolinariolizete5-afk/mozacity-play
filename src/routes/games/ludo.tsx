@@ -143,7 +143,9 @@ function LudoMatch() {
   }, []);
 
   const roomRegistered = useRef(false);
-  const wagerLocked = useRef(false);\n  const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);\n  const disconnectedPlayerRef = useRef<string | null>(null);
+  const wagerLocked = useRef(false);
+  const [disconnectCountdown, setDisconnectCountdown] = useState<number | null>(null);
+  const disconnectedPlayerRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!playersReady || !room || realtime.players.length < players || roomRegistered.current) return;

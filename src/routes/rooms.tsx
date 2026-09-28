@@ -224,7 +224,7 @@ function Rooms() {
             setActiveLobby(null);
           }}
         />
-      )
+      )}
       <PageHeader
         title="Salas de Jogo"
         subtitle="Cria salas privadas com código para desafiar amigos ou entra em salas abertas"
