@@ -205,13 +205,19 @@ useEffect(() => {
   }, [ready, state.over, realtime.eliminatedPlayerIds, realtime.players, players, room, realtime.broadcastState]);
 
   useEffect(() => {
+    const hasDisconnected = realtime.players.some((p) => p.playerId !== app.profile.id && p.online === false);
+    if (hasDisconnected && disconnectCountdown === null) setDisconnectCountdown(20);
+    if (!hasDisconnected && disconnectCountdown !== null) setDisconnectCountdown(null);
+  }, [realtime.players, app.profile.id, disconnectCountdown]);
+
+  useEffect(() => {
     if (disconnectCountdown === null || disconnectCountdown <= 0) return;
 
     const timer = window.setInterval(() => {
       setDisconnectCountdown((prev) => {
         if (prev === null || prev <= 1) {
           window.clearInterval(timer);
-          if (!LUDO_TEST_MODE && !settled.current && room) {
+          if (!LUDO_TEST_MODE && players === 2 && !settled.current && room) {
             settled.current = true;
             const myId = app.profile.id;
             void settleRoomMatchMulti({
@@ -225,7 +231,7 @@ useEffect(() => {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [disconnectCountdown, room, app.profile.id]);
+  }, [disconnectCountdown, room, app.profile.id, players]);
 
   useEffect(() => {
     if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
