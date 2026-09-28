@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
-import { Plus, Share2, Users2 } from "lucide-react";
+import { Plus, Share2, Users2, AlertCircle } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
 import { createRoom, joinRoom, useRealtimeLobby } from "@/lib/realtime";
 import { useApp } from "@/lib/store";
 import { getPublicPlatformSettings } from "@/lib/platform.functions";
+import { PrivateRoomLobbyModal } from "@/components/PrivateRoomLobbyModal";
 
 export const Route = createFileRoute("/rooms")({
   head: () => ({
@@ -23,7 +24,7 @@ function Rooms() {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [game, setGame] = useState<GameId>("ludo");
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(true);
   const [bet, setBet] = useState(0);
   const [betInput, setBetInput] = useState("");
   const betInputEditingRef = useRef(false);
@@ -73,32 +74,40 @@ function Rooms() {
     if (invitedCode) setCode(invitedCode.toUpperCase().slice(0, 6));
   }, []);
 
+  const [activeLobby, setActiveLobby] = useState<{
+    code: string;
+    game: GameId;
+    bet: number;
+    capacity: number;
+    isHost: boolean;
+  } | null>(null);
+
   const { remoteRooms } = useRealtimeLobby(
     { playerId: app.profile.id, name: app.profile.name },
     true,
   );
 
-  const goToRoom = (room: { game: GameId; code: string; bet?: number; capacity?: number }) => {
-    const wager = Math.max(minBetMzn ?? 0, Math.round(Number(room.bet ?? bet) || 0));
-    if (room.game === "ludo") {
+  const navigateToGame = (targetGame: GameId, targetCode: string, targetBet: number, targetCapacity: number) => {
+    const wager = Math.max(minBetMzn ?? 0, Math.round(Number(targetBet) || 0));
+    if (targetGame === "ludo") {
       void navigate({
         to: "/games/ludo",
         search: {
           bet: wager,
           timer: 15,
-          players: Math.min(4, Math.max(2, room.capacity ?? 2)),
-          room: room.code,
+          players: Math.min(4, Math.max(2, targetCapacity)),
+          room: targetCode,
         },
       });
-    } else if (room.game === "checkers") {
+    } else if (targetGame === "checkers") {
       void navigate({
         to: "/games/checkers",
-        search: { bet: wager, timer: 15, room: room.code },
+        search: { bet: wager, timer: 15, room: targetCode },
       });
     } else {
       void navigate({
         to: "/games/chess",
-        search: { bet: wager, timer: 15, room: room.code },
+        search: { bet: wager, timer: 15, room: targetCode },
       });
     }
   };
@@ -115,6 +124,13 @@ function Rooms() {
         return;
       }
       const wager = Math.round(entered);
+
+      const userBalance = Number(app.wallet?.balance ?? 0);
+      if (wager > 0 && userBalance < wager) {
+        setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT). Faça um depósito mínimo de ${wager} MT.`);
+        return;
+      }
+
       setBet(wager);
       const room = await createRoom({
         game,
@@ -123,9 +139,16 @@ function Rooms() {
         bet: wager,
         player: { playerId: app.profile.id, name: app.profile.name },
       });
+
       setCreating(false);
-      setMessage(`Sala ${room.code} criada com sucesso! Aposta: ${room.bet} MT.`);
-      goToRoom(room);
+      setMessage(null);
+      setActiveLobby({
+        code: room.code,
+        game: room.game,
+        bet: room.bet,
+        capacity: room.capacity,
+        isHost: true,
+      });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível criar a sala.");
     }
@@ -137,9 +160,25 @@ function Rooms() {
       return;
     }
     try {
-      const room = await joinRoom(roomCode, { playerId: app.profile.id, name: app.profile.name });
-      setMessage(`Entraste na sala ${room.code}.`);
-      goToRoom(room);
+      const targetCode = roomCode.toUpperCase().trim();
+      const existing = remoteRooms.find((r) => r.code === targetCode);
+      const roomBet = existing?.bet ?? bet ?? 0;
+
+      const userBalance = Number(app.wallet?.balance ?? 0);
+      if (roomBet > 0 && userBalance < roomBet) {
+        setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT) para esta sala com aposta de ${roomBet} MT.`);
+        return;
+      }
+
+      const room = await joinRoom(targetCode, { playerId: app.profile.id, name: app.profile.name });
+      setMessage(null);
+      setActiveLobby({
+        code: room.code,
+        game: room.game,
+        bet: room.bet,
+        capacity: room.capacity,
+        isHost: false,
+      });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível entrar na sala.");
     }
@@ -168,9 +207,27 @@ function Rooms() {
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-28 pt-5 sm:px-6">
+      {activeLobby && (
+        <PrivateRoomLobbyModal
+          isOpen={Boolean(activeLobby)}
+          roomCode={activeLobby.code}
+          gameId={activeLobby.game}
+          bet={activeLobby.bet}
+          capacity={activeLobby.capacity}
+          currentPlayerId={app.profile.id}
+          currentPlayerName={app.profile.name || "Jogador"}
+          isHost={activeLobby.isHost}
+          onStartMatch={() => {
+            navigateToGame(activeLobby.game, activeLobby.code, activeLobby.bet, activeLobby.capacity);
+          }}
+          onCancel={() => {
+            setActiveLobby(null);
+          }}
+        />
+      )
       <PageHeader
-        title="Salas"
-        subtitle="Partidas em tempo real com jogadores humanos"
+        title="Salas de Jogo"
+        subtitle="Cria salas privadas com código para desafiar amigos ou entra em salas abertas"
         right={
           <Button size="sm" onClick={() => setCreating((value) => !value)}>
             <Plus className="h-4 w-4" /> Criar Sala
@@ -274,7 +331,7 @@ function Rooms() {
 
             <div className="flex gap-2 pt-2">
               <Button size="sm" onClick={submitCreate} className="flex-1 font-bold">
-                Criar e Entrar
+                Criar Sala e Gerar Código
               </Button>
               <Button size="sm" variant="outline" onClick={() => setCreating(false)}>
                 Cancelar
@@ -285,7 +342,7 @@ function Rooms() {
       )}
 
       <Card className="space-y-3 p-4">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Entrar com Código</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tens um código de amigo?</h3>
         <div className="flex gap-2">
           <input
             type="text"
@@ -302,7 +359,7 @@ function Rooms() {
       </Card>
 
       <div className="space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Salas Abertas ({visibleRooms.length})</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Salas Públicas Abertas ({visibleRooms.length})</h3>
 
         {visibleRooms.length === 0 ? (
           <Card className="p-8 text-center text-xs text-muted-foreground">
