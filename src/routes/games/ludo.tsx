@@ -355,7 +355,16 @@ function LudoMatch() {
           </div>
         </div>
 
-        {disconnectCountdown !== null && disconnectCountdown > 0 && (\n          <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl bg-destructive px-5 py-3 text-white shadow-xl animate-pulse">\n            <AlertCircle className="h-5 w-5" />\n            <span className="text-xs font-bold">\n              Adversário desconectado. Aguardando reconexão: {disconnectCountdown}s (Vitória automática por W.O.)\n            </span>\n          </div>\n        )}\n\n        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} userName={app.profile.name} /> : null}
+        {disconnectCountdown !== null && disconnectCountdown > 0 && (
+          <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl bg-destructive px-5 py-3 text-white shadow-xl animate-pulse">
+            <AlertCircle className="h-5 w-5" />
+            <span className="text-xs font-bold">
+              Adversário desconectado. Aguardando reconexão: {disconnectCountdown}s (Vitória automática por W.O.)
+            </span>
+          </div>
+        )}
+
+        {room && ready ? <VoiceChat roomId={room} userId={app.profile.id} userName={app.profile.name} /> : null}
 
         <div className="grid grid-cols-2 gap-2 my-2">
           {playersList.map((_, index) => <div key={index}>{renderPlayerCorner(index)}</div>)}
