@@ -214,3 +214,43 @@ export const forfeitRoomMatch = createServerFn({ method: "POST" })
       payout?: number;
     };
   });
+
+/** Regista partida multiplayer (2 a 4 jogadores) no banco antes do bloqueio da caução. */
+export const registerRoomMatchMulti = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({
+      room_code: z.string().trim().min(4).max(12),
+      game: z.enum(["ludo", "checkers", "chess"]),
+      player_ids: z.array(z.string().uuid()).min(2).max(4),
+      bet_cents: z.number().int().min(0).max(50_000_000),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("register_room_match_multi", {
+      _room_code: data.room_code,
+      _game: data.game,
+      _player_ids: data.player_ids,
+      _bet_cents: data.bet_cents,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; match_id: string; bet_cents: number; total_players: number; status: string };
+  });
+
+/** Liquida o pote da sala para o vencedor de 2, 3 ou 4 jogadores. */
+export const settleRoomMatchMulti = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({
+      room_code: z.string().trim().min(4).max(12),
+      winner_id: z.string().uuid(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("settle_room_result_multi", {
+      _room_code: data.room_code,
+      _winner_id: data.winner_id,
+    });
+    if (error) throw new Error(error.message);
+    return result as { ok: boolean; winner_id: string; total_pot: number; payout_cents: number; rake_cents: number };
+  });
