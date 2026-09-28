@@ -293,6 +293,7 @@ export function useRealtimeRoom<T>(
           if (nextOnline.length <= 1) {
             setForfeitWinner(playerIndexRef.current);
           } else {
+            setEliminatedPlayerIds((current) => current.includes(departed.playerId) ? current : [...current, departed.playerId]);
             void channel.send({
               type: "broadcast",
               event: "eliminate",
