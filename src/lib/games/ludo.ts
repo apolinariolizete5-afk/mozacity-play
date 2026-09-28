@@ -97,6 +97,12 @@ export function eliminateLudoPlayer(state: LudoState, player: number): LudoState
   next.bonusRoll = false;
   if (next.turn === player) next.turn = nextActiveTurn(next, player);
   next.log.unshift(`Jogador ${player + 1} desistiu e foi eliminado.`);
+  const remaining = next.players - next.eliminated.length;
+  if (remaining === 1) {
+    next.over = true;
+    next.winner = next.eliminated.includes(0) ? next.eliminated.includes(1) ? next.eliminated.includes(2) ? 3 : 2 : 1 : 0;
+    next.dice = null;
+  }
   return next;
 }
 
