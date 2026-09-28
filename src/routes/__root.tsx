@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BottomNav } from "@/components/BottomNav";
+import { BackgroundMusic } from "@/components/BackgroundMusic";
 import { registerAppServiceWorker, subscribeToRealtimeNotifications } from "@/lib/push";
 import { update, useApp } from "@/lib/store";
 
@@ -252,6 +253,7 @@ function RootComponent() {
         <Outlet />
       </div>
       <BottomNav />
+      <BackgroundMusic />
       <AgeGate />
       <InstallPrompt />
     </QueryClientProvider>
