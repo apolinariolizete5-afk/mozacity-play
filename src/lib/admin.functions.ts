@@ -170,3 +170,36 @@ export const rejectPayout = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, status: "failed" as const };
   });
+
+
+export const getAdminSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const adminCheck = await context.supabase.rpc("is_admin", {});
+    if (adminCheck.error || !adminCheck.data) {
+      throw new Error("unauthorized");
+    }
+
+    const { data, error } = await context.supabase
+      .from("platform_settings")
+      .select(
+        "house_fee_percent, withdrawal_fee_percent, withdrawal_fee_fixed_cents, min_deposit_cents, min_withdrawal_cents, min_bet_cents, rollover_enabled, rollover_multiplier"
+      )
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) {
+      return {
+        house_fee_percent: 10,
+        withdrawal_fee_percent: 3.5,
+        withdrawal_fee_fixed_cents: 0,
+        min_deposit_cents: 5000,
+        min_withdrawal_cents: 5000,
+        min_bet_cents: 2000,
+        rollover_enabled: false,
+        rollover_multiplier: 1,
+      };
+    }
+    return data;
+  });
