@@ -242,6 +242,7 @@ export function useRealtimeRoom<T>(
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const [forfeitWinner, setForfeitWinner] = useState<number | null>(null);
   const [turnDeadlineAt, setTurnDeadlineAt] = useState<number | null>(null);
+  const [eliminatedPlayerIds, setEliminatedPlayerIds] = useState<string[]>([]);
   const channelRef = useRef<RoomChannel | null>(null);
   const sequenceRef = useRef(0);
   const latestStateRef = useRef<T | null>(null);
@@ -347,6 +348,7 @@ export function useRealtimeRoom<T>(
     (channel as any).on("broadcast", { event: "eliminate" }, (payload: { payload?: RoomEvent<T> }) => {
       const event = payload.payload;
       if (!event || event.kind !== "eliminate") return;
+      setEliminatedPlayerIds((current) => current.includes(event.playerId) ? current : [...current, event.playerId]);
       setPlayers((current) => current.map((p) => p.playerId === event.playerId ? { ...p, online: false } : p));
     });
 
@@ -440,6 +442,7 @@ export function useRealtimeRoom<T>(
     broadcastState,
     broadcastForfeit,
     broadcastElimination,
+    eliminatedPlayerIds,
   };
 }
 
