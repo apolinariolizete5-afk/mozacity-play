@@ -127,18 +127,16 @@ export function BackgroundMusic() {
     };
     const pause = () => stopPlayback();
 
-    document.addEventListener("visibilitychange", () => {
+    const onVisibilityChange = () => {
       if (document.hidden) pause();
       else resume();
-    });
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", pause);
     window.addEventListener("beforeunload", pause);
 
     return () => {
-      document.removeEventListener("visibilitychange", () => {
-        if (document.hidden) pause();
-        else resume();
-      });
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", pause);
       window.removeEventListener("beforeunload", pause);
     };
