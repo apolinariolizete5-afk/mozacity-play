@@ -10,6 +10,10 @@ import { getPublicPlatformSettings } from "@/lib/platform.functions";
 import { getWalletSummary } from "@/lib/wallet.functions";
 import { PrivateRoomLobbyModal } from "@/components/PrivateRoomLobbyModal";
 
+// Teste temporário apenas do Ludo: não exige saldo nem aposta.
+// Para reativar o fluxo financeiro, defina VITE_LUDO_TEST_MODE=false.
+const LUDO_TEST_MODE = import.meta.env.VITE_LUDO_TEST_MODE !== "false";
+
 export const Route = createFileRoute("/rooms")({
   head: () => ({
     meta: [
@@ -96,7 +100,7 @@ function Rooms() {
   );
 
   const navigateToGame = (targetGame: GameId, targetCode: string, targetBet: number, targetCapacity: number) => {
-    const wager = Math.max(minBetMzn ?? 0, Math.round(Number(targetBet) || 0));
+    const wager = targetGame === "ludo" && LUDO_TEST_MODE ? 0 : Math.max(minBetMzn ?? 0, Math.round(Number(targetBet) || 0));
     if (targetGame === "ludo") {
       void navigate({
         to: "/games/ludo",
@@ -127,14 +131,16 @@ function Rooms() {
     }
     try {
       const entered = Number(betInput);
-      if (!Number.isFinite(entered) || entered < (minBetMzn ?? 0)) {
+      if (game !== "ludo" || !LUDO_TEST_MODE) {
+        if (!Number.isFinite(entered) || entered < (minBetMzn ?? 0)) {
         setMessage(`O valor mínimo da aposta é ${minBetMzn ?? 0} MT.`);
-        return;
+          return;
+        }
       }
-      const wager = Math.round(entered);
+      const wager = game === "ludo" && LUDO_TEST_MODE ? 0 : Math.round(entered);
 
       const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
-      if (wager > 0 && userBalance < wager) {
+      if (!(game === "ludo" && LUDO_TEST_MODE) && wager > 0 && userBalance < wager) {
         setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT). Faça um depósito mínimo de ${wager} MT.`);
         return;
       }
@@ -170,10 +176,10 @@ function Rooms() {
     try {
       const targetCode = roomCode.toUpperCase().trim();
       const existing = remoteRooms.find((r) => r.code === targetCode);
-      const roomBet = existing?.bet ?? bet ?? 0;
+      const roomBet = existing?.game === "ludo" && LUDO_TEST_MODE ? 0 : existing?.bet ?? bet ?? 0;
 
       const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
-      if (roomBet > 0 && userBalance < roomBet) {
+      if (!(existing?.game === "ludo" && LUDO_TEST_MODE) && roomBet > 0 && userBalance < roomBet) {
         setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT) para esta sala com aposta de ${roomBet} MT.`);
         return;
       }
@@ -295,11 +301,15 @@ function Rooms() {
 
             <div>
               <label className="text-xs font-bold text-muted-foreground">Valor da aposta (MZN)</label>
+              {game === "ludo" && LUDO_TEST_MODE && (
+                <p className="mt-1 text-xs font-extrabold text-primary">MODO TESTE — Ludo sem dinheiro, sem saldo e sem cobrança.</p>
+              )}
               <input
                 type="number"
-                min={minBetMzn ?? undefined}
+                min={game === "ludo" && LUDO_TEST_MODE ? 0 : minBetMzn ?? undefined}
                 step={1}
-                value={betInput}
+                value={game === "ludo" && LUDO_TEST_MODE ? "0" : betInput}
+                disabled={game === "ludo" && LUDO_TEST_MODE}
                 onFocus={() => {
                   betInputEditingRef.current = true;
                 }}
