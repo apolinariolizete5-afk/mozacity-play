@@ -9,6 +9,8 @@ import { getPublicPlatformSettings } from "@/lib/platform.functions";
 import { getWalletSummary } from "@/lib/wallet.functions";
 import { MatchmakingOverlay, type OpponentInfo } from "@/components/MatchmakingOverlay";
 
+const LUDO_TEST_MODE = import.meta.env.VITE_LUDO_TEST_MODE !== "false";
+
 const GAME_ICONS: Record<GameId, typeof Gamepad2> = {
   ludo: Dice5,
   checkers: CircleDot,
@@ -36,8 +38,8 @@ function Play() {
   const app = useApp();
 
   const [selected, setSelected] = useState<GameId>(game);
-  const [bet, setBet] = useState(20);
-  const [betInput, setBetInput] = useState("20");
+  const [bet, setBet] = useState(LUDO_TEST_MODE && game === "ludo" ? 0 : 20);
+  const [betInput, setBetInput] = useState(LUDO_TEST_MODE && game === "ludo" ? "0" : "20");
   const betInputEditingRef = useRef(false);
   const [minBetMzn, setMinBetMzn] = useState<number | null>(null);
   const getSettings = useServerFn(getPublicPlatformSettings);
@@ -59,6 +61,11 @@ function Play() {
   useEffect(() => setSelected(game), [game]);
 
   useEffect(() => {
+    if (selected === "ludo" && LUDO_TEST_MODE) {
+      setBet(0);
+      setBetInput("0");
+      return;
+    }
     if (selected === "ludo" && players > 2) {
       setBet(0);
       setBetInput("0");
@@ -109,17 +116,17 @@ function Play() {
 
     const entered = Number(betInput);
     const minimum = minBetMzn ?? 0;
-    if (!Number.isFinite(entered) || entered < minimum) {
+    if (!(selected === "ludo" && LUDO_TEST_MODE) && (!Number.isFinite(entered) || entered < minimum)) {
       setError(`O valor mínimo da aposta é ${minimum} MT.`);
       setBetInput(String(minimum));
       setBet(minimum);
       return;
     }
 
-    const wager = Math.round(entered);
+    const wager = selected === "ludo" && LUDO_TEST_MODE ? 0 : Math.round(entered);
 
     const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
-    if (wager > 0 && userBalance < wager) {
+    if (!(selected === "ludo" && LUDO_TEST_MODE) && wager > 0 && userBalance < wager) {
       setError(`Saldo insuficiente (${userBalance.toFixed(2)} MT). Faça um depósito mínimo de ${wager} MT para jogar.`);
       return;
     }
@@ -252,7 +259,7 @@ function Play() {
                 min={minBetMzn ?? undefined}
                 step={1}
                 value={betInput}
-                disabled={selected === "ludo" && players > 2}
+                disabled={selected === "ludo" && (LUDO_TEST_MODE || players > 2)}
                 onFocus={() => { betInputEditingRef.current = true; }}
                 onChange={(event) => setBetInput(event.target.value)}
                 onBlur={() => {
@@ -272,7 +279,7 @@ function Play() {
               <span className="font-extrabold">MT</span>
             </div>
             <p className="mt-1 text-[11px] font-bold text-primary">
-              {selected === "ludo" && players > 2 ? "Ludo com 3 ou 4 jogadores: partida sem aposta." : `Valor mínimo: ${minBetMzn ?? "…"} MT.`}
+              {selected === "ludo" && LUDO_TEST_MODE ? "MODO TESTE — Ludo sem dinheiro, sem saldo e sem cobrança." : selected === "ludo" && players > 2 ? "Ludo com 3 ou 4 jogadores: partida sem aposta." : `Valor mínimo: ${minBetMzn ?? "…"} MT.`}
             </p>
           </div>
 
