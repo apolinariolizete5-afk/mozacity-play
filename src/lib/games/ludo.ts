@@ -16,6 +16,7 @@ export interface LudoState {
   over: boolean;
   winner: number | null;
   log: string[];
+  eliminated: number[];
 }
 
 /** Clockwise ring coordinates on the 15 × 15 board, starting at green. */
@@ -78,13 +79,34 @@ export function movableTokens(state: LudoState): number[] {
   });
 }
 
+function nextActiveTurn(state: LudoState, from: number): number {
+  for (let step = 1; step <= state.players; step += 1) {
+    const candidate = (from + step) % state.players;
+    if (!state.eliminated.includes(candidate)) return candidate;
+  }
+  return from;
+}
+
+export function eliminateLudoPlayer(state: LudoState, player: number): LudoState {
+  if (state.over || player < 0 || player >= state.players || state.eliminated.includes(player)) return state;
+  const next = clone(state);
+  next.eliminated = [...next.eliminated, player].sort((a, b) => a - b);
+  next.tokens[player] = [FINISHED, FINISHED, FINISHED, FINISHED];
+  next.dice = null;
+  next.sixStreak = 0;
+  next.bonusRoll = false;
+  if (next.turn === player) next.turn = nextActiveTurn(next, player);
+  next.log.unshift(`Jogador ${player + 1} desistiu e foi eliminado.`);
+  return next;
+}
+
 export function ludoTimeout(state: LudoState): LudoState {
   if (state.over) return state;
   const next = clone(state);
   next.dice = null;
   next.sixStreak = 0;
   next.bonusRoll = false;
-  next.turn = (next.turn + 1) % next.players;
+  next.turn = nextActiveTurn(next, next.turn);
   next.log.unshift("Tempo esgotado. A vez passou ao próximo jogador.");
   return next;
 }
@@ -108,10 +130,11 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
       over: false,
       winner: null,
       log: ["Jogo iniciado. Boa sorte!"],
+      eliminated: [],
     };
   },
   validateMove(state, move) {
-    if (state.over) return false;
+    if (state.over || state.eliminated.includes(state.turn)) return false;
     return move.type === "roll" ? state.dice == null : movableTokens(state).includes(move.token);
   },
   applyMove(state, move) {
@@ -129,7 +152,7 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
         next.dice = null;
         next.sixStreak = 0;
         next.bonusRoll = false;
-        next.turn = (next.turn + 1) % next.players;
+        next.turn = nextActiveTurn(next, next.turn);
         return next;
       }
 
@@ -139,7 +162,7 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
         next.dice = null;
         next.sixStreak = 0;
         next.bonusRoll = false;
-        next.turn = (next.turn + 1) % next.players;
+        next.turn = nextActiveTurn(next, next.turn);
       }
       return next;
     }
