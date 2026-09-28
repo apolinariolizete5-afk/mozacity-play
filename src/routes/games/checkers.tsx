@@ -12,6 +12,8 @@ import { recordMatch, useApp } from "@/lib/store";
 import { forfeitRoomMatch, lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { useRealtimeRoom } from "@/lib/realtime";
 
+const CHECKERS_TEST_MODE = import.meta.env.VITE_CHECKERS_TEST_MODE !== "false";
+
 export const Route = createFileRoute("/games/checkers")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({
@@ -35,7 +37,8 @@ export const Route = createFileRoute("/games/checkers")({
 
 function CheckersMatch() {
   const navigate = useNavigate();
-  const { bet, timer, room } = Route.useSearch();
+  const { bet: routeBet, timer, room } = Route.useSearch();
+  const bet = CHECKERS_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
   const [seconds, setSeconds] = useState(15);
@@ -52,6 +55,10 @@ function CheckersMatch() {
   const wagerLocked = useRef(false);
 
   useEffect(() => {
+    if (CHECKERS_TEST_MODE) {
+      setEscrowReady(true);
+      return;
+    }
     if (!playersReady || !room || realtime.players.length < 2 || roomRegistered.current) return;
     const playerIds = realtime.players.map((player) => player.playerId);
     if (playerIds.length < 2) return;
@@ -114,7 +121,7 @@ function CheckersMatch() {
     const winnerId = winnerIndex === null ? null : realtime.players[winnerIndex]?.playerId ?? null;
     const loserIndex = winnerIndex === null ? null : winnerIndex === 0 ? 1 : 0;
     const loserId = loserIndex === null ? null : realtime.players[loserIndex]?.playerId ?? null;
-    if (room && bet > 0 && winnerId && loserId) {
+    if (!CHECKERS_TEST_MODE && room && bet > 0 && winnerId && loserId) {
       void settleRoomMatch({ data: {
         room_code: room,
         winner_id: winnerId,
@@ -164,7 +171,7 @@ function CheckersMatch() {
         voiceUserId={app.profile.id}
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
-          if (room && opponent) {
+          if (!CHECKERS_TEST_MODE && room && opponent) {
             try {
               const settlement = await forfeitRoomMatch({ data: { room_code: room } });
               if (settlement.winner_id === app.profile.id && typeof settlement.payout === "number") {
@@ -202,7 +209,7 @@ function CheckersMatch() {
         }
         footer={
           <Card className="flex items-center justify-between p-3 text-xs">
-            <Pill tone="primary">Damas · {moveCount} lances</Pill>
+            <Pill tone="primary">{CHECKERS_TEST_MODE ? "MODO TESTE · SEM DINHEIRO" : `Damas · ${moveCount} lances`}</Pill>
             <span className="text-muted-foreground">Capturas obrigatórias</span>
           </Card>
         }
