@@ -6,6 +6,7 @@ import { GAME_META, type GameId } from "@/lib/games/types";
 import { quickMatch, TURN_SECONDS } from "@/lib/realtime";
 import { useApp } from "@/lib/store";
 import { getPublicPlatformSettings } from "@/lib/platform.functions";
+import { getWalletSummary } from "@/lib/wallet.functions";
 import { MatchmakingOverlay, type OpponentInfo } from "@/components/MatchmakingOverlay";
 
 const GAME_ICONS: Record<GameId, typeof Gamepad2> = {
@@ -40,6 +41,13 @@ function Play() {
   const betInputEditingRef = useRef(false);
   const [minBetMzn, setMinBetMzn] = useState<number | null>(null);
   const getSettings = useServerFn(getPublicPlatformSettings);
+  const getWallet = useServerFn(getWalletSummary);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  useEffect(() => {
+    getWallet()
+      .then((w: any) => setWalletBalance(Number(w?.balance_cents ?? 0) / 100))
+      .catch(() => setWalletBalance(null));
+  }, [getWallet]);
   const [players, setPlayers] = useState(2);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
@@ -110,7 +118,7 @@ function Play() {
 
     const wager = Math.round(entered);
 
-    const userBalance = Number(app.wallet?.balance ?? 0);
+    const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
     if (wager > 0 && userBalance < wager) {
       setError(`Saldo insuficiente (${userBalance.toFixed(2)} MT). Faça um depósito mínimo de ${wager} MT para jogar.`);
       return;

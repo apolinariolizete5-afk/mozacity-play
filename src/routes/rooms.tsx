@@ -7,6 +7,7 @@ import { GAME_META, type GameId } from "@/lib/games/types";
 import { createRoom, joinRoom, useRealtimeLobby } from "@/lib/realtime";
 import { useApp } from "@/lib/store";
 import { getPublicPlatformSettings } from "@/lib/platform.functions";
+import { getWalletSummary } from "@/lib/wallet.functions";
 import { PrivateRoomLobbyModal } from "@/components/PrivateRoomLobbyModal";
 
 export const Route = createFileRoute("/rooms")({
@@ -33,6 +34,13 @@ function Rooms() {
   const [message, setMessage] = useState<string | null>(null);
   const [minBetMzn, setMinBetMzn] = useState<number | null>(null);
   const getSettings = useServerFn(getPublicPlatformSettings);
+  const getWallet = useServerFn(getWalletSummary);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  useEffect(() => {
+    getWallet()
+      .then((w: any) => setWalletBalance(Number(w?.balance_cents ?? 0) / 100))
+      .catch(() => setWalletBalance(null));
+  }, [getWallet]);
 
   useEffect(() => {
     let active = true;
@@ -125,7 +133,7 @@ function Rooms() {
       }
       const wager = Math.round(entered);
 
-      const userBalance = Number(app.wallet?.balance ?? 0);
+      const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
       if (wager > 0 && userBalance < wager) {
         setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT). Faça um depósito mínimo de ${wager} MT.`);
         return;
@@ -164,7 +172,7 @@ function Rooms() {
       const existing = remoteRooms.find((r) => r.code === targetCode);
       const roomBet = existing?.bet ?? bet ?? 0;
 
-      const userBalance = Number(app.wallet?.balance ?? 0);
+      const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
       if (roomBet > 0 && userBalance < roomBet) {
         setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT) para esta sala com aposta de ${roomBet} MT.`);
         return;
