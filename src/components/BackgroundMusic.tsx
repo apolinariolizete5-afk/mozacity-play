@@ -30,6 +30,7 @@ export function BackgroundMusic() {
   const trackRef = useRef(0);
   const generationRef = useRef(0);
   const enabledRef = useRef(enabled);
+  const unlockAttemptedRef = useRef(false);
 
   const isGame = pathname.startsWith("/games/");
 
@@ -144,7 +145,9 @@ export function BackgroundMusic() {
 
   useEffect(() => {
     const unlock = () => {
+      if (unlockAttemptedRef.current) return;
       if (enabledRef.current && !pathname.startsWith("/games/") && !document.hidden) {
+        unlockAttemptedRef.current = true;
         playSegment();
       }
     };
