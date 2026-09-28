@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GameId } from "@/lib/games/types";
 
 export const TURN_SECONDS = 15;
-export const DISCONNECT_GRACE_SECONDS = 30;
+export const DISCONNECT_GRACE_SECONDS = 20;
 
 export type RoomPresence = {
   playerId: string;
@@ -17,6 +17,7 @@ export type RoomPresence = {
   createdAt?: string;
   searching?: boolean;
   bet?: number;
+  online?: boolean;
 };
 
 export type LobbyRoom = {
@@ -36,7 +37,8 @@ export type LobbyRoom = {
 type RoomEvent<T = unknown> =
   | { kind: "state"; state: T; actorId: string; sequence: number; sentAt: number }
   | { kind: "request_state"; actorId: string; sentAt: number }
-  | { kind: "forfeit"; winnerId: string; actorId: string; sentAt: number };
+  | { kind: "forfeit"; winnerId: string; actorId: string; sentAt: number }
+  | { kind: "eliminate"; playerId: string; actorId: string; sentAt: number };
 
 type RoomChannel = RealtimeChannel;
 const lobbyChannels = new Map<string, RoomChannel>();
@@ -234,6 +236,7 @@ export function useRealtimeRoom<T>(
 ) {
   const [remoteState, setRemoteState] = useState<T | null>(null);
   const [players, setPlayers] = useState<RoomPresence[]>([]);
+  const knownPlayersRef = useRef<Map<string, RoomPresence>>(new Map());
   const [connected, setConnected] = useState(false);
   const [playerIndex, setPlayerIndex] = useState(0);
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
@@ -263,8 +266,11 @@ export function useRealtimeRoom<T>(
         .filter((entry) => entry.playerId);
       const unique = new Map<string, RoomPresence>();
       for (const entry of presence) unique.set(entry.playerId, entry);
-      const nextPlayers = [...unique.values()];
-      nextPlayers.sort((a, b) => a.playerId.localeCompare(b.playerId));
+      const nextOnline = [...unique.values()];
+      for (const entry of nextOnline) knownPlayersRef.current.set(entry.playerId, entry);
+      const known = [...knownPlayersRef.current.values()].map((entry) => ({ ...entry, online: nextOnline.some((p) => p.playerId === entry.playerId) }));
+      known.sort((a, b) => a.playerId.localeCompare(b.playerId));
+      const nextPlayers = known;
       setPlayers(nextPlayers);
 
       const index = nextPlayers.findIndex((entry) => entry.playerId === player.playerId);
@@ -272,14 +278,14 @@ export function useRealtimeRoom<T>(
       playerIndexRef.current = resolvedIndex;
       setPlayerIndex(resolvedIndex);
 
-      const opponentOnline = nextPlayers.some((entry) => entry.playerId !== player.playerId);
+      const opponentOnline = nextOnline.some((entry) => entry.playerId !== player.playerId);
       setOpponentDisconnected(!opponentOnline && nextPlayers.length > 0);
 
       if (opponentOnline) {
         hadOpponentRef.current = true;
         if (disconnectTimerRef.current) window.clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
-      } else if (hadOpponentRef.current && nextPlayers.length > 0 && !disconnectTimerRef.current) {
+      } else if (hadOpponentRef.current && nextOnline.length > 0 && !disconnectTimerRef.current) {
         disconnectTimerRef.current = window.setTimeout(() => {
           if (active) setForfeitWinner(playerIndexRef.current);
         }, DISCONNECT_GRACE_SECONDS * 1000);
@@ -328,6 +334,11 @@ export function useRealtimeRoom<T>(
     (channel as any).on("broadcast", { event: "state" }, onState);
     (channel as any).on("broadcast", { event: "request_state" }, onRequestState);
     (channel as any).on("broadcast", { event: "forfeit" }, onForfeit);
+    (channel as any).on("broadcast", { event: "eliminate" }, (payload: { payload?: RoomEvent<T> }) => {
+      const event = payload.payload;
+      if (!event || event.kind !== "eliminate") return;
+      setPlayers((current) => current.map((p) => p.playerId === event.playerId ? { ...p, online: false } : p));
+    });
 
     channel.subscribe((status) => {
       if (!active) return;
@@ -382,6 +393,19 @@ export function useRealtimeRoom<T>(
     [player.playerId],
   );
 
+  const broadcastElimination = useCallback(
+    async (playerId: string) => {
+      const channel = channelRef.current;
+      if (!channel) return;
+      await channel.send({
+        type: "broadcast",
+        event: "eliminate",
+        payload: { kind: "eliminate", playerId, actorId: player.playerId, sentAt: Date.now() },
+      });
+    },
+    [player.playerId],
+  );
+
   const broadcastForfeit = useCallback(
     async (winnerId: string) => {
       const channel = channelRef.current;
@@ -405,6 +429,7 @@ export function useRealtimeRoom<T>(
     turnDeadlineAt,
     broadcastState,
     broadcastForfeit,
+    broadcastElimination,
   };
 }
 
