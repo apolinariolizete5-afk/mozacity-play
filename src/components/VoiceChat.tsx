@@ -19,6 +19,7 @@ function getRtcConfig(): RTCConfiguration {
 
   const iceServers: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
   ];
 
   if (turnUrl && turnUsername && turnCredential) {
@@ -41,7 +42,7 @@ function getRtcConfig(): RTCConfiguration {
 export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true }: VoiceChatProps) {
   const [callState, setCallState] = useState<CallState>("idle");
   const [callerName, setCallerName] = useState("");
-  const [callerId, setCallerId] = useState("");
+  const [peerTargetId, setPeerTargetId] = useState("");
   const [muted, setMuted] = useState(false);
   const [supported, setSupported] = useState(true);
 
@@ -50,16 +51,25 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
   const streamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const incomingOfferRef = useRef<RTCSessionDescriptionInit | null>(null);
 
   const cleanUp = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    peerRef.current?.close();
-    peerRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (peerRef.current) {
+      peerRef.current.onicecandidate = null;
+      peerRef.current.ontrack = null;
+      peerRef.current.close();
+      peerRef.current = null;
+    }
     pendingCandidatesRef.current = [];
+    incomingOfferRef.current = null;
+    setPeerTargetId("");
   };
 
-  const setupPeer = (targetUserId: string) => {
+  const createPeer = (targetUserId: string) => {
     const peer = new RTCPeerConnection(getRtcConfig());
     peerRef.current = peer;
 
@@ -68,7 +78,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
         void channelRef.current.send({
           type: "broadcast",
           event: "call_ice",
-          payload: { from: userId, to: targetUserId, candidate: event.candidate },
+          payload: { from: userId, to: targetUserId, candidate: event.candidate.toJSON() },
         });
       }
     };
@@ -78,21 +88,38 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
         remoteAudioRef.current.srcObject = event.streams[0];
         remoteAudioRef.current.muted = false;
         remoteAudioRef.current.volume = 1;
-        const playRemote = () => {
-          void remoteAudioRef.current?.play().catch((error) => {
-            console.warn("[Voice] Reprodução de áudio remoto bloqueada:", error);
-          });
-        };
-        playRemote();
+        void remoteAudioRef.current.play().catch((err) => {
+          console.warn("[Voice] Reprodução bloqueada pelo navegador:", err);
+        });
       }
       setCallState("connected");
     };
 
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === "disconnected" || peer.connectionState === "failed" || peer.connectionState === "closed") {
+        cleanUp();
+        setCallState("idle");
+      }
+    };
+
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => peer.addTrack(track, streamRef.current!));
+      streamRef.current.getTracks().forEach((track) => {
+        peer.addTrack(track, streamRef.current!);
+      });
     }
 
     return peer;
+  };
+
+  const flushPendingCandidates = async (peer: RTCPeerConnection) => {
+    const list = pendingCandidatesRef.current.splice(0);
+    for (const cand of list) {
+      try {
+        await peer.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (e) {
+        console.warn("[Voice] Falha ao adicionar candidato em fila:", e);
+      }
+    }
   };
 
   useEffect(() => {
@@ -107,14 +134,28 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
     channelRef.current = channel;
 
     channel
-      .on("broadcast", { event: "call_invite" }, ({ payload }) => {
-        if (payload?.to === userId || (!payload?.to && payload?.from !== userId)) {
-          setCallState((current) => {
-            if (current !== "idle") return current;
-            setCallerId(payload.from);
-            setCallerName(payload.fromName || "Adversário");
-            return "incoming";
-          });
+      .on("broadcast", { event: "call_offer" }, ({ payload }) => {
+        if (!payload || payload.from === userId) return;
+        if (payload.to && payload.to !== userId) return;
+
+        setCallState((current) => {
+          if (current !== "idle") return current;
+          setPeerTargetId(payload.from);
+          setCallerName(payload.fromName || "Adversário");
+          incomingOfferRef.current = payload.description;
+          return "incoming";
+        });
+      })
+      .on("broadcast", { event: "call_answer" }, async ({ payload }) => {
+        if (payload?.to !== userId) return;
+        const peer = peerRef.current;
+        if (peer && payload.description) {
+          try {
+            await peer.setRemoteDescription(new RTCSessionDescription(payload.description));
+            await flushPendingCandidates(peer);
+          } catch (e) {
+            console.error("[Voice] Falha ao processar resposta:", e);
+          }
         }
       })
       .on("broadcast", { event: "call_rejected" }, ({ payload }) => {
@@ -123,43 +164,10 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
           setCallState("idle");
         }
       })
-      .on("broadcast", { event: "call_ended" }, () => {
-        cleanUp();
-        setCallState("idle");
-      })
-      .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
-        if (payload?.to !== userId) return;
-        try {
-          const peer = peerRef.current ?? setupPeer(payload.from);
-          await peer.setRemoteDescription(new RTCSessionDescription(payload.description));
-          const answer = await peer.createAnswer();
-          await peer.setLocalDescription(answer);
-
-          for (const cand of pendingCandidatesRef.current.splice(0)) {
-            try { await peer.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
-          }
-
-          await channel.send({
-            type: "broadcast",
-            event: "call_answer",
-            payload: { from: userId, to: payload.from, description: peer.localDescription },
-          });
-        } catch (e) {
-          console.error("[Voice] Erro ao responder oferta:", e);
-        }
-      })
-      .on("broadcast", { event: "call_answer" }, async ({ payload }) => {
-        if (payload?.to !== userId) return;
-        const peer = peerRef.current;
-        if (peer && payload.description) {
-          try {
-            await peer.setRemoteDescription(new RTCSessionDescription(payload.description));
-            for (const cand of pendingCandidatesRef.current.splice(0)) {
-              try { await peer.addIceCandidate(new RTCIceCandidate(cand)); } catch {}
-            }
-          } catch (e) {
-            console.error("[Voice] Erro ao aplicar resposta:", e);
-          }
+      .on("broadcast", { event: "call_ended" }, ({ payload }) => {
+        if (payload?.to === userId || (!payload?.to && payload?.from === peerTargetId)) {
+          cleanUp();
+          setCallState("idle");
         }
       })
       .on("broadcast", { event: "call_ice" }, async ({ payload }) => {
@@ -169,7 +177,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
           try {
             await peer.addIceCandidate(new RTCIceCandidate(payload.candidate));
           } catch {}
-        } else if (payload.candidate) {
+        } else if (payload?.candidate) {
           pendingCandidatesRef.current.push(payload.candidate);
         }
       });
@@ -181,7 +189,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
       void channel.unsubscribe();
       channelRef.current = null;
     };
-  }, [roomId, userId, enabled]);
+  }, [roomId, userId, enabled, peerTargetId]);
 
   const startCall = async () => {
     try {
@@ -189,48 +197,77 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
       streamRef.current = stream;
       setCallState("calling");
 
-      if (channelRef.current) {
-        void channelRef.current.send({
-          type: "broadcast",
-          event: "call_invite",
-          payload: { from: userId, fromName: userName },
-        });
-      }
-    } catch {
-      alert("Precisas de permitir o microfone para ligar.");
-      setCallState("idle");
-    }
-  };
-
-  const acceptCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      streamRef.current = stream;
-      const peer = setupPeer(callerId);
-
-      const offer = await peer.createOffer();
+      const peer = createPeer("");
+      const offer = await peer.createOffer({
+        offerToReceiveAudio: true,
+      });
       await peer.setLocalDescription(offer);
 
       if (channelRef.current) {
         void channelRef.current.send({
           type: "broadcast",
           event: "call_offer",
-          payload: { from: userId, to: callerId, description: peer.localDescription },
+          payload: {
+            from: userId,
+            fromName: userName,
+            description: peer.localDescription,
+          },
         });
       }
-      // A chamada só passa a "ligada" quando a ligação WebRTC realmente
-      // começa a entregar áudio pelo ontrack.
     } catch {
+      alert("Precisas de permitir o microfone para ligar.");
+      cleanUp();
+      setCallState("idle");
+    }
+  };
+
+  const acceptCall = async () => {
+    const offerDesc = incomingOfferRef.current;
+    if (!offerDesc || !peerTargetId) {
+      rejectCall();
+      return;
+    }
+
+    try {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.muted = false;
+        void remoteAudioRef.current.play().catch(() => {});
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      streamRef.current = stream;
+
+      const peer = createPeer(peerTargetId);
+      await peer.setRemoteDescription(new RTCSessionDescription(offerDesc));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+
+      await flushPendingCandidates(peer);
+
+      if (channelRef.current) {
+        void channelRef.current.send({
+          type: "broadcast",
+          event: "call_answer",
+          payload: {
+            from: userId,
+            to: peerTargetId,
+            description: peer.localDescription,
+          },
+        });
+      }
+      setCallState("connected");
+    } catch (e) {
+      console.error("[Voice] Erro ao aceitar chamada:", e);
       rejectCall();
     }
   };
 
   const rejectCall = () => {
-    if (channelRef.current && callerId) {
+    if (channelRef.current && peerTargetId) {
       void channelRef.current.send({
         type: "broadcast",
         event: "call_rejected",
-        payload: { from: userId, to: callerId },
+        payload: { from: userId, to: peerTargetId },
       });
     }
     cleanUp();
@@ -242,7 +279,7 @@ export function VoiceChat({ roomId, userId, userName = "Jogador", enabled = true
       void channelRef.current.send({
         type: "broadcast",
         event: "call_ended",
-        payload: { from: userId },
+        payload: { from: userId, to: peerTargetId },
       });
     }
     cleanUp();
