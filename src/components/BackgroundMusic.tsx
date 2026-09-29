@@ -3,108 +3,64 @@ import { useRouterState } from "@tanstack/react-router";
 
 type Track = {
   name: string;
-  youtubeId: string;
+  src: string;
 };
-
-type YouTubePlayer = {
-  loadVideoById: (options: { videoId: string; startSeconds?: number; endSeconds?: number }) => void;
-  playVideo: () => void;
-  pauseVideo: () => void;
-  stopVideo: () => void;
-  setVolume: (volume: number) => void;
-  getPlayerState: () => number;
-  destroy: () => void;
-};
-
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        element: HTMLElement,
-        options: {
-          width: number;
-          height: number;
-          videoId: string;
-          playerVars?: Record<string, number | string>;
-          events?: {
-            onReady?: (event: { target: YouTubePlayer }) => void;
-            onStateChange?: (event: { data: number; target: YouTubePlayer }) => void;
-            onAutoplayBlocked?: () => void;
-          };
-        },
-      ) => YouTubePlayer;
-      PlayerState: {
-        PLAYING: number;
-      };
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
 
 export const MUSIC_ENABLED_KEY = "mozaplay:music:enabled:v2";
 export const MUSIC_EVENT = "mozaplay:music-control";
 
 const TRACKS: Track[] = [
-  { name: "Djimetta — Cuidado", youtubeId: "eLimdnRXCf4" },
-  { name: "Lil Nas X — Old Town Road", youtubeId: "r7qovpFAGrQ" },
-  { name: "Mr Bow", youtubeId: "W276kT7uMao" },
+  {
+    name: "Akon G — Cunhada (Remix feat De La Vega)",
+    src: "/music/cunhada-remix.m4a",
+  },
+  {
+    name: "BayShit — D E T R O I T",
+    src: "/music/detroit.mp3",
+  },
+  {
+    name: "Broken Bass & Valentino De La Vega — Magude",
+    src: "/music/magude.mp3",
+  },
 ];
 
-const SEGMENT_SECONDS = 30;
+const TARGET_VOLUME = 0.8;
 const FADE_SECONDS = 3;
 const TITLE_SECONDS = 1.5;
+const FADE_STEP_MS = 50;
+const END_GUARD_SECONDS = 4;
 
 function readEnabledPreference() {
   if (typeof window === "undefined") return true;
   return window.localStorage.getItem(MUSIC_ENABLED_KEY) !== "0";
 }
 
-function loadYouTubeApi() {
-  return new Promise<void>((resolve) => {
-    if (window.YT?.Player) {
-      resolve();
-      return;
-    }
-
-    const previousReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      previousReady?.();
-      resolve();
-    };
-
-    if (document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) return;
-
-    const script = document.createElement("script");
-    script.src = "https://www.youtube.com/iframe_api";
-    script.async = true;
-    document.head.appendChild(script);
-  });
-}
-
 export function BackgroundMusic() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [enabled, setEnabled] = useState(readEnabledPreference);
   const [currentTitle, setCurrentTitle] = useState<string | null>(null);
-  const playerHostRef = useRef<HTMLDivElement | null>(null);
-  const playerRef = useRef<YouTubePlayer | null>(null);
-  const timerRef = useRef<number | null>(null);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
   const titleTimerRef = useRef<number | null>(null);
+  const nextTrackTimerRef = useRef<number | null>(null);
   const trackRef = useRef(0);
   const generationRef = useRef(0);
   const enabledRef = useRef(enabled);
+  const currentSrcRef = useRef<string | null>(null);
   const playingRef = useRef(false);
-  const playerReadyRef = useRef(false);
+  const userUnlockedRef = useRef(false);
+  const isTransitioningRef = useRef(false);
 
   const isGame = pathname.startsWith("/games/");
 
   const clearTimers = useCallback(() => {
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
     if (titleTimerRef.current !== null) window.clearTimeout(titleTimerRef.current);
-    timerRef.current = null;
+    if (nextTrackTimerRef.current !== null) window.clearTimeout(nextTrackTimerRef.current);
     fadeTimerRef.current = null;
     titleTimerRef.current = null;
+    nextTrackTimerRef.current = null;
   }, []);
 
   const showTrackTitle = useCallback((name: string) => {
@@ -116,211 +72,290 @@ export function BackgroundMusic() {
     }, TITLE_SECONDS * 1000);
   }, []);
 
-  const fadeTo = useCallback((target: number, durationMs: number, done?: () => void, from = 100) => {
-    const player = playerRef.current;
-    if (!player) {
-      done?.();
-      return;
+  const fadeVolume = useCallback(
+    (audio: HTMLAudioElement, target: number, durationMs: number, done?: () => void) => {
+      if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
+
+      const start = audio.volume;
+      const steps = Math.max(1, Math.round(durationMs / FADE_STEP_MS));
+      const delta = target - start;
+      let step = 0;
+
+      fadeTimerRef.current = window.setInterval(() => {
+        step += 1;
+        const progress = Math.min(1, step / steps);
+        audio.volume = Math.max(0, Math.min(1, start + delta * progress));
+
+        if (progress >= 1) {
+          if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
+          fadeTimerRef.current = null;
+          done?.();
+        }
+      }, FADE_STEP_MS);
+    },
+    [],
+  );
+
+  const chooseNextTrack = useCallback(() => {
+    if (TRACKS.length <= 1) return 0;
+    let next = Math.floor(Math.random() * TRACKS.length);
+    while (next === trackRef.current) {
+      next = Math.floor(Math.random() * TRACKS.length);
     }
-
-    if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
-
-    const steps = Math.max(1, Math.round(durationMs / 50));
-    const start = from;
-    const delta = target - start;
-    let step = 0;
-
-    player.setVolume(start);
-
-    fadeTimerRef.current = window.setInterval(() => {
-      step += 1;
-      const progress = Math.min(1, step / steps);
-      player.setVolume(Math.round(start + delta * progress));
-
-      if (progress >= 1) {
-        if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
-        fadeTimerRef.current = null;
-        done?.();
-      }
-    }, 50);
+    return next;
   }, []);
 
-  const playSegment = useCallback(async (requestedIndex?: number) => {
-    if (typeof window === "undefined" || !enabledRef.current || document.hidden || isGame) return;
+  const loadTrack = useCallback(
+    async (index: number, fadeIn = true) => {
+      const audio = audioRef.current;
+      if (!audio || !enabledRef.current || document.hidden || isGame) return;
 
-    const nextIndex = requestedIndex ?? trackRef.current;
-    const track = TRACKS[nextIndex];
-    trackRef.current = nextIndex;
+      const track = TRACKS[index];
+      trackRef.current = index;
+      generationRef.current += 1;
+      const generation = generationRef.current;
+      isTransitioningRef.current = true;
 
-    generationRef.current += 1;
-    const generation = generationRef.current;
-    clearTimers();
-    showTrackTitle(track.name);
+      clearTimers();
+      showTrackTitle(track.name);
 
-    await loadYouTubeApi();
-    if (generationRef.current !== generation || !enabledRef.current || document.hidden || isGame) return;
+      const startPlayback = async () => {
+        if (
+          generationRef.current !== generation ||
+          !enabledRef.current ||
+          document.hidden ||
+          isGame
+        ) {
+          isTransitioningRef.current = false;
+          return;
+        }
 
-    const start = Math.floor(Math.random() * 91);
-    const player = playerRef.current;
+        currentSrcRef.current = track.src;
+        audio.src = track.src;
+        audio.load();
+        audio.volume = fadeIn ? 0 : TARGET_VOLUME;
 
-    if (!player && playerHostRef.current && window.YT?.Player) {
-      playerRef.current = new window.YT.Player(playerHostRef.current, {
-        width: 200,
-        height: 200,
-        videoId: track.youtubeId,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          playsinline: 1,
-          rel: 0,
-          start,
-          end: start + SEGMENT_SECONDS,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: ({ target }) => {
-            playerReadyRef.current = true;
-            if (!enabledRef.current || document.hidden || isGame) return;
-            target.setVolume(0);
-            target.playVideo();
-            playingRef.current = true;
-            fadeTo(100, 1800, undefined, 0);
-          },
-          onAutoplayBlocked: () => {
-            playingRef.current = false;
-          },
-        },
-      });
-    } else if (playerRef.current && playerReadyRef.current) {
-      const oldGeneration = generationRef.current;
-      fadeTo(0, FADE_SECONDS * 1000, () => {
-        if (generationRef.current !== oldGeneration || !enabledRef.current || document.hidden || isGame) return;
-        playerRef.current?.loadVideoById({
-          videoId: track.youtubeId,
-          startSeconds: start,
-          endSeconds: start + SEGMENT_SECONDS,
+        try {
+          await audio.play();
+          playingRef.current = true;
+          userUnlockedRef.current = true;
+          if (fadeIn) fadeVolume(audio, TARGET_VOLUME, 1200);
+        } catch {
+          playingRef.current = false;
+          isTransitioningRef.current = false;
+        }
+
+        isTransitioningRef.current = false;
+      };
+
+      if (audio.src && !audio.paused && currentSrcRef.current) {
+        fadeVolume(audio, 0, FADE_SECONDS * 1000, () => {
+          if (generationRef.current !== generation) return;
+          void startPlayback();
         });
-        playerRef.current?.setVolume(0);
-        playerRef.current?.playVideo();
-        playingRef.current = true;
-        fadeTo(100, 1800, undefined, 0);
-      });
-      timerRef.current = window.setTimeout(() => {
-        if (generationRef.current !== generation || !enabledRef.current || document.hidden || isGame) return;
-        const next = Math.random() < 0.35
-          ? trackRef.current
-          : Math.floor(Math.random() * TRACKS.length);
-        playSegment(next);
-      }, (SEGMENT_SECONDS - FADE_SECONDS) * 1000);
+      } else {
+        await startPlayback();
+      }
+    },
+    [clearTimers, fadeVolume, isGame, showTrackTitle],
+  );
+
+  const stopPlayback = useCallback(
+    (keepPosition = true) => {
+      const audio = audioRef.current;
+      generationRef.current += 1;
+      clearTimers();
+      playingRef.current = false;
+      isTransitioningRef.current = false;
+
+      if (!audio) return;
+
+      if (keepPosition) {
+        audio.pause();
+      } else {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      audio.volume = 0;
+      setCurrentTitle(null);
+    },
+    [clearTimers],
+  );
+
+  const startPlayback = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !enabledRef.current || document.hidden || isGame) return;
+
+    if (!audio.src || !currentSrcRef.current) {
+      void loadTrack(trackRef.current, true);
       return;
     }
 
-    timerRef.current = window.setTimeout(() => {
-      if (generationRef.current !== generation || !enabledRef.current || document.hidden || isGame) return;
-      const next = Math.random() < 0.35
-        ? trackRef.current
-        : Math.floor(Math.random() * TRACKS.length);
-      playSegment(next);
-    }, (SEGMENT_SECONDS - FADE_SECONDS) * 1000);
-  }, [clearTimers, fadeTo, isGame, showTrackTitle]);
+    audio.volume = Math.max(audio.volume, 0);
+    void audio
+      .play()
+      .then(() => {
+        playingRef.current = true;
+        userUnlockedRef.current = true;
+        fadeVolume(audio, TARGET_VOLUME, 1000);
+      })
+      .catch(() => {
+        playingRef.current = false;
+      });
+  }, [fadeVolume, isGame, loadTrack]);
 
-  const stopPlayback = useCallback(() => {
-    generationRef.current += 1;
-    clearTimers();
-    playingRef.current = false;
-    playerRef.current?.pauseVideo();
-    playerRef.current?.setVolume(0);
-    setCurrentTitle(null);
-  }, [clearTimers]);
+  const setMusicEnabled = useCallback(
+    (value: boolean) => {
+      enabledRef.current = value;
+      setEnabled(value);
+      window.localStorage.setItem(MUSIC_ENABLED_KEY, value ? "1" : "0");
+      window.dispatchEvent(new CustomEvent(MUSIC_EVENT, { detail: { enabled: value } }));
 
-  const setMusicEnabled = useCallback((value: boolean) => {
-    enabledRef.current = value;
-    setEnabled(value);
-    window.localStorage.setItem(MUSIC_ENABLED_KEY, value ? "1" : "0");
-    window.dispatchEvent(new CustomEvent(MUSIC_EVENT, { detail: { enabled: value } }));
-
-    if (!value || isGame || document.hidden) {
-      stopPlayback();
-    } else {
-      playSegment();
-    }
-  }, [isGame, playSegment, stopPlayback]);
+      if (!value || isGame || document.hidden) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
+    },
+    [isGame, startPlayback, stopPlayback],
+  );
 
   useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
 
   useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.volume = 0;
+    audio.setAttribute("playsinline", "true");
+    audioRef.current = audio;
+
+    const onEnded = () => {
+      if (!enabledRef.current || document.hidden || isGame) return;
+      void loadTrack(chooseNextTrack(), true);
+    };
+
+    const onTimeUpdate = () => {
+      if (
+        !audio.duration ||
+        !Number.isFinite(audio.duration) ||
+        audio.duration - audio.currentTime > END_GUARD_SECONDS ||
+        isTransitioningRef.current ||
+        !enabledRef.current ||
+        isGame
+      ) {
+        return;
+      }
+
+      if (nextTrackTimerRef.current !== null) return;
+
+      nextTrackTimerRef.current = window.setTimeout(() => {
+        nextTrackTimerRef.current = null;
+        if (!enabledRef.current || document.hidden || isGame) return;
+        void loadTrack(chooseNextTrack(), true);
+      }, Math.max(0, (audio.duration - audio.currentTime - FADE_SECONDS) * 1000));
+    };
+
+    const onPlay = () => {
+      playingRef.current = true;
+    };
+
+    const onPause = () => {
+      playingRef.current = false;
+    };
+
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+
+    if (enabledRef.current && !isGame) {
+      void loadTrack(trackRef.current, true);
+    }
+
+    return () => {
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.pause();
+      audio.src = "";
+      audioRef.current = null;
+      clearTimers();
+    };
+  }, [chooseNextTrack, clearTimers, isGame, loadTrack]);
+
+  useEffect(() => {
     if (isGame || !enabled) {
       stopPlayback();
       return;
     }
-    playSegment();
-    return stopPlayback;
-  }, [isGame, enabled, playSegment, stopPlayback]);
+
+    startPlayback();
+  }, [isGame, enabled, startPlayback, stopPlayback]);
 
   useEffect(() => {
     const onControl = (event: Event) => {
       const detail = (event as CustomEvent<{ enabled?: boolean }>).detail;
       if (typeof detail?.enabled !== "boolean") return;
+
       enabledRef.current = detail.enabled;
       setEnabled(detail.enabled);
-      if (!detail.enabled || isGame || document.hidden) stopPlayback();
-      else playSegment();
+
+      if (!detail.enabled || isGame || document.hidden) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
     };
 
     window.addEventListener(MUSIC_EVENT, onControl);
     return () => window.removeEventListener(MUSIC_EVENT, onControl);
-  }, [isGame, playSegment, stopPlayback]);
+  }, [isGame, startPlayback, stopPlayback]);
 
   useEffect(() => {
     const onRequest = (event: Event) => {
       const detail = (event as CustomEvent<{ action?: string }>).detail;
-      if (detail?.action === "toggle") setMusicEnabled(!enabledRef.current);
-      if (detail?.action === "stop") setMusicEnabled(false);
-      if (detail?.action === "start") setMusicEnabled(true);
-      if (detail?.action === "next" && enabledRef.current && !isGame) {
-        playSegment((trackRef.current + 1) % TRACKS.length);
+
+      if (detail?.action === "toggle") {
+        setMusicEnabled(!enabledRef.current);
+      } else if (detail?.action === "stop") {
+        setMusicEnabled(false);
+      } else if (detail?.action === "start") {
+        setMusicEnabled(true);
+      } else if (detail?.action === "next" && enabledRef.current && !isGame) {
+        void loadTrack((trackRef.current + 1) % TRACKS.length, true);
       }
     };
+
     window.addEventListener(MUSIC_EVENT, onRequest);
     return () => window.removeEventListener(MUSIC_EVENT, onRequest);
-  }, [isGame, playSegment, setMusicEnabled]);
+  }, [isGame, loadTrack, setMusicEnabled]);
 
   useEffect(() => {
     const unlock = () => {
-      if (!enabledRef.current || isGame || document.hidden) return;
-      const player = playerRef.current;
-      if (player && playerReadyRef.current && !playingRef.current) {
-        player.playVideo();
-        playingRef.current = true;
-        fadeTo(100, 1000, undefined, 0);
-      }
+      if (userUnlockedRef.current || !enabledRef.current || isGame || document.hidden) return;
+      userUnlockedRef.current = true;
+      startPlayback();
     };
 
     window.addEventListener("pointerdown", unlock, { passive: true });
     window.addEventListener("keydown", unlock);
+
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, [fadeTo, isGame]);
+  }, [isGame, startPlayback]);
 
   useEffect(() => {
     const resume = () => {
       if (!document.hidden && enabledRef.current && !pathname.startsWith("/games/")) {
-        const player = playerRef.current;
-        if (player && playerReadyRef.current) {
-          player.playVideo();
-          playingRef.current = true;
-          fadeTo(100, 1000);
-        } else {
-          playSegment();
-        }
+        startPlayback();
       }
     };
+
     const pause = () => stopPlayback();
 
     const onVisibilityChange = () => {
@@ -330,30 +365,15 @@ export function BackgroundMusic() {
 
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", pause);
-    window.addEventListener("beforeunload", pause);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", pause);
-      window.removeEventListener("beforeunload", pause);
     };
-  }, [fadeTo, pathname, playSegment, stopPlayback]);
-
-  useEffect(() => {
-    return () => {
-      clearTimers();
-      playerRef.current?.destroy();
-      playerRef.current = null;
-    };
-  }, [clearTimers]);
+  }, [pathname, startPlayback, stopPlayback]);
 
   return (
     <>
-      <div
-        ref={playerHostRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed bottom-[-1px] left-[-1px] h-[200px] w-[200px] opacity-0"
-      />
       {currentTitle && !isGame && (
         <div className="pointer-events-none fixed left-1/2 top-4 z-[100] -translate-x-1/2 rounded-full bg-black/80 px-4 py-2 text-sm font-medium text-white shadow-lg">
           {currentTitle}
