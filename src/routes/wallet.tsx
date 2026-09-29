@@ -292,7 +292,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "bank" ? "Número de conta / IBAN" : "Número de telemóvel (84…)"}
+        placeholder="Número de telemóvel (84…)"
         inputMode="tel"
         maxLength={32}
         value={msisdn}
