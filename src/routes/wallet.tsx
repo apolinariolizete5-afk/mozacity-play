@@ -29,20 +29,20 @@ export const Route = createFileRoute("/wallet")({
       {
         name: "description",
         content:
-          "Deposita a partir de 50 MT por M-Pesa, e-Mola, mCash ou banco, acompanha o saldo levantável e o histórico de apostas.",
+          "Deposita pelo M-Pesa ou mCash. O valor mínimo é definido no painel de administração.",
       },
       { property: "og:title", content: "Carteira em meticais — MozaPlay" },
       {
         property: "og:description",
-        content: "Depósitos integrais, taxas transparentes e levantamentos a partir de 50 MT.",
+        content: "Depósitos integrais, taxas transparentes e valores mínimos definidos no painel de administração.",
       },
     ],
   }),
   component: WalletPage,
 });
 
-type Method = "mpesa" | "mola" | "mcash" | "bank";
-const METHODS: Method[] = ["mpesa", "mola", "mcash", "bank"];
+type Method = "mpesa" | "mcash";
+const METHODS: Method[] = ["mpesa", "mcash"];
 
 interface TxRow {
   id: string;
@@ -167,7 +167,7 @@ function WalletPage() {
           </Button>
         </div>
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
-          Mín: {s ? formatMzn(s.min_deposit_cents) : "50,00 MT"} · o depósito entra integral, sem
+          Mín: {s ? formatMzn(s.min_deposit_cents) : "—"} · o depósito entra integral, sem
           descontos
         </p>
       </Card>
@@ -311,7 +311,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       </div>
       {mutation.isError ? (
         <p className="text-xs font-semibold text-destructive">
-          {depositError((mutation.error as Error).message)}
+          {depositError((mutation.error as Error).message, summary.min_deposit_cents)}
         </p>
       ) : null}
       {mutation.isSuccess ? (
@@ -408,7 +408,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       </p>
       {mutation.isError ? (
         <p className="text-xs font-semibold text-destructive">
-          {depositError((mutation.error as Error).message)}
+          {depositError((mutation.error as Error).message, summary.min_deposit_cents)}
         </p>
       ) : null}
       {mutation.isSuccess ? (
@@ -433,9 +433,9 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
   );
 }
 
-function depositError(message: string, minDepositCents = 5000): string {
+function depositError(message: string, minDepositCents?: number): string {
   const map: Record<string, string> = {
-    below_min_deposit: `O depósito mínimo é ${formatMzn(minDepositCents)}.`,
+    below_min_deposit: minDepositCents != null ? `O depósito mínimo é ${formatMzn(minDepositCents)}.` : "O depósito está abaixo do mínimo configurado."
     below_min_withdrawal: "O levantamento está abaixo do mínimo configurado.",
     insufficient_funds: "Saldo insuficiente.",
     rollover_pending: "Ainda tens saldo por apostar antes de levantar.",
