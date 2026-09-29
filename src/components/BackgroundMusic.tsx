@@ -12,15 +12,15 @@ export const MUSIC_EVENT = "mozaplay:music-control";
 const TRACKS: Track[] = [
   {
     name: "Akon G — Cunhada (Remix feat De La Vega)",
-    src: "/music/cunhada-remix.m4a",
+    src: "/music/Akon G - Cunhada(Remix feat De La Vega) (1).m4a",
   },
   {
     name: "BayShit — D E T R O I T",
-    src: "/music/detroit.mp3",
+    src: "/music/BayShit (Nicko Journey & King Cizzy) - D E T R O I T [2021] - MusicaDOPE.CO.MZ (1).mp3",
   },
   {
     name: "Broken Bass & Valentino De La Vega — Magude",
-    src: "/music/magude.mp3",
+    src: "/music/Broken Bass & Valentino De La Vega - Magude (Original Mix) (1).mp3",
   },
 ];
 
