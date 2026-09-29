@@ -13,9 +13,7 @@ export function formatMzn(cents: number): string {
 
 export const METHOD_LABELS: Record<string, string> = {
   mpesa: "M-Pesa",
-  mola: "Mola",
   mcash: "mCash",
-  bank: "Conta bancária",
 };
 
 export const TX_LABELS: Record<string, string> = {
