@@ -142,7 +142,7 @@ function Rooms() {
 
       const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
       if (!((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)) && wager > 0 && userBalance < wager) {
-        setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT). Faça um depósito mínimo de ${wager} MT.`);
+        setMessage(`Saldo insuficiente para esta aposta de ${wager} MT.`);
         return;
       }
 
