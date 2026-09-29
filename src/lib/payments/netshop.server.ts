@@ -6,8 +6,8 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type Method = "mpesa" | "mola" | "mcash" | "bank";
-type ProviderMethod = "mpesa" | "emola" | "mkesh" | "bank";
+export type Method = "mpesa" | "mcash";
+type ProviderMethod = "mpesa" | "mkesh";
 
 export interface NetshopResult {
   ok: boolean;
@@ -28,9 +28,7 @@ function apiUrl(): string {
 export function walletIdFor(method: Method): string | undefined {
   const map: Record<Method, string> = {
     mpesa: "NETSHOP_WALLET_ID_MPESA",
-    mola: "NETSHOP_WALLET_ID_EMOLA",
     mcash: "NETSHOP_WALLET_ID_MKESH",
-    bank: "NETSHOP_WALLET_ID_BANK",
   };
 
   return env(map[method]);
@@ -41,9 +39,7 @@ export function netshopStatus() {
     configured: Boolean(env("NETSHOP_API_KEY")),
     methods: {
       mpesa: Boolean(walletIdFor("mpesa")),
-      mola: Boolean(walletIdFor("mola")),
       mcash: Boolean(walletIdFor("mcash")),
-      bank: Boolean(walletIdFor("bank")),
     },
   };
 }
@@ -207,8 +203,8 @@ export function requestDeposit(input: {
   amountCents: number;
   reference: string;
 }) {
-  const providerMethod: ProviderMethod = input.method === "mola" ? "emola" : input.method === "mcash" ? "mkesh" : input.method;
-  const providerWalletEnv = input.method === "mola" ? "NETSHOP_WALLET_ID_EMOLA" : input.method === "mcash" ? "NETSHOP_WALLET_ID_MKESH" : undefined;
+  const providerMethod: ProviderMethod = input.method === "mcash" ? "mkesh" : input.method;
+  const providerWalletEnv = input.method === "mcash" ? "NETSHOP_WALLET_ID_MKESH" : undefined;
 const raw = input.msisdn.trim().replace(/[\s()-]/g, "");
   const msisdn =
     raw.startsWith("+258")
@@ -246,9 +242,7 @@ export async function requestDisbursement(input: {
 
   const raw = input.destination.trim().replace(/[\s()-]/g, "");
   const msisdn =
-    input.method === "bank"
-      ? input.destination.trim()
-      : raw.startsWith("+258")
+    raw.startsWith("+258")
         ? raw
         : raw.startsWith("258")
           ? `+${raw}`
@@ -260,13 +254,11 @@ export async function requestDisbursement(input: {
     payout_id: input.payoutId,
     method: input.method,
     amount_mzn: input.amountCents / 100,
-    destination: input.method === "bank" ? "***" : msisdn.slice(0, 5) + "******",
+    destination: msisdn.slice(0, 5) + "******",
   });
 
   const providerMethod: ProviderMethod =
-    input.method === "mola" ? "emola" :
-    input.method === "mcash" ? "mkesh" :
-    input.method;
+    input.method === "mcash" ? "mkesh" : input.method;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
