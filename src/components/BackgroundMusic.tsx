@@ -140,8 +140,10 @@ export function BackgroundMusic() {
           playingRef.current = true;
           userUnlockedRef.current = true;
           if (fadeIn) fadeVolume(audio, TARGET_VOLUME, FADE_SECONDS * 1000);
-        } catch {
+        } catch (error) {
           playingRef.current = false;
+          userUnlockedRef.current = false;
+          console.warn("[Music] Reprodução bloqueada ou ficheiro indisponível:", error);
           isTransitioningRef.current = false;
         }
 
@@ -199,8 +201,10 @@ export function BackgroundMusic() {
         userUnlockedRef.current = true;
         fadeVolume(audio, TARGET_VOLUME, FADE_SECONDS * 1000);
       })
-      .catch(() => {
+      .catch((error) => {
         playingRef.current = false;
+        userUnlockedRef.current = false;
+        console.warn("[Music] Reprodução aguardando gesto do utilizador ou fonte indisponível:", error);
       });
   }, [fadeVolume, isGame, loadTrack]);
 
@@ -343,7 +347,6 @@ export function BackgroundMusic() {
   useEffect(() => {
     const unlock = () => {
       if (userUnlockedRef.current || !enabledRef.current || isGame || document.hidden) return;
-      userUnlockedRef.current = true;
       startPlayback();
     };
 
