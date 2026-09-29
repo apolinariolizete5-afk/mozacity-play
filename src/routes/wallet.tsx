@@ -377,7 +377,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "bank" ? "Número de conta / IBAN" : "Número de telemóvel (84…)"}
+        placeholder="Número de telemóvel (84…)"
         inputMode="tel"
         maxLength={32}
         value={destination}
@@ -435,7 +435,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
 
 function depositError(message: string, minDepositCents?: number): string {
   const map: Record<string, string> = {
-    below_min_deposit: minDepositCents != null ? `O depósito mínimo é ${formatMzn(minDepositCents)}.` : "O depósito está abaixo do mínimo configurado."
+    below_min_deposit: minDepositCents != null ? `O depósito mínimo é ${formatMzn(minDepositCents)}.` : "O depósito está abaixo do mínimo configurado.",
     below_min_withdrawal: "O levantamento está abaixo do mínimo configurado.",
     insufficient_funds: "Saldo insuficiente.",
     rollover_pending: "Ainda tens saldo por apostar antes de levantar.",
