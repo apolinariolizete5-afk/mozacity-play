@@ -194,9 +194,9 @@ export const getAdminSettings = createServerFn({ method: "GET" })
         house_fee_percent: 10,
         withdrawal_fee_percent: 3.5,
         withdrawal_fee_fixed_cents: 0,
-        min_deposit_cents: 5000,
-        min_withdrawal_cents: 5000,
-        min_bet_cents: 2000,
+        min_deposit_cents: 0,
+        min_withdrawal_cents: 0,
+        min_bet_cents: 0,
         rollover_enabled: false,
         rollover_multiplier: 1,
       };
