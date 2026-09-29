@@ -53,7 +53,7 @@ export function BackgroundMusic() {
   const isTransitioningRef = useRef(false);
 
   const isGame = pathname.startsWith("/games/");
-
+  const isGameRef = useRef(isGame);\n\n  useEffect(() => {\n    isGameRef.current = isGame;\n  }, [isGame]);\n
   const clearTimers = useCallback(() => {
     if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
     if (titleTimerRef.current !== null) window.clearTimeout(titleTimerRef.current);
@@ -108,7 +108,7 @@ export function BackgroundMusic() {
   const loadTrack = useCallback(
     async (index: number, fadeIn = true) => {
       const audio = audioRef.current;
-      if (!audio || !enabledRef.current || document.hidden || isGame) return;
+      if (!audio || !enabledRef.current || document.hidden || isGameRef.current) return;
 
       const track = TRACKS[index];
       trackRef.current = index;
@@ -159,7 +159,7 @@ export function BackgroundMusic() {
         await startPlayback();
       }
     },
-    [clearTimers, fadeVolume, isGame, showTrackTitle],
+    [clearTimers, fadeVolume, showTrackTitle],
   );
 
   const stopPlayback = useCallback(
@@ -186,7 +186,7 @@ export function BackgroundMusic() {
 
   const startPlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !enabledRef.current || document.hidden || isGame) return;
+    if (!audio || !enabledRef.current || document.hidden || isGameRef.current) return;
 
     if (!audio.src || !currentSrcRef.current) {
       void loadTrack(trackRef.current, true);
@@ -206,7 +206,7 @@ export function BackgroundMusic() {
         userUnlockedRef.current = false;
         console.warn("[Music] Reprodução aguardando gesto do utilizador ou fonte indisponível:", error);
       });
-  }, [fadeVolume, isGame, loadTrack]);
+  }, [fadeVolume, loadTrack]);
 
   const setMusicEnabled = useCallback(
     (value: boolean) => {
@@ -295,7 +295,7 @@ export function BackgroundMusic() {
       audioRef.current = null;
       clearTimers();
     };
-  }, [chooseNextTrack, clearTimers, isGame, loadTrack]);
+  }, [chooseNextTrack, clearTimers, loadTrack]);
 
   useEffect(() => {
     if (isGame || !enabled) {
@@ -304,7 +304,7 @@ export function BackgroundMusic() {
     }
 
     startPlayback();
-  }, [isGame, enabled, startPlayback, stopPlayback]);
+  }, [enabled, startPlayback, stopPlayback]);
 
   useEffect(() => {
     const onControl = (event: Event) => {
@@ -314,7 +314,7 @@ export function BackgroundMusic() {
       enabledRef.current = detail.enabled;
       setEnabled(detail.enabled);
 
-      if (!detail.enabled || isGame || document.hidden) {
+      if (!detail.enabled || isGameRef.current || document.hidden) {
         stopPlayback();
       } else {
         startPlayback();
@@ -323,7 +323,7 @@ export function BackgroundMusic() {
 
     window.addEventListener(MUSIC_EVENT, onControl);
     return () => window.removeEventListener(MUSIC_EVENT, onControl);
-  }, [isGame, startPlayback, stopPlayback]);
+  }, [startPlayback, stopPlayback]);
 
   useEffect(() => {
     const onRequest = (event: Event) => {
@@ -335,18 +335,18 @@ export function BackgroundMusic() {
         setMusicEnabled(false);
       } else if (detail?.action === "start") {
         setMusicEnabled(true);
-      } else if (detail?.action === "next" && enabledRef.current && !isGame) {
+      } else if (detail?.action === "next" && enabledRef.current && !isGameRef.current) {
         void loadTrack((trackRef.current + 1) % TRACKS.length, true);
       }
     };
 
     window.addEventListener(MUSIC_EVENT, onRequest);
     return () => window.removeEventListener(MUSIC_EVENT, onRequest);
-  }, [isGame, loadTrack, setMusicEnabled]);
+  }, [loadTrack, setMusicEnabled]);
 
   useEffect(() => {
     const unlock = () => {
-      if (userUnlockedRef.current || !enabledRef.current || isGame || document.hidden) return;
+      if (userUnlockedRef.current || !enabledRef.current || isGameRef.current || document.hidden) return;
       startPlayback();
     };
 
@@ -357,7 +357,7 @@ export function BackgroundMusic() {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, [isGame, startPlayback]);
+  }, [startPlayback]);
 
   useEffect(() => {
     const resume = () => {
