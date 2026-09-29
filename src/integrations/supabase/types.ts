@@ -881,6 +881,7 @@ export type Database = {
         Args: { _name: string; _value: string }
         Returns: boolean
       }
+      is_admin: { Args: never; Returns: boolean }
       lock_room_wager: {
         Args: { _amount_cents: number; _room_code: string }
         Returns: Json
