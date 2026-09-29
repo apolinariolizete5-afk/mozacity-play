@@ -112,7 +112,7 @@ export const approvePayout = createServerFn({ method: "POST" })
     const payout = (Array.isArray(claimed) ? claimed[0] : claimed) as {
       payout_id: string;
       amount_cents: number;
-      method: "mpesa" | "mola" | "mcash" | "bank";
+      method: "mpesa" | "mcash";
       destination: string;
       status: string;
       provider_ref?: string | null;
