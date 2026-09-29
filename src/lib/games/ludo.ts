@@ -106,14 +106,49 @@ export function eliminateLudoPlayer(state: LudoState, player: number): LudoState
   return next;
 }
 
+function deterministicRoll(state: LudoState): number {
+  const seed = [
+    state.players,
+    state.turn,
+    state.sixStreak,
+    ...state.tokens.flat(),
+    state.log.length,
+  ].join(":");
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (Math.abs(hash) % 6) + 1;
+}
+
+function deterministicChoice(state: LudoState, choices: number[]): number {
+  if (choices.length === 1) return choices[0];
+  const seed = [
+    state.players,
+    state.turn,
+    state.dice ?? 0,
+    state.sixStreak,
+    ...state.tokens.flat(),
+    state.log.length,
+  ].join(":");
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return choices[Math.abs(hash) % choices.length];
+}
+
 export function ludoTimeout(state: LudoState): LudoState {
   if (state.over) return state;
-  const value = 1 + Math.floor(Math.random() * 6);
+  // O mesmo estado produz o mesmo resultado em todos os clientes.
+  const value = deterministicRoll(state);
   const rolled = ludoEngine.applyMove(state, { type: "roll", value });
   if (rolled.over || rolled.dice == null) return rolled;
   const choices = movableTokens(rolled);
   if (!choices.length) return rolled;
-  const token = choices[Math.floor(Math.random() * choices.length)];
+  const token = deterministicChoice(rolled, choices);
   return ludoEngine.applyMove(rolled, { type: "move", token });
 }
 
@@ -179,7 +214,6 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
     const from = mine[move.token];
     if (from == null) return state;
     let captured = false;
-    let reachedCenter = false;
 
     if (from === -1) {
       mine[move.token] = 0;
@@ -188,7 +222,6 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
       const target = from + dice;
       mine[move.token] = target;
       if (target === FINISHED) {
-        reachedCenter = true;
         next.log.unshift(`${playerName} levou um peão ao centro!`);
       } else {
         const destination = absoluteRing(next.turn, target);
@@ -216,7 +249,8 @@ export const ludoEngine: GameEngine<LudoState, LudoMove> = {
     }
 
     next.dice = null;
-    if (dice === 6 || captured || reachedCenter) {
+    // Chegar ao centro conclui a jogada, mas não concede turno extra.
+    if (dice === 6 || captured) {
       next.bonusRoll = true;
     } else {
       next.sixStreak = 0;
