@@ -110,6 +110,8 @@ function LudoMatch() {
   const bet = LUDO_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players }));
+  const stateRef = useRef(state);
+  const timeoutKeyRef = useRef<string | null>(null);
   const [seconds, setSeconds] = useState(TURN_SECONDS);
   const [rolling, setRolling] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -136,11 +138,22 @@ function LudoMatch() {
   }, [ready, realtime.turnDeadlineAt, state.turn, state.over, turnSequence]);
 
   useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
     if (!ready || state.over || seconds > 0 || state.turn !== realtime.playerIndex) return;
-    const next = ludoTimeout(state);
+    const current = stateRef.current;
+    const deadlineKey = realtime.turnDeadlineAt ?? "local";
+    const timeoutKey = `${deadlineKey}:${current.turn}:${current.dice ?? "none"}:${current.sixStreak}`;
+    if (timeoutKeyRef.current === timeoutKey) return;
+    timeoutKeyRef.current = timeoutKey;
+
+    const next = ludoTimeout(current);
+    stateRef.current = next;
     setState(next);
     void realtime.broadcastState(next);
-  }, [ready, seconds, state, realtime.playerIndex]);
+  }, [ready, seconds, state.over, state.turn, realtime.playerIndex, realtime.turnDeadlineAt, realtime.broadcastState]);
 
   useEffect(() => () => {
     if (rollTimer.current) window.clearTimeout(rollTimer.current);
@@ -272,7 +285,7 @@ useEffect(() => {
 
   const play = useCallback(
     (move: LudoMove) => {
-      if (!ready) return;
+      if (!ready || seconds <= 0) return;
       if (move.type === "move") {
         if (moving) return;
         setMoving(true);
@@ -292,15 +305,21 @@ useEffect(() => {
 
       rollTimer.current = window.setTimeout(() => {
         window.clearInterval(animation);
+        const current = stateRef.current;
+        if (current.over || current.turn !== realtime.playerIndex || current.dice != null) {
+          setRolling(false);
+          return;
+        }
         const value = move.value ?? 1 + Math.floor(Math.random() * 6);
         setDicePreview(value);
         setRolling(false);
-        const next = ludoEngine.applyMove(state, { type: "roll", value });
+        const next = ludoEngine.applyMove(current, { type: "roll", value });
+        stateRef.current = next;
         setState(next);
         if (room) void realtime.broadcastState(next);
       }, 560);
     },
-    [applyMove, moving, rolling, room, realtime, state, ready],
+    [applyMove, moving, rolling, room, realtime, ready, seconds],
   );
 
 
@@ -312,6 +331,7 @@ useEffect(() => {
 
   useEffect(() => {
     if (!room || !realtime.remoteState) return;
+    stateRef.current = realtime.remoteState;
     setState(realtime.remoteState);
   }, [realtime.remoteState, room]);
 
@@ -428,9 +448,11 @@ useEffect(() => {
             state={state}
             disabled={state.turn !== realtime.playerIndex || state.over || rolling || moving}
             onMove={(token) => {
-              const next = ludoEngine.applyMove(state, { type: "move", token });
+              const current = stateRef.current;
+              const next = ludoEngine.applyMove(current, { type: "move", token });
+              stateRef.current = next;
               setState(next);
-              if (room) void realtime.broadcastState(next);
+              if (next !== current && room) void realtime.broadcastState(next);
               setPendingMoveToken(null);
               setMoving(false);
             }}
