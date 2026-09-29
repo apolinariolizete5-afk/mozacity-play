@@ -139,7 +139,7 @@ export function BackgroundMusic() {
           await audio.play();
           playingRef.current = true;
           userUnlockedRef.current = true;
-          if (fadeIn) fadeVolume(audio, TARGET_VOLUME, 1200);
+          if (fadeIn) fadeVolume(audio, TARGET_VOLUME, FADE_SECONDS * 1000);
         } catch {
           playingRef.current = false;
           isTransitioningRef.current = false;
@@ -197,7 +197,7 @@ export function BackgroundMusic() {
       .then(() => {
         playingRef.current = true;
         userUnlockedRef.current = true;
-        fadeVolume(audio, TARGET_VOLUME, 1000);
+        fadeVolume(audio, TARGET_VOLUME, FADE_SECONDS * 1000);
       })
       .catch(() => {
         playingRef.current = false;
