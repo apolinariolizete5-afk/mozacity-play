@@ -53,7 +53,12 @@ export function BackgroundMusic() {
   const isTransitioningRef = useRef(false);
 
   const isGame = pathname.startsWith("/games/");
-  const isGameRef = useRef(isGame);\n\n  useEffect(() => {\n    isGameRef.current = isGame;\n  }, [isGame]);\n
+  const isGameRef = useRef(isGame);
+
+  useEffect(() => {
+    isGameRef.current = isGame;
+  }, [isGame]);
+
   const clearTimers = useCallback(() => {
     if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
     if (titleTimerRef.current !== null) window.clearTimeout(titleTimerRef.current);
