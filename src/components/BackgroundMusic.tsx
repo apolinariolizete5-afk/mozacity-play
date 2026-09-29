@@ -232,7 +232,14 @@ export function BackgroundMusic() {
     audioRef.current = audio;
 
     const onEnded = () => {
-      if (!enabledRef.current || document.hidden || isGame) return;
+      if (
+        isTransitioningRef.current ||
+        !enabledRef.current ||
+        document.hidden ||
+        isGame
+      ) {
+        return;
+      }
       void loadTrack(chooseNextTrack(), true);
     };
 
