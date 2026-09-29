@@ -35,7 +35,7 @@ export type LobbyRoom = {
 };
 
 type RoomEvent<T = unknown> =
-  | { kind: "state"; state: T; actorId: string; sequence: number; sentAt: number }
+  | { kind: "state"; state: T; actorId: string; sequence: number; logicalClock: number; sentAt: number }
   | { kind: "request_state"; actorId: string; sentAt: number }
   | { kind: "forfeit"; winnerId: string; actorId: string; sentAt: number }
   | { kind: "eliminate"; playerId: string; actorId: string; sentAt: number };
@@ -245,7 +245,9 @@ export function useRealtimeRoom<T>(
   const [eliminatedPlayerIds, setEliminatedPlayerIds] = useState<string[]>([]);
   const channelRef = useRef<RoomChannel | null>(null);
   const sequenceRef = useRef(0);
+  const logicalClockRef = useRef(0);
   const latestStateRef = useRef<T | null>(null);
+  const latestStateOrderRef = useRef<{ logicalClock: number; actorId: string; sequence: number } | null>(null);
   const playerIndexRef = useRef(0);
   const hadOpponentRef = useRef(false);
   const disconnectTimerRef = useRef<number | null>(null);
@@ -307,8 +309,33 @@ export function useRealtimeRoom<T>(
     const onState = (payload: { payload?: RoomEvent<T> }) => {
       const event = payload.payload;
       if (!event || event.kind !== "state" || event.actorId === player.playerId) return;
-      if (event.sequence < sequenceRef.current) return;
+
+      // Lamport clock + actorId gives every client the same deterministic
+      // ordering, even when two devices broadcast at nearly the same time.
+      logicalClockRef.current = Math.max(logicalClockRef.current, event.logicalClock);
+
+      const incomingOrder = {
+        logicalClock: event.logicalClock,
+        actorId: event.actorId,
+        sequence: event.sequence,
+      };
+      const currentOrder = latestStateOrderRef.current;
+      const isNewer = !currentOrder
+        || incomingOrder.logicalClock > currentOrder.logicalClock
+        || (
+          incomingOrder.logicalClock === currentOrder.logicalClock
+          && (
+            incomingOrder.actorId > currentOrder.actorId
+            || (
+              incomingOrder.actorId === currentOrder.actorId
+              && incomingOrder.sequence > currentOrder.sequence
+            )
+          )
+        );
+      if (!isNewer) return;
+
       sequenceRef.current = Math.max(sequenceRef.current, event.sequence);
+      latestStateOrderRef.current = incomingOrder;
       setRemoteState(event.state);
       latestStateRef.current = event.state;
       const stateObj = event.state as Record<string, unknown>;
@@ -328,6 +355,7 @@ export function useRealtimeRoom<T>(
           state: latestStateRef.current,
           actorId: player.playerId,
           sequence: sequenceRef.current,
+          logicalClock: logicalClockRef.current,
           sentAt: Date.now(),
         },
       });
@@ -382,7 +410,13 @@ export function useRealtimeRoom<T>(
       const channel = channelRef.current;
       if (!channel) return;
       sequenceRef.current += 1;
+      logicalClockRef.current += 1;
       latestStateRef.current = nextState;
+      latestStateOrderRef.current = {
+        logicalClock: logicalClockRef.current,
+        actorId: player.playerId,
+        sequence: sequenceRef.current,
+      };
       const deadline = Date.now() + TURN_SECONDS * 1000;
       setTurnDeadlineAt(deadline);
 
@@ -399,6 +433,7 @@ export function useRealtimeRoom<T>(
           state: stateWithDeadline,
           actorId: player.playerId,
           sequence: sequenceRef.current,
+          logicalClock: logicalClockRef.current,
           sentAt: Date.now(),
         },
       });
