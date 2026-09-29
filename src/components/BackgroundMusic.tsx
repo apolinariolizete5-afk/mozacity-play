@@ -221,7 +221,7 @@ export function BackgroundMusic() {
         startPlayback();
       }
     },
-    [isGame, startPlayback, stopPlayback],
+    [startPlayback, stopPlayback],
   );
 
   useEffect(() => {
@@ -263,7 +263,7 @@ export function BackgroundMusic() {
 
       nextTrackTimerRef.current = window.setTimeout(() => {
         nextTrackTimerRef.current = null;
-        if (!enabledRef.current || document.hidden || isGame) return;
+        if (!enabledRef.current || document.hidden || isGameRef.current) return;
         void loadTrack(chooseNextTrack(), true);
       }, Math.max(0, (audio.duration - audio.currentTime - FADE_SECONDS) * 1000));
     };
@@ -281,7 +281,7 @@ export function BackgroundMusic() {
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
-    if (enabledRef.current && !isGame) {
+    if (enabledRef.current && !isGameRef.current) {
       void loadTrack(trackRef.current, true);
     }
 
@@ -298,7 +298,7 @@ export function BackgroundMusic() {
   }, [chooseNextTrack, clearTimers, loadTrack]);
 
   useEffect(() => {
-    if (isGame || !enabled) {
+    if (isGameRef.current || !enabled) {
       stopPlayback();
       return;
     }
