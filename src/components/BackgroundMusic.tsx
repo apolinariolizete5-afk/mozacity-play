@@ -117,14 +117,13 @@ export function BackgroundMusic() {
       isTransitioningRef.current = true;
 
       clearTimers();
-      showTrackTitle(track.name);
 
       const startPlayback = async () => {
         if (
           generationRef.current !== generation ||
           !enabledRef.current ||
           document.hidden ||
-          isGame
+          isGameRef.current
         ) {
           isTransitioningRef.current = false;
           return;
@@ -139,6 +138,7 @@ export function BackgroundMusic() {
           await audio.play();
           playingRef.current = true;
           userUnlockedRef.current = true;
+          showTrackTitle(track.name);
           if (fadeIn) fadeVolume(audio, TARGET_VOLUME, FADE_SECONDS * 1000);
         } catch (error) {
           playingRef.current = false;
