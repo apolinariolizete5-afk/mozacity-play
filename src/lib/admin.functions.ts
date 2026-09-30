@@ -104,7 +104,7 @@ export const approvePayout = createServerFn({ method: "POST" })
     z.object({ payout_id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
+    const provider = (process.env.PAYMENT_PROVIDER ?? "netshop").trim().toLowerCase();
     if (provider === "payco") {
       throw new Error("payco_payout_not_configured");
     }
@@ -117,7 +117,7 @@ export const approvePayout = createServerFn({ method: "POST" })
     const payout = (Array.isArray(claimed) ? claimed[0] : claimed) as {
       payout_id: string;
       amount_cents: number;
-      method: "mpesa" | "mcash";
+      method: "mpesa" | "mcash" | "emola";
       destination: string;
       status: string;
       provider_ref?: string | null;
