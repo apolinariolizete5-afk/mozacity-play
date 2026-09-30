@@ -104,6 +104,11 @@ export const approvePayout = createServerFn({ method: "POST" })
     z.object({ payout_id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
+    if (provider === "payco") {
+      throw new Error("payco_payout_not_configured");
+    }
+
     const { data: claimed, error: claimError } = await context.supabase.rpc("admin_claim_payout", {
       _payout_id: data.payout_id,
     });
