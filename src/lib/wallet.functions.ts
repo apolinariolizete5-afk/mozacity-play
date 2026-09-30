@@ -114,14 +114,6 @@ export const startDeposit = createServerFn({ method: "POST" })
         throw new Error("payment_provider_not_configured");
       }
 
-      const netshopMethod = data.method === "emola" ? "mpesa" : data.method;
-      if (data.method === "emola") {
-        await context.supabase.rpc("cancel_failed_deposit", {
-          _idempotency_key: key,
-        });
-        throw new Error("method_not_supported_by_provider");
-      }
-
       result = await netshop.requestDeposit({
         method: netshopMethod,
         msisdn: normalizedMsisdn,
@@ -180,7 +172,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
+    const provider = (process.env.PAYMENT_PROVIDER ?? "netshop").trim().toLowerCase();
     if (provider === "payco") {
       throw new Error("payco_payout_not_configured");
     }
