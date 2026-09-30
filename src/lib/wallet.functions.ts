@@ -180,6 +180,11 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
+    if (provider === "payco") {
+      throw new Error("payco_payout_not_configured");
+    }
+
     const { data: result, error } = await context.supabase.rpc("request_withdrawal", {
       _amount_cents: data.amount_cents,
       _method: data.method === "emola" ? "mola" : data.method,
