@@ -12,16 +12,16 @@ function normalizeMozMobile(value: string): string {
 
 function validateDepositMsisdn(method: (typeof METHODS)[number], value: string): string | null {
   const digits = normalizeMozMobile(value);
-  if (!/^\d{9}$/.test(digits)) {
-    return method === "mcash"
-      ? "Número mKesh inválido. Usa 9 dígitos, por exemplo 82 123 4567."
-      : "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567.";
-  }
-  if (method === "mcash" && !/^(82|83)\d{7}$/.test(digits)) {
+  if (method === "mcash" && digits.length >= 2 && !/^(82|83)/.test(digits)) {
     return "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567.";
   }
-  if (method === "mpesa" && !/^(84|85)\d{7}$/.test(digits)) {
+  if (method === "mpesa" && digits.length >= 2 && !/^(84|85)/.test(digits)) {
     return "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567.";
+  }
+  if (!/^\d{9}$/.test(digits)) {
+    return method === "mcash"
+      ? "Número mKesh incompleto. Usa 9 dígitos, por exemplo 82 123 4567."
+      : "Número M-Pesa incompleto. Usa 9 dígitos, por exemplo 84 123 4567.";
   }
   return null;
 }
