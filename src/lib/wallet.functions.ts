@@ -80,7 +80,7 @@ export const startDeposit = createServerFn({ method: "POST" })
     const key = (row as { idempotency_key: string } | null)?.idempotency_key;
     if (!key) throw new Error("deposit_not_created");
 
-    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
+    const provider = (process.env.PAYMENT_PROVIDER ?? "netshop").trim().toLowerCase();
 
     let result:
       | Awaited<ReturnType<typeof import("./payments/payco.server").requestDeposit>>
