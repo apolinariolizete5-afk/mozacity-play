@@ -34,8 +34,8 @@ function walletIdFor(method: PaycoMethod): string | undefined {
   return env(names[method]);
 }
 
-function providerMethod(method: PaycoMethod): PaycoMethod {
-  return method;
+function providerMethod(method: PaycoMethod): "mpesa" | "mkesh" | "emola" {
+  return method === "mcash" ? "mkesh" : method;
 }
 
 export function paycoStatus() {
