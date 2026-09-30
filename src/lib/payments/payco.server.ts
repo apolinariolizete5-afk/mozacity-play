@@ -69,7 +69,7 @@ function safePayload(payload: Record<string, unknown>): Record<string, unknown> 
       ? (payload.data as Record<string, unknown>)
       : payload;
 
-  return {
+  const known: Record<string, unknown> = {
     error: payload.error ?? data.error,
     code: payload.code ?? data.code,
     message: payload.message ?? data.message,
@@ -78,6 +78,16 @@ function safePayload(payload: Record<string, unknown>): Record<string, unknown> 
     reference: data.reference ?? data.transaction_reference ?? data.id,
     provider_transaction_id: data.provider_transaction_id,
     checkout_url: typeof data.checkout_url === "string" ? "[present]" : undefined,
+  };
+
+  const knownValues = Object.values(known).filter((value) => value !== undefined && value !== null);
+  if (knownValues.length > 0) return known;
+
+  // PAY.CO.MZ can return only {"error":"request_failed"} on a 400.
+  // Keep a bounded diagnostic copy so the real provider response is visible
+  // in Render logs without exposing credentials or the customer's full phone.
+  return {
+    rawResponse: JSON.stringify(payload).slice(0, 1000),
   };
 }
 
