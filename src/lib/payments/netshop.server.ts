@@ -83,8 +83,12 @@ async function callCharge(input: {
   });
 
   try {
+    // Mobile-money charges can legitimately take longer than a normal HTTP request
+    // because the provider may need to trigger a USSD/push authorization first.
+    // Do not turn a client-side timeout into a financial "failed" state: the
+    // provider may still complete the charge and send the signed webhook later.
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => controller.abort(), 60_000);
 
     let response: Response;
     try {
@@ -181,10 +185,28 @@ async function callCharge(input: {
       ...(providerRef ? { providerRef } : {}),
     };
   } catch (error) {
+    const aborted =
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message === "This operation was aborted");
+
     console.error("[NetShop] charge request failed", {
       method: input.method,
+      reference: input.reference,
+      reason: aborted ? "provider_request_timeout" : "provider_request_failed",
       error: error instanceof Error ? error.message : "provider_request_failed",
     });
+
+    // We cannot know whether the provider received/started the charge after
+    // the HTTP request timed out. Keep the deposit pending so the signed
+    // webhook remains the source of truth and never cancel a possible payment.
+    if (aborted) {
+      return {
+        ok: true,
+        status: "pending",
+        error: "provider_request_timeout_pending",
+      };
+    }
+
     return {
       ok: false,
       status: "failed",
