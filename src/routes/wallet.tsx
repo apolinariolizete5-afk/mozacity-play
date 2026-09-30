@@ -29,7 +29,7 @@ export const Route = createFileRoute("/wallet")({
       {
         name: "description",
         content:
-          "Deposita pelo M-Pesa ou mCash. O valor mínimo é definido no painel de administração.",
+          "Deposita por M-Pesa, mKesh ou e-Mola. O valor mínimo é definido no painel de administração.",
       },
       { property: "og:title", content: "Carteira em meticais — MozaPlay" },
       {
@@ -41,8 +41,8 @@ export const Route = createFileRoute("/wallet")({
   component: WalletPage,
 });
 
-type Method = "mpesa" | "mcash";
-const METHODS: Method[] = ["mpesa", "mcash"];
+type Method = "mpesa" | "mcash" | "emola";
+const METHODS: Method[] = ["mpesa", "mcash", "emola"];
 
 interface TxRow {
   id: string;
@@ -224,7 +224,7 @@ function MethodPicker({
   onChange: (m: Method) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-3 gap-2">
       {METHODS.map((m) => (
         <button
           key={m}
@@ -260,11 +260,17 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
           : !/^(82|83)\d{7}$/.test(normalizedPhone)
             ? "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567."
             : null
-        : !/^\d{9}$/.test(normalizedPhone)
-          ? "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567."
-          : !/^(84|85)\d{7}$/.test(normalizedPhone)
-            ? "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567."
-            : null;
+        : method === "emola"
+          ? !/^\d{9}$/.test(normalizedPhone)
+            ? "Número e-Mola inválido. Usa 9 dígitos, por exemplo 86 123 4567."
+            : !/^(86|87)\d{7}$/.test(normalizedPhone)
+              ? "Este número não é de e-Mola. Para e-Mola, usa um número Movitel que começa por 86 ou 87. Ex.: 86 123 4567."
+              : null
+          : !/^\d{9}$/.test(normalizedPhone)
+            ? "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567."
+            : !/^(84|85)\d{7}$/.test(normalizedPhone)
+              ? "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567."
+              : null;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -308,7 +314,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : "Ex.: 84 123 4567"}
+        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : method === "emola" ? "Ex.: 86 123 4567" : "Ex.: 84 123 4567"}
         inputMode="tel"
         maxLength={32}
         value={msisdn}
@@ -320,7 +326,9 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
         <p className="text-[11px] text-muted-foreground">
           {method === "mcash"
             ? "mKesh: usa um número Tmcel iniciado por 82 ou 83."
-            : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
+            : method === "emola"
+              ? "e-Mola: usa um número Movitel iniciado por 86 ou 87."
+              : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
         </p>
       )}
       <div className="rounded-2xl bg-secondary/70 p-3 text-xs">
