@@ -6,8 +6,8 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type Method = "mpesa" | "mcash";
-type ProviderMethod = "mpesa" | "mkesh";
+export type Method = "mpesa" | "mcash" | "emola";
+type ProviderMethod = "mpesa" | "mkesh" | "emola";
 
 export interface NetshopResult {
   ok: boolean;
@@ -29,6 +29,7 @@ export function walletIdFor(method: Method): string | undefined {
   const map: Record<Method, string> = {
     mpesa: "NETSHOP_WALLET_ID_MPESA",
     mcash: "NETSHOP_WALLET_ID_MKESH",
+    emola: "NETSHOP_WALLET_ID_EMOLA",
   };
 
   return env(map[method]);
@@ -40,6 +41,7 @@ export function netshopStatus() {
     methods: {
       mpesa: Boolean(walletIdFor("mpesa")),
       mcash: Boolean(walletIdFor("mcash")),
+      emola: Boolean(walletIdFor("emola")),
     },
   };
 }
