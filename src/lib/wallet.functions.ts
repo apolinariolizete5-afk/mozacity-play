@@ -115,7 +115,7 @@ export const startDeposit = createServerFn({ method: "POST" })
       }
 
       result = await netshop.requestDeposit({
-        method: netshopMethod,
+        method: data.method,
         msisdn: normalizedMsisdn,
         amountCents: data.amount_cents,
         reference: key,
