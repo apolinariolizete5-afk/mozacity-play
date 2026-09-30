@@ -410,7 +410,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder="Número de telemóvel (84…)"
+        placeholder={method === "mcash" ? "Número mKesh (82/83…)" : method === "emola" ? "Número e-Mola (86/87…)" : "Número M-Pesa (84/85…)"}
         inputMode="tel"
         maxLength={32}
         value={destination}
@@ -459,7 +459,9 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
         Pedir levantamento
       </Button>
       <div className="flex flex-wrap gap-1">
-        <Pill tone="muted">Aprovação manual</Pill>
+        <Pill tone="muted">M-Pesa</Pill>
+        <Pill tone="muted">mKesh</Pill>
+        <Pill tone="muted">e-Mola</Pill>
         <Pill tone="muted">Taxa transparente</Pill>
       </div>
     </Card>
