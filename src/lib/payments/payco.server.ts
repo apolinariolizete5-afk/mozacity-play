@@ -57,6 +57,30 @@ function normalizeMsisdn(value: string): string {
   return raw;
 }
 
+function maskedPhone(value: string): string {
+  const normalized = normalizeMsisdn(value);
+  if (normalized.length <= 4) return "****";
+  return `${"*".repeat(Math.max(0, normalized.length - 4))}${normalized.slice(-4)}`;
+}
+
+function safePayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const data =
+    payload.data && typeof payload.data === "object"
+      ? (payload.data as Record<string, unknown>)
+      : payload;
+
+  return {
+    error: payload.error ?? data.error,
+    code: payload.code ?? data.code,
+    message: payload.message ?? data.message,
+    status: payload.status ?? data.status,
+    state: payload.state ?? data.state,
+    reference: data.reference ?? data.transaction_reference ?? data.id,
+    provider_transaction_id: data.provider_transaction_id,
+    checkout_url: typeof data.checkout_url === "string" ? "[present]" : undefined,
+  };
+}
+
 export async function requestDeposit(input: {
   method: PaycoMethod;
   msisdn: string;
@@ -66,16 +90,37 @@ export async function requestDeposit(input: {
   const key = env("PAYCO_API_KEY");
   const merchantId = env("PAYCO_MERCHANT_ID");
   const walletId = walletIdFor(input.method);
+  const provider = providerMethod(input.method);
 
   if (!key || !merchantId) {
+    console.error("[PAYCO] Provider not configured", {
+      method: input.method,
+      hasApiKey: Boolean(key),
+      hasMerchantId: Boolean(merchantId),
+    });
     return { ok: false, status: "failed", error: "provider_not_configured" };
   }
   if (!walletId) {
+    console.error("[PAYCO] Wallet not configured", {
+      method: input.method,
+      providerMethod: provider,
+    });
     return { ok: false, status: "failed", error: "wallet_not_configured" };
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
+  const startedAt = Date.now();
+
+  console.info("[PAYCO] Charge request", {
+    method: input.method,
+    providerMethod: provider,
+    amountMzn: input.amountCents / 100,
+    walletConfigured: true,
+    walletSuffix: walletId.slice(-4),
+    customerContact: maskedPhone(input.msisdn),
+    reference: input.reference,
+  });
 
   try {
     const response = await fetch(`${apiUrl().replace(/\/$/, "")}/charges`, {
@@ -90,7 +135,7 @@ export async function requestDeposit(input: {
       },
       body: JSON.stringify({
         amount: input.amountCents / 100,
-        method: providerMethod(input.method),
+        method: provider,
         customer_contact: normalizeMsisdn(input.msisdn),
         wallet_id: walletId,
       }),
@@ -102,8 +147,17 @@ export async function requestDeposit(input: {
     try {
       payload = JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      payload = { raw };
+      payload = { raw: raw.slice(0, 500) };
     }
+
+    console.info("[PAYCO] Charge response", {
+      method: input.method,
+      providerMethod: provider,
+      httpStatus: response.status,
+      ok: response.ok,
+      durationMs: Date.now() - startedAt,
+      payload: safePayload(payload),
+    });
 
     if (!response.ok) {
       return {
@@ -130,6 +184,15 @@ export async function requestDeposit(input: {
           ? "failed"
           : "pending";
 
+    console.info("[PAYCO] Charge interpreted", {
+      method: input.method,
+      providerMethod: provider,
+      providerRef: providerRef || null,
+      remoteStatus,
+      status,
+      durationMs: Date.now() - startedAt,
+    });
+
     return {
       ok: status !== "failed",
       status,
@@ -137,10 +200,18 @@ export async function requestDeposit(input: {
       ...(typeof data.checkout_url === "string" ? { checkoutUrl: data.checkout_url } : {}),
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "provider_request_failed";
+    console.error("[PAYCO] Charge request failed", {
+      method: input.method,
+      providerMethod: provider,
+      durationMs: Date.now() - startedAt,
+      errorName: error instanceof Error ? error.name : "unknown",
+      error: message,
+    });
     return {
       ok: false,
       status: "failed",
-      error: error instanceof Error ? error.message : "provider_request_failed",
+      error: message,
     };
   } finally {
     clearTimeout(timeout);
