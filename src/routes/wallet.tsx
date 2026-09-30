@@ -487,6 +487,8 @@ function depositError(message: string, minDepositCents?: number): string {
       "Este método de pagamento ainda não está configurado.",
     method_not_supported_by_provider:
       "Este método não está disponível no provedor de pagamentos ativo.",
+    payco_payout_not_configured:
+      "Os levantamentos PAY.CO.MZ ainda não estão ativados para esta conta. O teu saldo não foi debitado.",
   };
   for (const key of Object.keys(map)) if (message.includes(key)) return map[key]!;
   return message;
