@@ -4,6 +4,28 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const METHODS = ["mpesa", "mcash"] as const;
 
+function normalizeMozMobile(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("258")) return digits.slice(3);
+  return digits;
+}
+
+function validateDepositMsisdn(method: (typeof METHODS)[number], value: string): string | null {
+  const digits = normalizeMozMobile(value);
+  if (!/^\d{9}$/.test(digits)) {
+    return method === "mcash"
+      ? "Número mKesh inválido. Usa 9 dígitos, por exemplo 82 123 4567."
+      : "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567.";
+  }
+  if (method === "mcash" && !/^(82|83)\d{7}$/.test(digits)) {
+    return "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567.";
+  }
+  if (method === "mpesa" && !/^(84|85)\d{7}$/.test(digits)) {
+    return "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567.";
+  }
+  return null;
+}
+
 export interface WalletSummary {
   balance_cents: number;
   withdrawable_cents: number;
@@ -39,10 +61,15 @@ export const startDeposit = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const phoneError = validateDepositMsisdn(data.method, data.msisdn);
+    if (phoneError) throw new Error(phoneError);
+
+    const normalizedMsisdn = normalizeMozMobile(data.msisdn);
+
     const { data: started, error } = await context.supabase.rpc("start_deposit", {
       _amount_cents: data.amount_cents,
       _method: data.method,
-      _msisdn: data.msisdn,
+      _msisdn: normalizedMsisdn,
     });
     if (error) throw new Error(error.message);
 
@@ -62,7 +89,7 @@ export const startDeposit = createServerFn({ method: "POST" })
 
     const result = await requestDeposit({
       method: data.method,
-      msisdn: data.msisdn,
+      msisdn: normalizedMsisdn,
       amountCents: data.amount_cents,
       reference: key,
     });
