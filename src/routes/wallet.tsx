@@ -485,6 +485,8 @@ function depositError(message: string, minDepositCents?: number): string {
       "O serviço de pagamento ainda não está configurado.",
     wallet_not_configured:
       "Este método de pagamento ainda não está configurado.",
+    method_not_supported_by_provider:
+      "Este método não está disponível no provedor de pagamentos ativo.",
   };
   for (const key of Object.keys(map)) if (message.includes(key)) return map[key]!;
   return message;
