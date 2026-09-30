@@ -250,20 +250,36 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
   const [method, setMethod] = useState<Method>("mpesa");
   const [msisdn, setMsisdn] = useState("");
 
+  const normalizedPhone = msisdn.replace(/\D/g, "").replace(/^258/, "");
+  const phoneError =
+    normalizedPhone.length === 0
+      ? null
+      : method === "mcash"
+        ? !/^\d{9}$/.test(normalizedPhone)
+          ? "Número mKesh inválido. Usa 9 dígitos, por exemplo 82 123 4567."
+          : !/^(82|83)\d{7}$/.test(normalizedPhone)
+            ? "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567."
+            : null
+        : !/^\d{9}$/.test(normalizedPhone)
+          ? "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567."
+          : !/^(84|85)\d{7}$/.test(normalizedPhone)
+            ? "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567."
+            : null;
+
   const mutation = useMutation({
     mutationFn: () =>
       deposit({
         data: {
           amount_cents: toCents(Number(amount)),
           method,
-          msisdn: msisdn.trim(),
+          msisdn: normalizedPhone,
         },
       }),
     onSuccess: onDone,
   });
 
   const value = Number(amount);
-  const invalid = !Number.isFinite(value) || value < min || msisdn.trim().length < 6;
+  const invalid = !Number.isFinite(value) || value < min || normalizedPhone.length !== 9 || Boolean(phoneError);
 
   return (
     <Card className="space-y-3">
@@ -292,12 +308,21 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder="Número de telemóvel (84…)"
+        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : "Ex.: 84 123 4567"}
         inputMode="tel"
         maxLength={32}
         value={msisdn}
         onChange={(e) => setMsisdn(e.target.value)}
       />
+      {phoneError ? (
+        <p className="text-xs font-semibold text-destructive">{phoneError}</p>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">
+          {method === "mcash"
+            ? "mKesh: usa um número Tmcel iniciado por 82 ou 83."
+            : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
+        </p>
+      )}
       <div className="rounded-2xl bg-secondary/70 p-3 text-xs">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Creditado na carteira</span>
