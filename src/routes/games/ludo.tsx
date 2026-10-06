@@ -128,6 +128,8 @@ function LudoMatch() {
   const realtime = useRealtimeRoom<any>(room || undefined, "ludo", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const rollTimer = useRef<number | null>(null);
+  const botTimer = useRef<number | null>(null);
+  const botBusyRef = useRef(false);
 
   const playersReady = botMode || Boolean(room && realtime.players.length >= players);
   const [escrowReady, setEscrowReady] = useState(bet <= 0);
@@ -147,7 +149,7 @@ function LudoMatch() {
   }, [state]);
 
   useEffect(() => {
-    if (!ready || state.over || seconds > 0 || state.turn !== realtime.playerIndex) return;
+    if (botMode || !ready || state.over || seconds > 0 || state.turn !== realtime.playerIndex) return;
     const current = stateRef.current;
     const deadlineKey = realtime.turnDeadlineAt ?? "local";
     const timeoutKey = `${deadlineKey}:${current.turn}:${current.dice ?? "none"}:${current.sixStreak}`;
@@ -159,6 +161,61 @@ function LudoMatch() {
     setState(next);
     void realtime.broadcastState(next);
   }, [ready, seconds, state.over, state.turn, realtime.playerIndex, realtime.turnDeadlineAt, realtime.broadcastState]);
+
+  useEffect(() => {
+    if (!botMode || !ready || state.over || state.turn === 0 || botBusyRef.current) return;
+
+    const current = stateRef.current;
+    const botIndex = current.turn;
+    const thinkMs = botDifficulty === "hard" ? 1100 : botDifficulty === "normal" ? 750 : 450;
+
+    botBusyRef.current = true;
+    botTimer.current = window.setTimeout(() => {
+      if (stateRef.current.over || stateRef.current.turn !== botIndex) {
+        botBusyRef.current = false;
+        return;
+      }
+
+      const beforeRoll = stateRef.current;
+      const roll = chooseLudoBotMove(beforeRoll, botDifficulty);
+      const rollValue = roll.type === "roll" ? 1 + Math.floor(Math.random() * 6) : undefined;
+      const rolled = ludoEngine.applyMove(beforeRoll, roll.type === "roll" ? { type: "roll", value: rollValue } : roll);
+      stateRef.current = rolled;
+      setState(rolled);
+
+      if (rolled.over || rolled.turn !== botIndex || rolled.dice == null) {
+        botBusyRef.current = false;
+        return;
+      }
+
+      botTimer.current = window.setTimeout(() => {
+        if (stateRef.current.over || stateRef.current.turn !== botIndex) {
+          botBusyRef.current = false;
+          return;
+        }
+
+        const currentAfterRoll = stateRef.current;
+        const move = chooseLudoBotMove(currentAfterRoll, botDifficulty);
+        const next = move.type === "move"
+          ? ludoEngine.applyMove(currentAfterRoll, move)
+          : currentAfterRoll;
+
+        stateRef.current = next;
+        setState(next);
+        botBusyRef.current = false;
+      }, 450);
+    }, thinkMs);
+
+    return () => {
+      if (botTimer.current !== null) window.clearTimeout(botTimer.current);
+      botTimer.current = null;
+      botBusyRef.current = false;
+    };
+  }, [botDifficulty, botMode, ready, state.turn, state.over, state.dice]);
+
+  useEffect(() => () => {
+    if (rollTimer.current) window.clearTimeout(rollTimer.current);
+  }, []);
 
   useEffect(() => () => {
     if (rollTimer.current) window.clearTimeout(rollTimer.current);
@@ -291,7 +348,7 @@ useEffect(() => {
 
   const play = useCallback(
     (move: LudoMove) => {
-      if (!ready || seconds <= 0 || !humanTurn) return;
+      if (!ready || (!botMode && seconds <= 0) || !humanTurn) return;
       if (move.type === "move") {
         if (moving) return;
         setMoving(true);
@@ -325,7 +382,7 @@ useEffect(() => {
         if (room) void realtime.broadcastState(next);
       }, 560);
     },
-    [applyMove, humanTurn, moving, rolling, room, realtime, ready, seconds],
+    [applyMove, botMode, humanTurn, moving, rolling, room, realtime, ready, seconds],
   );
 
 
@@ -430,7 +487,7 @@ useEffect(() => {
             {state.bonusRoll && (
               <Pill tone="accent" className="text-xs"><Flame className="h-3 w-3" /> Extra</Pill>
             )}
-            <span className="text-xs font-mono font-bold text-primary">⏱ {seconds}s</span>
+            <span className="text-xs font-mono font-bold text-primary">{botMode ? "🤖 Sem limite" : `⏱ ${seconds}s`}</span>
           </div>
         </div>
 
@@ -477,11 +534,11 @@ useEffect(() => {
             ? `A aguardar ${Math.max(0, players - realtime.players.length)} jogador(es) para completar a sala...` 
             : state.over
             ? "Partida terminada!"
-            : state.turn === realtime.playerIndex
+            : humanTurn
               ? state.dice == null
                 ? "👉 É a tua vez! Toca no teu dado para rolar."
                 : "👉 Escolhe o teu peão disponível para mover."
-              : `${playersList[state.turn]?.name ?? "Adversário"} está a jogar...`}
+              : `${playersList[state.turn]?.name ?? "Bot"} está a jogar...`}
         </Card>
 
         {result && (
