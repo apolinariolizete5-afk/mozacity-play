@@ -35,11 +35,11 @@ function ChessMatch() {
   const botDifficulty = (bot ?? "normal") as BotDifficulty;
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
+  const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const humanColor = botMode ? "w" : realtime.playerIndex === 0 ? "w" : "b";
   const humanTurn = state.turn === humanColor;
   const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
-  const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
   const botTimer = useRef<number | null>(null);
   const stateRef = useRef(state);
