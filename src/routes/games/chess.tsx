@@ -108,7 +108,10 @@ function ChessMatch() {
 
   useEffect(() => {
     if (!ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
-    void realti  useEffect(() => {
+    void realtime.broadcastState(state);
+  }, [ready, realtime.playerIndex, realtime.remoteState, state]);
+
+  useEffect(() => {
     if (!botMode || !ready || state.over || state.turn !== "b") return;
 
     const delay = botDifficulty === "hard" ? 1400 : botDifficulty === "normal" ? 900 : 500;
