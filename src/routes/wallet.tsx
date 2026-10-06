@@ -41,8 +41,8 @@ export const Route = createFileRoute("/wallet")({
   component: WalletPage,
 });
 
-type Method = "mpesa" | "mcash" | "emola";
-const METHODS: Method[] = ["mpesa", "mcash", "emola"];
+type Method = "mpesa" | "mcash" | "emola" | "card";
+const METHODS: Method[] = ["mpesa", "mcash", "emola", "card"];
 
 interface TxRow {
   id: string;
@@ -224,7 +224,7 @@ function MethodPicker({
   onChange: (m: Method) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       {METHODS.map((m) => (
         <button
           key={m}
@@ -250,12 +250,14 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
   const [method, setMethod] = useState<Method>("mpesa");
   const [msisdn, setMsisdn] = useState("");
 
-  const normalizedPhone = msisdn.replace(/\D/g, "").replace(/^258/, "");
+  const normalizedPhone = method === "card" ? msisdn.trim() : msisdn.replace(/\D/g, "").replace(/^258/, "");
   const phoneError =
     normalizedPhone.length === 0
       ? null
-      : !/^\d{9}$/.test(normalizedPhone)
-        ? `Número ${METHOD_LABELS[method]} inválido. Usa 9 dígitos.`
+      : method === "card"
+        ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedPhone) ? null : "Usa um email válido para o cartão."
+        : !/^\d{9}$/.test(normalizedPhone)
+          ? `Número ${METHOD_LABELS[method]} inválido. Usa 9 dígitos.`
         : method === "mcash" && !/^(82|83)\d{7}$/.test(normalizedPhone)
           ? "Este número não é de mKesh. Usa 82 ou 83."
           : method === "mpesa" && !/^(84|85)\d{7}$/.test(normalizedPhone)
@@ -277,7 +279,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
   });
 
   const value = Number(amount);
-  const invalid = !Number.isFinite(value) || value < min || normalizedPhone.length !== 9 || Boolean(phoneError);
+  const invalid = !Number.isFinite(value) || value < min || (method === "card" ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedPhone) : normalizedPhone.length !== 9) || Boolean(phoneError);
 
   return (
     <Card className="space-y-3">
@@ -306,9 +308,9 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : method === "emola" ? "Ex.: 86 123 4567" : "Ex.: 84 123 4567"}
-        inputMode="tel"
-        maxLength={32}
+        placeholder={method === "card" ? "Email para checkout" : method === "mcash" ? "Ex.: 82 123 4567" : method === "emola" ? "Ex.: 86 123 4567" : "Ex.: 84 123 4567"}
+        inputMode={method === "card" ? "email" : "tel"}
+        maxLength={64}
         value={msisdn}
         onChange={(e) => setMsisdn(e.target.value)}
       />
@@ -316,11 +318,13 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
         <p className="text-xs font-semibold text-destructive">{phoneError}</p>
       ) : (
         <p className="text-[11px] text-muted-foreground">
-          {method === "mcash"
-            ? "mKesh: usa um número Tmcel iniciado por 82 ou 83."
-            : method === "emola"
-              ? "e-Mola: usa um número Movitel iniciado por 86 ou 87."
-              : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
+          {method === "card"
+            ? "Cartão: o pagamento abre num checkout seguro da PAY.CO.MZ."
+            : method === "mcash"
+              ? "mKesh: usa um número Tmcel iniciado por 82 ou 83."
+              : method === "emola"
+                ? "e-Mola: usa um número Movitel iniciado por 86 ou 87."
+                : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
         </p>
       )}
       <div className="rounded-2xl bg-secondary/70 p-3 text-xs">
@@ -357,7 +361,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
 function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: () => void }) {
   const withdraw = useServerFn(requestWithdrawal);
   const [amount, setAmount] = useState(String(summary.min_withdrawal_cents / 100));
-  const [method, setMethod] = useState<Method>("mpesa");
+  const [method, setMethod] = useState<Exclude<Method, "card">>("mpesa");
   const [destination, setDestination] = useState("");
 
   const value = Number(amount);
@@ -402,7 +406,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "mcash" ? "Número mKesh (82/83…)" : "Número M-Pesa (84/85…)" }
+        placeholder={method === "mcash" ? "Número mKesh (82/83…)" : method === "emola" ? "Número e-Mola (86/87…)" : "Número M-Pesa (84/85…)"}
         inputMode="tel"
         maxLength={32}
         value={destination}
