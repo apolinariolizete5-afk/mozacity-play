@@ -162,13 +162,24 @@ export async function requestDeposit(input: {
       payload = { raw: raw.slice(0, 500) };
     }
 
+    const diagnosticPayload = safePayload(payload);
+    const requestId =
+      response.headers.get("x-request-id") ??
+      response.headers.get("x-pay-request-id") ??
+      response.headers.get("x-correlation-id");
+
     console.info("[PAYCO] Charge response", {
       method: input.method,
       providerMethod: provider,
       httpStatus: response.status,
       ok: response.ok,
       durationMs: Date.now() - startedAt,
-      payload: safePayload(payload),
+      requestId: requestId ?? undefined,
+      payload: diagnosticPayload,
+      rawBody:
+        !response.ok && String(payload.error ?? "").toLowerCase() === "request_failed"
+          ? raw.slice(0, 1000)
+          : undefined,
     });
 
     if (!response.ok) {
