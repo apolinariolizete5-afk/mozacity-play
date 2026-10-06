@@ -190,7 +190,8 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     }
 
     if (payout.providerRef) {
-      const { error: recordError } = await context.supabase.rpc("record_payco_payout_provider", {
+      const rpc = context.supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+      const { error: recordError } = await rpc("record_payco_payout_provider", {
         _payout_id: row.payout_id,
         _provider_ref: payout.providerRef,
       });
