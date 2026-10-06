@@ -8,7 +8,7 @@ Plataforma mobile-first de jogos competitivos (Ludo, Damas e Xadrez) com estéti
 - TypeScript
 - Tailwind CSS v4
 - Supabase para autenticação e dados da carteira
-- NetShop no servidor para iniciar depósitos quando a integração estiver configurada
+- PAY.CO.MZ no servidor para iniciar depósitos quando a integração estiver configurada
 
 ## Instalação
 
@@ -38,7 +38,7 @@ Códigos curtos, salas públicas/privadas e estados `WAITING → READY → START
 A carteira usa Supabase e server functions. Não existe provedor de pagamento demo nem crédito virtual inicial.
 
 - O depósito cria uma transação pendente e só deve creditar saldo depois da confirmação do gateway.
-- A integração NetShop é server-only e nunca expõe a chave ao browser.
+- A integração PAY.CO.MZ é server-only e nunca expõe a chave ao browser.
 - O levantamento entra em `processing` quando o administrador o envia ao gateway e só passa a `completed`/`failed` através da confirmação do provedor.
 - Não existe fallback de depósito de teste no fluxo de produção.
 
