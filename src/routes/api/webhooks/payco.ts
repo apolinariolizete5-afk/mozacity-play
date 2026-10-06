@@ -38,6 +38,7 @@ export const APIRoute = createAPIFileRoute("/api/webhooks/payco")({
         data.reference ??
           data.transaction_reference ??
           payload.reference ??
+          data.id ??
           "",
       ).trim();
 
@@ -53,15 +54,11 @@ export const APIRoute = createAPIFileRoute("/api/webhooks/payco")({
       ).trim();
 
       if (event === "payment.succeeded") {
-        if (!providerRef) {
-          return json({ error: "provider_reference_missing" }, { status: 400 });
-        }
-
+        if (!providerRef) return json({ error: "provider_reference_missing" }, { status: 400 });
         const { error } = await supabase.rpc("complete_deposit", {
           _idempotency_key: reference,
           _provider_ref: providerRef,
         });
-
         if (error) {
           console.error("[PAY.CO.MZ Webhook] Erro ao completar depósito:", error.message);
           return json({ error: "deposit_completion_failed" }, { status: 500 });
@@ -70,10 +67,21 @@ export const APIRoute = createAPIFileRoute("/api/webhooks/payco")({
         const { error } = await supabase.rpc("cancel_failed_deposit", {
           _idempotency_key: reference,
         });
-
         if (error) {
           console.error("[PAY.CO.MZ Webhook] Erro ao cancelar depósito:", error.message);
           return json({ error: "deposit_cancellation_failed" }, { status: 500 });
+        }
+      } else if (event === "payout.paid" || event === "payout.failed") {
+        const payoutStatus = event === "payout.paid" ? "paid" : "failed";
+        const { error } = await supabase.rpc("process_payco_payout_webhook", {
+          _reference: reference,
+          _status: payoutStatus,
+          _provider_ref: providerRef || reference,
+          _reason: typeof data.error === "string" ? data.error : typeof data.reason === "string" ? data.reason : null,
+        });
+        if (error) {
+          console.error("[PAY.CO.MZ Webhook] Erro ao liquidar levantamento:", error.message);
+          return json({ error: "payout_processing_failed" }, { status: 500 });
         }
       }
 
