@@ -165,53 +165,61 @@ function LudoMatch() {
   useEffect(() => {
     if (!botMode || !ready || state.over || state.turn === 0 || botBusyRef.current) return;
 
-    const current = stateRef.current;
-    const botIndex = current.turn;
+    const botIndex = state.turn;
     const thinkMs = botDifficulty === "hard" ? 1100 : botDifficulty === "normal" ? 750 : 450;
-
+    let cancelled = false;
     botBusyRef.current = true;
-    botTimer.current = window.setTimeout(() => {
-      if (stateRef.current.over || stateRef.current.turn !== botIndex) {
-        botBusyRef.current = false;
-        return;
-      }
 
-      const beforeRoll = stateRef.current;
-      const roll = chooseLudoBotMove(beforeRoll, botDifficulty);
-      const rollValue = roll.type === "roll" ? 1 + Math.floor(Math.random() * 6) : undefined;
-      const rolled = ludoEngine.applyMove(beforeRoll, roll.type === "roll" ? { type: "roll", value: rollValue } : roll);
-      stateRef.current = rolled;
-      setState(rolled);
-
-      if (rolled.over || rolled.turn !== botIndex || rolled.dice == null) {
-        botBusyRef.current = false;
-        return;
-      }
-
+    const schedule = (delay: number) => {
+      if (cancelled) return;
       botTimer.current = window.setTimeout(() => {
-        if (stateRef.current.over || stateRef.current.turn !== botIndex) {
+        if (cancelled) return;
+
+        const current = stateRef.current;
+        if (current.over || current.turn !== botIndex) {
           botBusyRef.current = false;
           return;
         }
 
-        const currentAfterRoll = stateRef.current;
-        const move = chooseLudoBotMove(currentAfterRoll, botDifficulty);
-        const next = move.type === "move"
-          ? ludoEngine.applyMove(currentAfterRoll, move)
-          : currentAfterRoll;
+        if (current.dice == null) {
+          const roll = chooseLudoBotMove(current, botDifficulty);
+          const value = roll.type === "roll" ? 1 + Math.floor(Math.random() * 6) : 1;
+          const rolled = ludoEngine.applyMove(current, { type: "roll", value });
+          stateRef.current = rolled;
+          setState(rolled);
 
+          if (rolled.over || rolled.turn !== botIndex || rolled.dice == null) {
+            botBusyRef.current = false;
+            return;
+          }
+          schedule(450);
+          return;
+        }
+
+        const move = chooseLudoBotMove(current, botDifficulty);
+        const next = move.type === "move" ? ludoEngine.applyMove(current, move) : current;
         stateRef.current = next;
         setState(next);
-        botBusyRef.current = false;
-      }, 450);
-    }, thinkMs);
+
+        if (next.over || next.turn !== botIndex) {
+          botBusyRef.current = false;
+          return;
+        }
+
+        schedule(thinkMs);
+      }, delay);
+    };
+
+    schedule(thinkMs);
 
     return () => {
+      cancelled = true;
       if (botTimer.current !== null) window.clearTimeout(botTimer.current);
       botTimer.current = null;
       botBusyRef.current = false;
     };
-  }, [botDifficulty, botMode, ready, state.turn, state.over, state.dice]);
+  }, [botDifficulty, botMode, ready, state.turn, state.over]);
+
 
   useEffect(() => () => {
     if (rollTimer.current) window.clearTimeout(rollTimer.current);
