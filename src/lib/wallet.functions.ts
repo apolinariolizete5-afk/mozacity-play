@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const METHODS = ["mpesa", "mcash", "emola"] as const;
+const METHODS = ["mpesa", "mcash", "emola", "card"] as const;
 
 function normalizeMozMobile(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -24,7 +24,7 @@ function validateDepositMsisdn(method: (typeof METHODS)[number], value: string):
   if (!/^\d{9}$/.test(digits)) {
     if (method === "mcash") return "Número mKesh incompleto. Usa 9 dígitos, por exemplo 82 123 4567.";
     if (method === "emola") return "Número e-Mola incompleto. Usa 9 dígitos, por exemplo 86 123 4567.";
-    return "Número M-Pesa incompleto. Usa 9 dígitos, por exemplo 84 123 4567.";
+    if (method === "card") return "Para cartão, usa um email válido.";\n    return "Número M-Pesa incompleto. Usa 9 dígitos, por exemplo 84 123 4567.";
   }
   return null;
 }
