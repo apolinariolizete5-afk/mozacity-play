@@ -29,7 +29,7 @@ export const Route = createFileRoute("/wallet")({
       {
         name: "description",
         content:
-          "Deposita por M-Pesa ou mKesh através da PAY.CO.MZ. O valor mínimo é definido no painel de administração.",
+          "Deposita por M-Pesa, mKesh e e-Mola através da PAY.CO.MZ. O valor mínimo é definido no painel de administração.",
       },
       { property: "og:title", content: "Carteira em meticais — MozaPlay" },
       {
@@ -41,8 +41,8 @@ export const Route = createFileRoute("/wallet")({
   component: WalletPage,
 });
 
-type Method = "mpesa" | "mcash";
-const METHODS: Method[] = ["mpesa", "mcash"];
+type Method = "mpesa" | "mcash" | "emola";
+const METHODS: Method[] = ["mpesa", "mcash", "emola"];
 
 interface TxRow {
   id: string;
@@ -254,16 +254,14 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
   const phoneError =
     normalizedPhone.length === 0
       ? null
-      : method === "mcash"
-        ? !/^\d{9}$/.test(normalizedPhone)
-          ? "Número mKesh inválido. Usa 9 dígitos, por exemplo 82 123 4567."
-          : !/^(82|83)\d{7}$/.test(normalizedPhone)
-            ? "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567."
-            : null
-        : !/^\d{9}$/.test(normalizedPhone)
-            ? "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567."
-            : !/^(84|85)\d{7}$/.test(normalizedPhone)
-              ? "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567."
+      : !/^\d{9}$/.test(normalizedPhone)
+        ? `Número ${METHOD_LABELS[method]} inválido. Usa 9 dígitos.`
+        : method === "mcash" && !/^(82|83)\d{7}$/.test(normalizedPhone)
+          ? "Este número não é de mKesh. Usa 82 ou 83."
+          : method === "mpesa" && !/^(84|85)\d{7}$/.test(normalizedPhone)
+            ? "Este número não é de M-Pesa. Usa 84 ou 85."
+            : method === "emola" && !/^(86|87)\d{7}$/.test(normalizedPhone)
+              ? "Este número não é de e-Mola. Usa 86 ou 87."
               : null;
 
   const mutation = useMutation({
@@ -308,7 +306,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : "Ex.: 84 123 4567"}
+        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : method === "emola" ? "Ex.: 86 123 4567" : "Ex.: 84 123 4567"}
         inputMode="tel"
         maxLength={32}
         value={msisdn}
@@ -320,7 +318,9 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
         <p className="text-[11px] text-muted-foreground">
           {method === "mcash"
             ? "mKesh: usa um número Tmcel iniciado por 82 ou 83."
-            : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
+            : method === "emola"
+              ? "e-Mola: usa um número Movitel iniciado por 86 ou 87."
+              : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
         </p>
       )}
       <div className="rounded-2xl bg-secondary/70 p-3 text-xs">
@@ -438,7 +438,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       ) : null}
       {mutation.isSuccess ? (
         <p className="text-xs font-semibold text-success">
-          Pedido enviado. Receberás {formatMzn(Math.max(0, quote.net))} depois da aprovação.
+          Pedido enviado. O valor foi reservado e será enviado para a carteira escolhida após a confirmação do provedor.
         </p>
       ) : null}
       <Button
@@ -453,6 +453,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       <div className="flex flex-wrap gap-1">
         <Pill tone="muted">M-Pesa</Pill>
         <Pill tone="muted">mKesh</Pill>
+        <Pill tone="muted">e-Mola</Pill>
         <Pill tone="muted">Taxa transparente</Pill>
       </div>
     </Card>
@@ -480,6 +481,10 @@ function depositError(message: string, minDepositCents?: number): string {
       "Este método não está disponível no provedor de pagamentos ativo.",
     payco_payout_not_configured:
       "Os levantamentos PAY.CO.MZ ainda não estão ativados para esta conta. O teu saldo não foi debitado.",
+    invalid_destination: "Número de destino inválido.",
+    invalid_mpesa_destination: "Para M-Pesa, usa um número 84 ou 85.",
+    invalid_mcash_destination: "Para mKesh, usa um número 82 ou 83.",
+    invalid_emola_destination: "Para e-Mola, usa um número 86 ou 87.",
   };
   for (const key of Object.keys(map)) if (message.includes(key)) return map[key]!;
   return message;
