@@ -33,6 +33,8 @@ function ChessMatch() {
   const { bet, timer, room, bot } = Route.useSearch();
   const botMode = Boolean(bot && !room);
   const botDifficulty = (bot ?? "normal") as BotDifficulty;
+  const humanColor = botMode ? "w" : realtime.playerIndex === 0 ? "w" : "b";
+  const humanTurn = state.turn === humanColor;
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
   const [seconds, setSeconds] = useState(15);
@@ -158,7 +160,7 @@ function ChessMatch() {
             ? "Partida terminada"
             : !ready
               ? "A aguardar outro jogador..." 
-              : state.turn === "w"
+              : humanTurn
               ? inCheck(state, realtime.playerIndex === 0 ? "w" : "b")
                 ? "Estás em xeque!"
                 : "A tua vez"
