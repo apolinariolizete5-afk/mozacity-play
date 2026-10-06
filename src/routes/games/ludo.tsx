@@ -11,6 +11,7 @@ import { lockRoomWager, registerRoomMatchMulti, settleRoomMatchMulti } from "@/l
 import { cn } from "@/lib/utils";
 import { useRealtimeRoom } from "@/lib/realtime";
 import "@/styles/ludo-motion.css";
+import { chooseLudoBotMove, isBotDifficulty, botLabel, type BotDifficulty } from "@/lib/games/bot";
 
 const TURN_SECONDS = 15;
 // Teste temporário do Ludo: por padrão fica ativo durante a fase de testes.
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/games/ludo")({
     timer: TURN_SECONDS,
     players: Math.min(4, Math.max(2, Number(search["players"] ?? 2) || 2)),
     room: String(search["room"] ?? ""),
+    bot: isBotDifficulty(search["bot"]) ? search["bot"] : null,
   }),
   head: () => ({
     meta: [
@@ -106,7 +108,9 @@ function playAudio(url?: string) {
 
 function LudoMatch() {
   const navigate = useNavigate();
-  const { bet: routeBet, room, players } = Route.useSearch();
+  const { bet: routeBet, room, players, bot } = Route.useSearch();
+  const botMode = Boolean(bot && !room);
+  const botDifficulty = (bot ?? "normal") as BotDifficulty;
   const bet = LUDO_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => ludoEngine.createGame({ players }));
@@ -125,9 +129,10 @@ function LudoMatch() {
   const settled = useRef(false);
   const rollTimer = useRef<number | null>(null);
 
-  const playersReady = Boolean(room && realtime.players.length >= players);
+  const playersReady = botMode || Boolean(room && realtime.players.length >= players);
   const [escrowReady, setEscrowReady] = useState(bet <= 0);
   const ready = playersReady && escrowReady;
+  const humanTurn = botMode ? state.turn === 0 : state.turn === realtime.playerIndex;
   useEffect(() => {
     if (!ready || state.over) return;
     const deadline = realtime.turnDeadlineAt ?? Date.now() + TURN_SECONDS * 1000;
@@ -247,7 +252,7 @@ useEffect(() => {
   }, [disconnectCountdown, room, app.profile.id, players]);
 
   useEffect(() => {
-    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
+    if (botMode) return;\n    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
 
     const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
@@ -272,7 +277,7 @@ useEffect(() => {
       bet,
       persistMatch: realtime.playerIndex === 0,
     });
-  }, [bet, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players, room, app.profile.id]);
+  }, [bet, botMode, opponents, players, state.over, state.winner, realtime.forfeitWinner, realtime.players, room, app.profile.id]);
 
   const handleAnimatingChange = useCallback((animating: boolean) => {
     setMoving(animating);
@@ -285,7 +290,7 @@ useEffect(() => {
 
   const play = useCallback(
     (move: LudoMove) => {
-      if (!ready || seconds <= 0) return;
+      if (!ready || seconds <= 0 || !humanTurn) return;
       if (move.type === "move") {
         if (moving) return;
         setMoving(true);
@@ -306,7 +311,7 @@ useEffect(() => {
       rollTimer.current = window.setTimeout(() => {
         window.clearInterval(animation);
         const current = stateRef.current;
-        if (current.over || current.turn !== realtime.playerIndex || current.dice != null) {
+        if (current.over || !humanTurn || current.dice != null) {
           setRolling(false);
           return;
         }
@@ -319,7 +324,7 @@ useEffect(() => {
         if (room) void realtime.broadcastState(next);
       }, 560);
     },
-    [applyMove, moving, rolling, room, realtime, ready, seconds],
+    [applyMove, humanTurn, moving, rolling, room, realtime, ready, seconds],
   );
 
 
@@ -336,11 +341,11 @@ useEffect(() => {
   }, [realtime.remoteState, room]);
 
   const activeDiceValue = rolling ? dicePreview : state.dice ?? dicePreview;
-  const canRoll = ready && state.turn === realtime.playerIndex && state.dice == null && !state.over && !rolling;
-  const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
+  const canRoll = ready && humanTurn && state.dice == null && !state.over && !rolling;
+  const result = botMode ? (state.over ? (state.winner === 0 ? "win" : "loss") : null) : realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
 
   useEffect(() => {
-    if (!ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
+    if (botMode || !ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
     void realtime.broadcastState(state);
   }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
@@ -349,12 +354,12 @@ useEffect(() => {
   // to change places between phones.
   const playersList = Array.from({ length: players }, (_, index) => {
     const remotePlayer = realtime.players[index];
-    const isUser = index === realtime.playerIndex;
+    const isUser = botMode ? index === 0 : index === realtime.playerIndex;
     return {
       index,
       id: remotePlayer?.playerId ?? `waiting-${index}`,
-      name: remotePlayer?.name ?? (isUser ? app.profile.name : "A aguardar adversário..."),
-      avatar: isUser ? app.profile.avatar : "🙂",
+      name: botMode && index === 1 ? botLabel("ludo", botDifficulty) : remotePlayer?.name ?? (isUser ? app.profile.name : "A aguardar adversário..."),
+      avatar: botMode && index === 1 ? "🤖" : isUser ? app.profile.avatar : "🙂",
       label: isUser ? "Tu" : "Adversário",
       active: state.turn === index,
       color: PLAYER_COLORS[index] ?? PLAYER_COLORS[0],
@@ -365,7 +370,7 @@ useEffect(() => {
     const player = playersList[playerIdx];
     if (!player) return null;
     const isCurrent = player.active;
-    const isUser = playerIdx === realtime.playerIndex;
+    const isUser = botMode ? playerIdx === 0 : playerIdx === realtime.playerIndex;
 
     return (
       <div
@@ -413,7 +418,7 @@ useEffect(() => {
         <p className="text-sm font-bold">Ludo</p>
         <p className="text-xs text-muted-foreground">Corrida de dados · 2–4 jogadores</p>
       </div>
-      <div className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">Online</div>
+      <div className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">{botMode ? "VS BOT" : "Online"}</div>
     </div>
       <div className="ludo-match-shell max-w-lg mx-auto">
         <div className="flex items-center justify-between py-1 px-2">
@@ -446,7 +451,7 @@ useEffect(() => {
         <div className="my-1 py-1">
           <LudoBoard
             state={state}
-            disabled={state.turn !== realtime.playerIndex || state.over || rolling || moving}
+            disabled={!humanTurn || state.over || rolling || moving}
             onMove={(token) => {
               const current = stateRef.current;
               const next = ludoEngine.applyMove(current, { type: "move", token });
