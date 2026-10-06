@@ -8,6 +8,7 @@ import { useApp } from "@/lib/store";
 import { getPublicPlatformSettings } from "@/lib/platform.functions";
 import { getWalletSummary } from "@/lib/wallet.functions";
 import { MatchmakingOverlay, type OpponentInfo } from "@/components/MatchmakingOverlay";
+import { BOT_DIFFICULTIES, type BotDifficulty } from "@/lib/games/bot";
 
 const LUDO_TEST_MODE = import.meta.env.VITE_LUDO_TEST_MODE !== "false";
 const CHECKERS_TEST_MODE = import.meta.env.VITE_CHECKERS_TEST_MODE !== "false";
@@ -54,6 +55,7 @@ function Play() {
   const [players, setPlayers] = useState(2);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>("normal");
 
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -99,6 +101,21 @@ function Play() {
       window.clearInterval(timerId);
     };
   }, []);
+
+  const startBotMatch = async () => {
+    if (!app.profile.id) {
+      await navigate({ to: "/auth" });
+      return;
+    }
+    const base = { bet: 0, timer: TURN_SECONDS, bot: botDifficulty };
+    await navigate(
+      selected === "ludo"
+        ? { to: "/games/ludo", search: { ...base, players: 2 } }
+        : selected === "checkers"
+          ? { to: "/games/checkers", search: base }
+          : { to: "/games/chess", search: base },
+    );
+  };
 
   const cancelSearch = () => {
     searchAbortRef.current?.abort();
@@ -204,7 +221,7 @@ function Play() {
         <p className="text-[10px] font-extrabold uppercase tracking-[.22em] text-primary">Game lobby</p>
         <h1 className="mt-2 font-display text-4xl font-black tracking-tight sm:text-5xl">Escolhe como jogar.</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Sem bots. Sem nomes fictícios. A partida só começa quando houver outro jogador humano.
+          Joga contra outros jogadores ou treina contra um bot. Escolhe a dificuldade e começa imediatamente.
         </p>
       </header>
 
@@ -314,6 +331,23 @@ function Play() {
           >
             <Users2 className="h-4 w-4" /> Partida rápida <ArrowRight className="h-4 w-4" />
           </button>
+
+          <div className="mt-5 border-t border-border pt-5">
+            <div className="flex items-center gap-2 text-xs font-extrabold">🤖 Jogar contra Bot</div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {BOT_DIFFICULTIES.map((level) => (
+                <button key={level.id} type="button" onClick={() => setBotDifficulty(level.id)}
+                  className={`rounded-xl px-2 py-3 text-xs font-extrabold ${botDifficulty === level.id ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
+                  {level.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">{BOT_DIFFICULTIES.find((level) => level.id === botDifficulty)?.description}</p>
+            <button type="button" onClick={() => void startBotMatch()}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 py-3.5 text-sm font-extrabold text-primary">
+              🤖 Começar contra Bot
+            </button>
+          </div>
         </aside>
       </div>
     </main>
