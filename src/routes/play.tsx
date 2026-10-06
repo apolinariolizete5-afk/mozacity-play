@@ -56,6 +56,7 @@ function Play() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>("normal");
+  const [ludoBotCount, setLudoBotCount] = useState(1);
 
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -108,9 +109,10 @@ function Play() {
       return;
     }
     const base = { bet: 0, timer: TURN_SECONDS, bot: botDifficulty };
+    const ludoPlayers = 1 + Math.min(3, Math.max(1, ludoBotCount));
     await navigate(
       selected === "ludo"
-        ? { to: "/games/ludo", search: { ...base, players } }
+        ? { to: "/games/ludo", search: { ...base, players: ludoPlayers } }
         : selected === "checkers"
           ? { to: "/games/checkers", search: base }
           : { to: "/games/chess", search: base },
@@ -342,6 +344,20 @@ function Play() {
                 </button>
               ))}
             </div>
+            {selected === "ludo" ? (
+              <>
+                <div className="mt-4 flex items-center gap-2 text-xs font-extrabold">🤖 Quantos bots?</div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {[1, 2, 3].map((count) => (
+                    <button key={count} type="button" onClick={() => setLudoBotCount(count)}
+                      className={`rounded-xl py-3 text-xs font-extrabold ${ludoBotCount === count ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>
+                      {count} {count === 1 ? "bot" : "bots"}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">Tu + {ludoBotCount} {ludoBotCount === 1 ? "bot" : "bots"} · todos jogam automaticamente.</p>
+              </>
+            ) : null}
             <p className="mt-1 text-[11px] text-muted-foreground">{BOT_DIFFICULTIES.find((level) => level.id === botDifficulty)?.description}</p>
             <button type="button" onClick={() => void startBotMatch()}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 py-3.5 text-sm font-extrabold text-primary">
