@@ -124,6 +124,7 @@ export const startDeposit = createServerFn({ method: "POST" })
       status: result.status,
       reference: key,
       provider_ref: result.providerRef ?? null,
+      checkout_url: result.checkoutUrl ?? null,
       error: result.error ?? null,
     };
   });
