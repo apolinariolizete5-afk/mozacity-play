@@ -129,7 +129,7 @@ export async function requestDeposit(input: {
     providerMethod: provider,
     amountMzn: input.amountCents / 100,
     walletConfigured: true,
-    walletSuffix: walletId.slice(-4),
+    walletId,\n    walletSuffix: walletId.slice(-4),
     customerContact: maskedPhone(input.msisdn),
     reference: input.reference,
   });
