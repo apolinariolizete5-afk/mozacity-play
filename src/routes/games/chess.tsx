@@ -109,7 +109,8 @@ function ChessMatch() {
   }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   useEffect(() => {
-    if (botMode) return;\n    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
+    if (botMode) return;
+    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
     const winner = realtime.forfeitWinner !== null ? realtime.forfeitWinner : chessEngine.getWinner(state);
     const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : (chessEngine.getWinner(state) ?? null);
