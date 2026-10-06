@@ -77,34 +77,53 @@ export function chooseCheckersBotMove(state: CheckersState, difficulty: BotDiffi
 
 const VALUE: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 
-function chessScore(state: ChessState): number {
+function chessScore(state: ChessState, perspective: "w" | "b"): number {
   let score = 0;
-  for (const p of state.board) if (p) score += (p.c === "b" ? 1 : -1) * (VALUE[p.t] ?? 0);
-  if (state.over && state.winner === 1) score += 100000;
-  if (state.over && state.winner === 0) score -= 100000;
-  if (state.draw) score -= 20;
+  for (const p of state.board) {
+    if (!p) continue;
+    const value = VALUE[p.t] ?? 0;
+    score += p.c === perspective ? value : -value;
+  }
+  if (state.over) {
+    if (state.winner === (perspective === "w" ? 0 : 1)) score += 100000;
+    else if (state.winner !== null) score -= 100000;
+    else if (state.draw) score -= 20;
+  }
   return score;
 }
 
-function minimaxChess(state: ChessState, depth: number, maximizing: boolean): number {
-  if (depth <= 0 || state.over) return chessScore(state);
+function minimaxChess(state: ChessState, depth: number, perspective: "w" | "b"): number {
+  if (depth <= 0 || state.over) return chessScore(state, perspective);
   const moves = chessMoves(state);
-  if (!moves.length) return chessScore(state);
-  const values = moves.slice(0, 40).map((m) => minimaxChess(chessEngine.applyMove(state, m), depth - 1, !maximizing));
+  if (!moves.length) return chessScore(state, perspective);
+
+  const maximizing = state.turn === perspective;
+  const values = moves.slice(0, 40).map((move) =>
+    minimaxChess(chessEngine.applyMove(state, move), depth - 1, perspective),
+  );
   return maximizing ? Math.max(...values) : Math.min(...values);
 }
 
 export function chooseChessBotMove(state: ChessState, difficulty: BotDifficulty): ChessMove {
   const moves = chessMoves(state);
   if (!moves.length) return { from: 0, to: 0 };
+
   if (difficulty === "easy") return pick(moves);
-  const ranked = moves.map((move) => {
-    const next = chessEngine.applyMove(state, move);
-    const score = chessScore(next);
-    const hardBonus = difficulty === "hard" ? minimaxChess(next, 1, false) : 0;
-    return { move, score: score + hardBonus };
-  }).sort((a, b) => a.score - b.score);
-  return difficulty === "normal" ? ranked[Math.floor(Math.random() * Math.min(3, ranked.length))]!.move : ranked[0]!.move;
+
+  const perspective = state.turn;
+  const depth = difficulty === "hard" ? 3 : 1;
+  const ranked = moves
+    .map((move) => {
+      const next = chessEngine.applyMove(state, move);
+      const score = minimaxChess(next, depth - 1, perspective);
+      return { move, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  if (difficulty === "normal") {
+    return ranked[Math.floor(Math.random() * Math.min(3, ranked.length))]!.move;
+  }
+  return ranked[0]!.move;
 }
 
 export function isBotDifficulty(value: unknown): value is BotDifficulty {
