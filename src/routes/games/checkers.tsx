@@ -45,13 +45,13 @@ function CheckersMatch() {
   const bet = CHECKERS_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
+  const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const humanTurn = botMode ? state.turn === 0 : state.turn === realtime.playerIndex;
   const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
   const [moveCount, setMoveCount] = useState(0);
   const [payoutCents, setPayoutCents] = useState(0);
-  const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
   const playersReady = botMode || Boolean(room && realtime.players.length >= 2);
   const [escrowReady, setEscrowReady] = useState(bet <= 0);
