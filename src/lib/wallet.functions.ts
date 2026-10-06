@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const METHODS = ["mpesa", "mcash"] as const;
+const METHODS = ["mpesa", "mcash", "emola"] as const;
 
 function normalizeMozMobile(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -18,8 +18,12 @@ function validateDepositMsisdn(method: (typeof METHODS)[number], value: string):
   if (method === "mpesa" && digits.length >= 2 && !/^(84|85)/.test(digits)) {
     return "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567.";
   }
+  if (method === "emola" && digits.length >= 2 && !/^(86|87)/.test(digits)) {
+    return "Este número não é de e-Mola. Para e-Mola, usa um número Movitel que começa por 86 ou 87. Ex.: 86 123 4567.";
+  }
   if (!/^\d{9}$/.test(digits)) {
     if (method === "mcash") return "Número mKesh incompleto. Usa 9 dígitos, por exemplo 82 123 4567.";
+    if (method === "emola") return "Número e-Mola incompleto. Usa 9 dígitos, por exemplo 86 123 4567.";
     return "Número M-Pesa incompleto. Usa 9 dígitos, por exemplo 84 123 4567.";
   }
   return null;
@@ -142,30 +146,60 @@ export const quoteWithdrawal = createServerFn({ method: "GET" })
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z
-      .object({
-        amount_cents: z.number().int().min(0),
-        method: z.enum(METHODS),
-        destination: z.string().trim().min(6).max(64),
-      })
-      .parse(input),
+    z.object({
+      amount_cents: z.number().int().min(0),
+      method: z.enum(METHODS),
+      destination: z.string().trim().min(6).max(64),
+    }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    const digits = normalizeMozMobile(data.destination);
+    if (!/^\\d{9}$/.test(digits)) throw new Error("invalid_destination");
+    if (data.method === "mpesa" && !/^(84|85)\\d{7}$/.test(digits)) throw new Error("invalid_mpesa_destination");
+    if (data.method === "mcash" && !/^(82|83)\\d{7}$/.test(digits)) throw new Error("invalid_mcash_destination");
+    if (data.method === "emola" && !/^(86|87)\\d{7}$/.test(digits)) throw new Error("invalid_emola_destination");
+
     const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
-    if (provider === "payco") {
-      throw new Error("payco_payout_not_configured");
-    }
+    if (provider !== "payco") throw new Error("payment_provider_not_configured");
 
     const { data: result, error } = await context.supabase.rpc("request_withdrawal", {
       _amount_cents: data.amount_cents,
       _method: data.method === "emola" ? "mola" : data.method,
-      _destination: data.destination,
+      _destination: digits,
     });
     if (error) throw new Error(error.message);
-    const row = Array.isArray(result) ? result[0] : result;
-    const payoutId = (row as { payout_id?: string } | null)?.payout_id;
-    if (!payoutId) throw new Error("payout_not_created");
-    return row as { payout_id: string; gross_cents: number; fee_cents: number; net_cents: number; status: string };
+    const row = (Array.isArray(result) ? result[0] : result) as {
+      payout_id: string; gross_cents: number; fee_cents: number; net_cents: number; status: string;
+    } | null;
+    if (!row?.payout_id) throw new Error("payout_not_created");
+
+    const { requestPayout } = await import("./payments/payco.server");
+    const payout = await requestPayout({
+      method: data.method,
+      destination: digits,
+      amountCents: Number(row.net_cents ?? row.gross_cents),
+      reference: row.payout_id,
+    });
+
+    if (!payout.ok || payout.status === "failed") {
+      await context.supabase.rpc("refund_failed_payout", {
+        _payout_id: row.payout_id,
+        _reason: payout.error ?? "payout_failed",
+      });
+      throw new Error(payout.error ?? "payout_failed");
+    }
+
+    if (payout.providerRef) {
+      const { error: recordError } = await context.supabase.rpc("record_payco_payout_provider", {
+        _payout_id: row.payout_id,
+        _provider_ref: payout.providerRef,
+      });
+      if (recordError) {
+        console.error("[PAYCO] Could not record payout provider reference", recordError.message);
+      }
+    }
+
+    return { ...row, status: payout.status, provider_ref: payout.providerRef ?? null };
   });
 
 /** Regista a partida multiplayer no banco antes de qualquer débito. */
