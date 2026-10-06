@@ -7,6 +7,7 @@ import { chessEngine, chessTimeout, inCheck, type ChessMove } from "@/lib/games/
 import { recordMatch, useApp } from "@/lib/store";
 import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { useRealtimeRoom } from "@/lib/realtime";
+import { chooseChessBotMove, isBotDifficulty, botLabel, type BotDifficulty } from "@/lib/games/bot";
 
 export const Route = createFileRoute("/games/chess")({
   ssr: false,
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/games/chess")({
     bet: Math.max(0, Number(search["bet"] ?? 0) || 0),
     timer: 15,
     room: String(search["room"] ?? ""),
+    bot: isBotDifficulty(search["bot"]) ? search["bot"] : null,
   }),
   head: () => ({
     meta: [
@@ -28,7 +30,9 @@ export const Route = createFileRoute("/games/chess")({
 
 function ChessMatch() {
   const navigate = useNavigate();
-  const { bet, timer, room } = Route.useSearch();
+  const { bet, timer, room, bot } = Route.useSearch();
+  const botMode = Boolean(bot && !room);
+  const botDifficulty = (bot ?? "normal") as BotDifficulty;
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
   const [seconds, setSeconds] = useState(15);
@@ -46,7 +50,7 @@ function ChessMatch() {
     setState(realtime.remoteState);
   }, [room, realtime.remoteState]);
 
-  const playersReady = Boolean(room && realtime.players.length >= 2);
+  const playersReady = botMode || Boolean(room && realtime.players.length >= 2);
   const [escrowReady, setEscrowReady] = useState(bet <= 0);
   const ready = playersReady && escrowReady;
   const roomRegistered = useRef(false);
@@ -103,7 +107,7 @@ function ChessMatch() {
   }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   useEffect(() => {
-    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
+    if (botMode) return;\n    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
     const winner = realtime.forfeitWinner !== null ? realtime.forfeitWinner : chessEngine.getWinner(state);
     const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : (chessEngine.getWinner(state) ?? null);
@@ -130,7 +134,7 @@ function ChessMatch() {
     });
   }, [state, bet, opponent, realtime.forfeitWinner, realtime.players]);
 
-  const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.draw ? "draw" : state.winner === realtime.playerIndex ? "win" : "loss") : null;
+  const result = botMode ? (state.over ? (state.draw ? "draw" : state.winner === 0 ? "win" : "loss") : null) : realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.draw ? "draw" : state.winner === realtime.playerIndex ? "win" : "loss") : null;
 
   return (
     <>
@@ -139,7 +143,7 @@ function ChessMatch() {
         voiceUserId={app.profile.id}
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
-          if (opponent) await realtime.broadcastForfeit(opponent.playerId);
+          if (!botMode && opponent) await realtime.broadcastForfeit(opponent.playerId);
           await navigate({ to: "/play", search: { game: "chess" } });
         }}
         title="Xadrez"
@@ -147,14 +151,14 @@ function ChessMatch() {
         limit={timer}
         seats={[
           { name: app.profile.name, avatar: app.profile.avatar, active: state.turn === (realtime.playerIndex === 0 ? "w" : "b"), label: "Brancas" },
-          { name: opponent, avatar: "🙂", active: state.turn === "b", label: "Negras" },
+          { name: botMode ? botLabel("chess", botDifficulty) : opponent, avatar: botMode ? "🤖" : "🙂", active: state.turn === "b", label: "Negras" },
         ]}
         statusText={
           state.over
             ? "Partida terminada"
             : !ready
               ? "A aguardar outro jogador..." 
-              : state.turn === (realtime.playerIndex === 0 ? "w" : "b")
+              : state.turn === "w"
               ? inCheck(state, realtime.playerIndex === 0 ? "w" : "b")
                 ? "Estás em xeque!"
                 : "A tua vez"
@@ -171,7 +175,7 @@ function ChessMatch() {
           state={state}
           disabled={state.turn !== (realtime.playerIndex === 0 ? "w" : "b") || state.over}
           onMove={(m: ChessMove) => setState((s) => { const next = chessEngine.applyMove(s, m); if (room) void realtime.broadcastState(next); return next; })}
-        /> : <Card className="p-8 text-center"><p className="font-bold">Sala online</p><p className="mt-2 text-sm text-muted-foreground">Código: {room || "—"}. A aguardar um jogador real para começar.</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
+        /> : <Card className="p-8 text-center"><p className="font-bold">{botMode ? "Partida contra Bot" : "Sala online"}</p><p className="mt-2 text-sm text-muted-foreground">{botMode ? `Dificuldade: ${botLabel("chess", botDifficulty)}` : `Código: ${room || "—"}. A aguardar um jogador real para começar.`}</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
       </MatchShell>
       {result ? (
         <ResultOverlay
