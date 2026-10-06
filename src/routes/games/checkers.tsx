@@ -11,6 +11,7 @@ import {
 import { recordMatch, useApp } from "@/lib/store";
 import { forfeitRoomMatch, lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { useRealtimeRoom } from "@/lib/realtime";
+import { chooseCheckersBotMove, isBotDifficulty, botLabel, type BotDifficulty } from "@/lib/games/bot";
 
 const CHECKERS_TEST_MODE = import.meta.env.VITE_CHECKERS_TEST_MODE !== "false";
 
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/games/checkers")({
     bet: Math.max(0, Number(search["bet"] ?? 0) || 0),
     timer: 15,
     room: String(search["room"] ?? ""),
+    bot: isBotDifficulty(search["bot"]) ? search["bot"] : null,
   }),
   head: () => ({
     meta: [
@@ -37,7 +39,9 @@ export const Route = createFileRoute("/games/checkers")({
 
 function CheckersMatch() {
   const navigate = useNavigate();
-  const { bet: routeBet, timer, room } = Route.useSearch();
+  const { bet: routeBet, timer, room, bot } = Route.useSearch();
+  const botMode = Boolean(bot && !room);
+  const botDifficulty = (bot ?? "normal") as BotDifficulty;
   const bet = CHECKERS_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
@@ -48,7 +52,7 @@ function CheckersMatch() {
   const [payoutCents, setPayoutCents] = useState(0);
   const realtime = useRealtimeRoom<any>(room || undefined, "checkers", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
 
-  const playersReady = Boolean(room && realtime.players.length >= 2);
+  const playersReady = botMode || Boolean(room && realtime.players.length >= 2);
   const [escrowReady, setEscrowReady] = useState(bet <= 0);
   const ready = playersReady && escrowReady;
   const roomRegistered = useRef(false);
@@ -160,7 +164,7 @@ function CheckersMatch() {
     setState(realtime.remoteState);
   }, [room, realtime.remoteState]);
 
-  const result = realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
+  const result = botMode ? (state.over ? (state.winner === 0 ? "win" : "loss") : null) : realtime.forfeitWinner !== null ? (realtime.forfeitWinner === realtime.playerIndex ? "win" : "loss") : state.over ? (state.winner === realtime.playerIndex ? "win" : "loss") : null;
   const mine = state.board.filter((p) => p && p.p === 0).length;
   const theirs = state.board.filter((p) => p && p.p === 1).length;
 
@@ -171,7 +175,7 @@ function CheckersMatch() {
         voiceUserId={app.profile.id}
         onExit={async () => {
           const opponent = realtime.players.find((p) => p.playerId !== app.profile.id);
-          if (!CHECKERS_TEST_MODE && room && opponent) {
+          if (!botMode && !CHECKERS_TEST_MODE && room && opponent) {
             try {
               const settlement = await forfeitRoomMatch({ data: { room_code: room } });
               if (settlement.winner_id === app.profile.id && typeof settlement.payout === "number") {
@@ -180,7 +184,7 @@ function CheckersMatch() {
             } catch (error) {
               console.error("[MozaPlay] Falha ao desistir:", error);
             }
-            await realtime.broadcastForfeit(opponent.playerId);
+            if (opponent) await realtime.broadcastForfeit(opponent.playerId);
           }
           await navigate({ to: "/play", search: { game: "checkers" } });
         }}
@@ -194,14 +198,14 @@ function CheckersMatch() {
             active: state.turn === realtime.playerIndex,
             label: `Claras (${mine})`,
           },
-          { name: opponent, avatar: "🙂", active: state.turn === 1, label: `Escuras (${theirs})` },
+          { name: botMode ? botLabel("checkers", botDifficulty) : opponent, avatar: botMode ? "🤖" : "🙂", active: state.turn === 1, label: `Escuras (${theirs})` },
         ]}
         statusText={
           state.over
             ? "Partida terminada"
             : !ready
               ? "A aguardar outro jogador..." 
-              : state.turn === realtime.playerIndex
+              : state.turn === 0
               ? state.chain !== null
                 ? "Continua a captura!"
                 : "A tua vez"
@@ -214,7 +218,7 @@ function CheckersMatch() {
           </Card>
         }
       >
-        {ready ? <CheckersBoard state={state} disabled={state.turn !== realtime.playerIndex || state.over} onMove={play} /> : <Card className="p-8 text-center"><p className="font-bold">Sala online</p><p className="mt-2 text-sm text-muted-foreground">Código: {room || "—"}. A aguardar um jogador real para começar.</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
+        {ready ? <CheckersBoard state={state} disabled={state.turn !== 0 || state.over} onMove={play} /> : <Card className="p-8 text-center"><p className="font-bold">{botMode ? "Partida contra Bot" : "Sala online"}</p><p className="mt-2 text-sm text-muted-foreground">{botMode ? `Dificuldade: ${botLabel("checkers", botDifficulty)}` : `Código: ${room || "—"}. A aguardar um jogador real para começar.`}</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
       </MatchShell>
       {result ? (
         <ResultOverlay
