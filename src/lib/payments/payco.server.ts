@@ -6,7 +6,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type PaycoMethod = "mpesa" | "mcash";
+export type PaycoMethod = "mpesa" | "mcash" | "emola";
 
 export interface PaycoResult {
   ok: boolean;
@@ -29,6 +29,7 @@ function walletIdFor(method: PaycoMethod): string | undefined {
   const names: Record<PaycoMethod, string> = {
     mpesa: "PAYCO_WALLET_ID_MPESA",
     mcash: "PAYCO_WALLET_ID_MKESH",
+    emola: "PAYCO_WALLET_ID_EMOLA",
   };
   return env(names[method]);
 }
@@ -43,6 +44,7 @@ export function paycoStatus() {
     methods: {
       mpesa: Boolean(walletIdFor("mpesa")),
       mcash: Boolean(walletIdFor("mcash")),
+      emola: Boolean(walletIdFor("emola")),
     },
   };
 }
@@ -224,6 +226,60 @@ export async function requestDeposit(input: {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+
+export async function requestPayout(input: {
+  method: PaycoMethod;
+  destination: string;
+  amountCents: number;
+  reference: string;
+}): Promise<{ ok: boolean; status: "pending" | "completed" | "failed"; providerRef?: string; error?: string }> {
+  const key = env("PAYCO_API_KEY");
+  const merchantId = env("PAYCO_MERCHANT_ID");
+  const walletId = walletIdFor(input.method);
+  if (!key || !merchantId) return { ok: false, status: "failed", error: "provider_not_configured" };
+  if (!walletId) return { ok: false, status: "failed", error: "wallet_not_configured" };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(`${apiUrl().replace(/\\/$/, "")}/payouts`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "X-Merchant-Id": merchantId,
+        "X-Wallet-Id": walletId,
+        "Idempotency-Key": input.reference,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        amount: input.amountCents / 100,
+        method: providerMethod(input.method),
+        destination: normalizeMsisdn(input.destination),
+        wallet_id: walletId,
+      }),
+      signal: controller.signal,
+    });
+    const raw = await response.text();
+    let payload: Record<string, unknown> = {};
+    try { payload = JSON.parse(raw) as Record<string, unknown>; } catch { payload = { raw: raw.slice(0, 500) }; }
+    if (!response.ok) {
+      console.error("[PAYCO] Payout rejected", { method: input.method, httpStatus: response.status, payload: safePayload(payload) });
+      return { ok: false, status: "failed", error: String(payload.error ?? payload.message ?? `HTTP ${response.status}`) };
+    }
+    const data = payload.data && typeof payload.data === "object" ? payload.data as Record<string, unknown> : payload;
+    const providerRef = String(data.id ?? data.reference ?? data.transaction_reference ?? "").trim();
+    const remoteStatus = String(data.state ?? data.status ?? "processing").toLowerCase();
+    const status = ["success","succeeded","successful","completed","paid"].includes(remoteStatus)
+      ? "completed" as const
+      : ["failed","cancelled","canceled","rejected","expired","reversed"].includes(remoteStatus)
+        ? "failed" as const : "pending" as const;
+    return { ok: status !== "failed", status, ...(providerRef ? { providerRef } : {}) };
+  } catch (error) {
+    return { ok: false, status: "failed", error: error instanceof Error ? error.message : "provider_request_failed" };
+  } finally { clearTimeout(timeout); }
 }
 
 /**
