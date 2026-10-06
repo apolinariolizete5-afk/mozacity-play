@@ -110,7 +110,7 @@ function Play() {
     const base = { bet: 0, timer: TURN_SECONDS, bot: botDifficulty };
     await navigate(
       selected === "ludo"
-        ? { to: "/games/ludo", search: { ...base, players: 2 } }
+        ? { to: "/games/ludo", search: { ...base, players } }
         : selected === "checkers"
           ? { to: "/games/checkers", search: base }
           : { to: "/games/chess", search: base },
