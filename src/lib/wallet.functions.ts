@@ -154,10 +154,10 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const digits = normalizeMozMobile(data.destination);
-    if (!/^\\d{9}$/.test(digits)) throw new Error("invalid_destination");
-    if (data.method === "mpesa" && !/^(84|85)\\d{7}$/.test(digits)) throw new Error("invalid_mpesa_destination");
-    if (data.method === "mcash" && !/^(82|83)\\d{7}$/.test(digits)) throw new Error("invalid_mcash_destination");
-    if (data.method === "emola" && !/^(86|87)\\d{7}$/.test(digits)) throw new Error("invalid_emola_destination");
+    if (!/^\d{9}$/.test(digits)) throw new Error("invalid_destination");
+    if (data.method === "mpesa" && !/^(84|85)\d{7}$/.test(digits)) throw new Error("invalid_mpesa_destination");
+    if (data.method === "mcash" && !/^(82|83)\d{7}$/.test(digits)) throw new Error("invalid_mcash_destination");
+    if (data.method === "emola" && !/^(86|87)\d{7}$/.test(digits)) throw new Error("invalid_emola_destination");
 
     const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
     if (provider !== "payco") throw new Error("payment_provider_not_configured");
