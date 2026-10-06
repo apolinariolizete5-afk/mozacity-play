@@ -11,20 +11,19 @@ function normalizeMozMobile(value: string): string {
 }
 
 function validateDepositMsisdn(method: (typeof METHODS)[number], value: string): string | null {
+  if (method === "card") {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+      ? null
+      : "Para cartão, usa um email válido.";
+  }
   const digits = normalizeMozMobile(value);
-  if (method === "mcash" && digits.length >= 2 && !/^(82|83)/.test(digits)) {
-    return "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567.";
-  }
-  if (method === "mpesa" && digits.length >= 2 && !/^(84|85)/.test(digits)) {
-    return "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567.";
-  }
-  if (method === "emola" && digits.length >= 2 && !/^(86|87)/.test(digits)) {
-    return "Este número não é de e-Mola. Para e-Mola, usa um número Movitel que começa por 86 ou 87. Ex.: 86 123 4567.";
-  }
+  if (method === "mcash" && digits.length >= 2 && !/^(82|83)/.test(digits)) return "Este número não é de mKesh. Usa 82 ou 83.";
+  if (method === "mpesa" && digits.length >= 2 && !/^(84|85)/.test(digits)) return "Este número não é de M-Pesa. Usa 84 ou 85.";
+  if (method === "emola" && digits.length >= 2 && !/^(86|87)/.test(digits)) return "Este número não é de e-Mola. Usa 86 ou 87.";
   if (!/^\d{9}$/.test(digits)) {
-    if (method === "mcash") return "Número mKesh incompleto. Usa 9 dígitos, por exemplo 82 123 4567.";
-    if (method === "emola") return "Número e-Mola incompleto. Usa 9 dígitos, por exemplo 86 123 4567.";
-    if (method === "card") return "Para cartão, usa um email válido.";\n    return "Número M-Pesa incompleto. Usa 9 dígitos, por exemplo 84 123 4567.";
+    if (method === "mcash") return "Número mKesh incompleto. Usa 9 dígitos.";
+    if (method === "emola") return "Número e-Mola incompleto. Usa 9 dígitos.";
+    return "Número M-Pesa incompleto. Usa 9 dígitos.";
   }
   return null;
 }
@@ -67,7 +66,7 @@ export const startDeposit = createServerFn({ method: "POST" })
     const phoneError = validateDepositMsisdn(data.method, data.msisdn);
     if (phoneError) throw new Error(phoneError);
 
-    const normalizedMsisdn = normalizeMozMobile(data.msisdn);
+    const normalizedMsisdn = data.method === "card" ? data.msisdn.trim() : normalizeMozMobile(data.msisdn);
 
     const { data: started, error } = await context.supabase.rpc("start_deposit", {
       _amount_cents: data.amount_cents,
