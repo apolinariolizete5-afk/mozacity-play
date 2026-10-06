@@ -6,7 +6,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type PaycoMethod = "mpesa" | "mcash" | "emola";
+export type PaycoMethod = "mpesa" | "mcash";
 
 export interface PaycoResult {
   ok: boolean;
@@ -29,7 +29,6 @@ function walletIdFor(method: PaycoMethod): string | undefined {
   const names: Record<PaycoMethod, string> = {
     mpesa: "PAYCO_WALLET_ID_MPESA",
     mcash: "PAYCO_WALLET_ID_MKESH",
-    emola: "PAYCO_WALLET_ID_EMOLA",
   };
   return env(names[method]);
 }
@@ -44,7 +43,6 @@ export function paycoStatus() {
     methods: {
       mpesa: Boolean(walletIdFor("mpesa")),
       mcash: Boolean(walletIdFor("mcash")),
-      emola: Boolean(walletIdFor("emola")),
     },
   };
 }
