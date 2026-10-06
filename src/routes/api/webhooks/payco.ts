@@ -73,7 +73,8 @@ export const APIRoute = createAPIFileRoute("/api/webhooks/payco")({
         }
       } else if (event === "payout.paid" || event === "payout.failed") {
         const payoutStatus = event === "payout.paid" ? "paid" : "failed";
-        const { error } = await supabase.rpc("process_payco_payout_webhook", {
+        const rpc = supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+        const { error } = await rpc("process_payco_payout_webhook", {
           _reference: reference,
           _status: payoutStatus,
           _provider_ref: providerRef || reference,
