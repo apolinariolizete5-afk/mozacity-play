@@ -424,8 +424,8 @@ useEffect(() => {
     return {
       index,
       id: remotePlayer?.playerId ?? `waiting-${index}`,
-      name: botMode && index === 1 ? botLabel("ludo", botDifficulty) : remotePlayer?.name ?? (isUser ? app.profile.name : "A aguardar adversário..."),
-      avatar: botMode && index === 1 ? "🤖" : isUser ? app.profile.avatar : "🙂",
+      name: botMode && index > 0 ? `${botLabel("ludo", botDifficulty)} ${index}` : remotePlayer?.name ?? (isUser ? app.profile.name : "A aguardar adversário..."),
+      avatar: botMode && index > 0 ? "🤖" : isUser ? app.profile.avatar : "🙂",
       label: isUser ? "Tu" : "Adversário",
       active: state.turn === index,
       color: PLAYER_COLORS[index] ?? PLAYER_COLORS[0],
