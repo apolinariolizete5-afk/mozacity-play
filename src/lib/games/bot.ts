@@ -101,7 +101,7 @@ export function chooseChessBotMove(state: ChessState, difficulty: BotDifficulty)
   const ranked = moves.map((move) => {
     const next = chessEngine.applyMove(state, move);
     const score = chessScore(next);
-    const hardBonus = difficulty === "hard" ? minimaxChess(next, 1, true) : 0;
+    const hardBonus = difficulty === "hard" ? minimaxChess(next, 1, false) : 0;
     return { move, score: score + hardBonus };
   }).sort((a, b) => b.score - a.score);
   return difficulty === "normal" ? ranked[Math.floor(Math.random() * Math.min(3, ranked.length))]!.move : ranked[0]!.move;
