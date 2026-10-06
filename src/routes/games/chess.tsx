@@ -41,6 +41,9 @@ function ChessMatch() {
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
   const settled = useRef(false);
+  const botTimer = useRef<number | null>(null);
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   useEffect(() => {
     const other = realtime.players.find((p) => p.playerId !== app.profile.id);
@@ -88,7 +91,7 @@ function ChessMatch() {
 
 
   useEffect(() => {
-    if (!ready || state.over) return;
+    if (botMode || !ready || state.over) return;
     const deadline = realtime.turnDeadlineAt ?? Date.now() + 15000;
     const tick = () => setSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
     tick();
@@ -105,7 +108,27 @@ function ChessMatch() {
 
   useEffect(() => {
     if (!ready || realtime.playerIndex !== 0 || realtime.remoteState || state.over) return;
-    void realtime.broadcastState(state);
+    void realti  useEffect(() => {
+    if (!botMode || !ready || state.over || state.turn !== "b") return;
+
+    const delay = botDifficulty === "hard" ? 1400 : botDifficulty === "normal" ? 900 : 500;
+    botTimer.current = window.setTimeout(() => {
+      const current = stateRef.current;
+      if (current.over || current.turn !== "b") return;
+      const move = chooseChessBotMove(current, botDifficulty);
+      setState((latest) => {
+        if (latest.over || latest.turn !== "b") return latest;
+        return chessEngine.applyMove(latest, move);
+      });
+    }, delay);
+
+    return () => {
+      if (botTimer.current !== null) window.clearTimeout(botTimer.current);
+      botTimer.current = null;
+    };
+  }, [botDifficulty, botMode, ready, state.turn, state.over]);
+
+me.broadcastState(state);
   }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   useEffect(() => {
@@ -150,8 +173,8 @@ function ChessMatch() {
           await navigate({ to: "/play", search: { game: "chess" } });
         }}
         title="Xadrez"
-        seconds={seconds}
-        limit={timer}
+        seconds={botMode ? 0 : seconds}
+        limit={botMode ? 0 : timer}
         seats={[
           { name: app.profile.name, avatar: app.profile.avatar, active: state.turn === (realtime.playerIndex === 0 ? "w" : "b"), label: "Brancas" },
           { name: botMode ? botLabel("chess", botDifficulty) : opponent, avatar: botMode ? "🤖" : "🙂", active: state.turn === "b", label: "Negras" },
