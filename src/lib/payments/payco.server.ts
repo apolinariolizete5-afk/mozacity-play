@@ -145,12 +145,14 @@ export async function requestDeposit(input: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      // PAY.CO.MZ identifies the receiving wallet through X-Wallet-Id.
-      // Keep the charge body aligned with the official production examples.
+      // Send the wallet in both supported locations. PAY.CO.MZ documents
+      // X-Wallet-Id as the header and also accepts wallet_id in the body.
+      // Keeping both makes wallet routing explicit for M-Pesa/mKesh.
       body: JSON.stringify({
         amount: input.amountCents / 100,
         method: provider,
         customer_contact: normalizeMsisdn(input.msisdn),
+        wallet_id: walletId,
       }),
       signal: controller.signal,
     });
