@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const METHODS = ["mpesa", "mcash", "emola"] as const;
+const METHODS = ["mpesa", "mcash"] as const;
 
 function normalizeMozMobile(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -18,12 +18,8 @@ function validateDepositMsisdn(method: (typeof METHODS)[number], value: string):
   if (method === "mpesa" && digits.length >= 2 && !/^(84|85)/.test(digits)) {
     return "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567.";
   }
-  if (method === "emola" && digits.length >= 2 && !/^(86|87)/.test(digits)) {
-    return "Este número não é de e-Mola. Para e-Mola, usa um número Movitel que começa por 86 ou 87. Ex.: 86 123 4567.";
-  }
   if (!/^\d{9}$/.test(digits)) {
     if (method === "mcash") return "Número mKesh incompleto. Usa 9 dígitos, por exemplo 82 123 4567.";
-    if (method === "emola") return "Número e-Mola incompleto. Usa 9 dígitos, por exemplo 86 123 4567.";
     return "Número M-Pesa incompleto. Usa 9 dígitos, por exemplo 84 123 4567.";
   }
   return null;
@@ -80,52 +76,35 @@ export const startDeposit = createServerFn({ method: "POST" })
     const key = (row as { idempotency_key: string } | null)?.idempotency_key;
     if (!key) throw new Error("deposit_not_created");
 
-    const provider = (process.env.PAYMENT_PROVIDER ?? "netshop").trim().toLowerCase();
+    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
 
     let result:
       | Awaited<ReturnType<typeof import("./payments/payco.server").requestDeposit>>
       | Awaited<ReturnType<typeof import("./payments/netshop.server").requestDeposit>>;
 
-    if (provider === "payco") {
-      const { paycoStatus, requestDeposit } = await import("./payments/payco.server");
-      const status = paycoStatus();
-
-      if (!status.configured) {
-        await context.supabase.rpc("cancel_failed_deposit", {
-          _idempotency_key: key,
-        });
-        throw new Error("payment_provider_not_configured");
-      }
-
-      result = await requestDeposit({
-        method: data.method,
-        msisdn: normalizedMsisdn,
-        amountCents: data.amount_cents,
-        reference: key,
-      });
-    } else if (provider === "netshop") {
-      const netshop = await import("./payments/netshop.server");
-      const status = netshop.netshopStatus();
-
-      if (!status.configured) {
-        await context.supabase.rpc("cancel_failed_deposit", {
-          _idempotency_key: key,
-        });
-        throw new Error("payment_provider_not_configured");
-      }
-
-      result = await netshop.requestDeposit({
-        method: data.method,
-        msisdn: normalizedMsisdn,
-        amountCents: data.amount_cents,
-        reference: key,
-      });
-    } else {
+    if (provider !== "payco") {
       await context.supabase.rpc("cancel_failed_deposit", {
         _idempotency_key: key,
       });
       throw new Error("payment_provider_not_configured");
     }
+
+    const { paycoStatus, requestDeposit } = await import("./payments/payco.server");
+    const status = paycoStatus();
+
+    if (!status.configured) {
+      await context.supabase.rpc("cancel_failed_deposit", {
+        _idempotency_key: key,
+      });
+      throw new Error("payment_provider_not_configured");
+    }
+
+    result = await requestDeposit({
+      method: data.method,
+      msisdn: normalizedMsisdn,
+      amountCents: data.amount_cents,
+      reference: key,
+    });
 
     // Failed/rejected provider requests must not remain in financial history.
     // Pending rows are kept only when the provider accepted the charge and
@@ -172,7 +151,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const provider = (process.env.PAYMENT_PROVIDER ?? "netshop").trim().toLowerCase();
+    const provider = (process.env.PAYMENT_PROVIDER ?? "payco").trim().toLowerCase();
     if (provider === "payco") {
       throw new Error("payco_payout_not_configured");
     }
