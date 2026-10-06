@@ -46,6 +46,6 @@ export interface WebhookEvent<T = unknown> {
 
 /**
  * Shared payment types only.
- * Real money operations are handled server-side by Supabase and NetShop.
+ * Real money operations are handled server-side by Supabase and PAY.CO.MZ.
  * There is no demo payment provider and no virtual-money crediting here.
  */
