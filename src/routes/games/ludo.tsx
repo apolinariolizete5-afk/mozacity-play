@@ -252,7 +252,8 @@ useEffect(() => {
   }, [disconnectCountdown, room, app.profile.id, players]);
 
   useEffect(() => {
-    if (botMode) return;\n    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
+    if (botMode) return;
+    if ((!state.over && realtime.forfeitWinner === null) || settled.current) return;
     settled.current = true;
 
     const winnerIndex = realtime.forfeitWinner !== null ? realtime.forfeitWinner : state.winner ?? null;
