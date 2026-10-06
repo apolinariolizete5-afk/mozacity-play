@@ -15,17 +15,49 @@ const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)]
 
 function ludoScore(state: LudoState, move: LudoMove): number {
   if (move.type === "roll") return 0;
-  const before = state.tokens[state.turn]?.[move.token] ?? -1;
+
+  const player = state.turn;
+  const before = state.tokens[player]?.[move.token] ?? -1;
   const dice = state.dice ?? 0;
-  let score = dice * 2;
-  if (before === -1 && dice === 6) score += 20;
   const target = before === -1 ? 0 : before + dice;
-  if (target >= 58) score += 100;
-  if (target >= 52) score += 30;
+  let score = dice * 2;
+
+  if (before === -1 && dice === 6) score += 35;
+  if (target >= 58) score += 180;
+  else if (target >= 52) score += 45;
+
   if (target >= 0 && target < 52) {
-    const absolute = (state.turn * 13 + target) % 52;
-    if ([0, 8, 13, 21, 26, 34, 39, 47].includes(absolute)) score += 8;
+    const absolute = (player * 13 + target) % 52;
+    if ([0, 8, 13, 21, 26, 34, 39, 47].includes(absolute)) score += 14;
+
+    let captures = 0;
+    for (let opponent = 0; opponent < state.players; opponent += 1) {
+      if (opponent === player) continue;
+      for (const position of state.tokens[opponent] ?? []) {
+        if (position >= 0 && position < 52 && (opponent * 13 + position) % 52 === absolute) {
+          captures += 1;
+        }
+      }
+    }
+    score += captures * 90;
+
+    // Prefer moves that keep the piece away from an immediate capture.
+    let danger = 0;
+    for (let opponent = 0; opponent < state.players; opponent += 1) {
+      if (opponent === player) continue;
+      for (const position of state.tokens[opponent] ?? []) {
+        if (position < 0 || position >= 52) continue;
+        const opponentAbsolute = (opponent * 13 + position) % 52;
+        const distance = (absolute - opponentAbsolute + 52) % 52;
+        if (distance >= 1 && distance <= 6) danger += 1;
+      }
+    }
+    score -= danger * 12;
   }
+
+  // In hard mode this makes advancing a trailing piece preferable to
+  // repeatedly pushing a token that is already close to home.
+  if (before >= 0 && before < 20) score += 8;
   return score;
 }
 
