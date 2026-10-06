@@ -173,34 +173,9 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     } | null;
     if (!row?.payout_id) throw new Error("payout_not_created");
 
-    const { requestPayout } = await import("./payments/payco.server");
-    const payout = await requestPayout({
-      method: data.method,
-      destination: digits,
-      amountCents: Number(row.net_cents ?? row.gross_cents),
-      reference: row.payout_id,
-    });
-
-    if (!payout.ok || payout.status === "failed") {
-      await context.supabase.rpc("refund_failed_payout", {
-        _payout_id: row.payout_id,
-        _reason: payout.error ?? "payout_failed",
-      });
-      throw new Error(payout.error ?? "payout_failed");
-    }
-
-    if (payout.providerRef) {
-      const rpc = context.supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-      const { error: recordError } = await rpc("record_payco_payout_provider", {
-        _payout_id: row.payout_id,
-        _provider_ref: payout.providerRef,
-      });
-      if (recordError) {
-        console.error("[PAYCO] Could not record payout provider reference", recordError.message);
-      }
-    }
-
-    return { ...row, status: payout.status, provider_ref: payout.providerRef ?? null };
+    // PAY.CO.MZ payouts are submitted by the admin approval flow.
+    // Creating the request here only reserves the user's funds and queues the payout.
+    return { ...row, status: row.status, provider_ref: null };
   });
 
 /** Regista a partida multiplayer no banco antes de qualquer débito. */
