@@ -67,7 +67,7 @@ export const startDeposit = createServerFn({ method: "POST" })
 
     const { data: started, error } = await context.supabase.rpc("start_deposit", {
       _amount_cents: data.amount_cents,
-      _method: data.method === "emola" ? "mola" : data.method,
+      _method: data.method,
       _msisdn: normalizedMsisdn,
     });
     if (error) throw new Error(error.message);
@@ -80,7 +80,7 @@ export const startDeposit = createServerFn({ method: "POST" })
 
     let result:
       | Awaited<ReturnType<typeof import("./payments/payco.server").requestDeposit>>
-      | Awaited<ReturnType<typeof import("./payments/netshop.server").requestDeposit>>;
+;
 
     if (provider !== "payco") {
       await context.supabase.rpc("cancel_failed_deposit", {
