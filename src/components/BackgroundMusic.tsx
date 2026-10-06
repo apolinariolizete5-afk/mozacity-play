@@ -103,11 +103,7 @@ export function BackgroundMusic() {
 
   const chooseNextTrack = useCallback(() => {
     if (TRACKS.length <= 1) return 0;
-    let next = Math.floor(Math.random() * TRACKS.length);
-    while (next === trackRef.current) {
-      next = Math.floor(Math.random() * TRACKS.length);
-    }
-    return next;
+    return (trackRef.current + 1) % TRACKS.length;
   }, []);
 
   const loadTrack = useCallback(
@@ -252,27 +248,6 @@ export function BackgroundMusic() {
       void loadTrack(chooseNextTrack(), true);
     };
 
-    const onTimeUpdate = () => {
-      if (
-        !audio.duration ||
-        !Number.isFinite(audio.duration) ||
-        audio.duration - audio.currentTime > END_GUARD_SECONDS ||
-        isTransitioningRef.current ||
-        !enabledRef.current ||
-        isGame
-      ) {
-        return;
-      }
-
-      if (nextTrackTimerRef.current !== null) return;
-
-      nextTrackTimerRef.current = window.setTimeout(() => {
-        nextTrackTimerRef.current = null;
-        if (!enabledRef.current || document.hidden || isGameRef.current) return;
-        void loadTrack(chooseNextTrack(), true);
-      }, Math.max(0, (audio.duration - audio.currentTime - FADE_SECONDS) * 1000));
-    };
-
     const onPlay = () => {
       playingRef.current = true;
     };
@@ -282,7 +257,6 @@ export function BackgroundMusic() {
     };
 
     audio.addEventListener("ended", onEnded);
-    audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
@@ -292,7 +266,6 @@ export function BackgroundMusic() {
 
     return () => {
       audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.pause();
