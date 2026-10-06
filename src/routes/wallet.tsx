@@ -29,20 +29,20 @@ export const Route = createFileRoute("/wallet")({
       {
         name: "description",
         content:
-          "Deposita por M-Pesa, mKesh ou e-Mola. O valor mínimo é definido no painel de administração.",
+          "Deposita por M-Pesa ou mKesh através da PAY.CO.MZ. O valor mínimo é definido no painel de administração.",
       },
       { property: "og:title", content: "Carteira em meticais — MozaPlay" },
       {
         property: "og:description",
-        content: "Depósitos integrais, taxas transparentes e valores mínimos definidos no painel de administração.",
+        content: "Depósitos por PAY.CO.MZ, taxas transparentes e valores mínimos definidos no painel de administração.",
       },
     ],
   }),
   component: WalletPage,
 });
 
-type Method = "mpesa" | "mcash" | "emola";
-const METHODS: Method[] = ["mpesa", "mcash", "emola"];
+type Method = "mpesa" | "mcash";
+const METHODS: Method[] = ["mpesa", "mcash"];
 
 interface TxRow {
   id: string;
@@ -260,13 +260,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
           : !/^(82|83)\d{7}$/.test(normalizedPhone)
             ? "Este número não é de mKesh. Para mKesh, usa um número Tmcel que começa por 82 ou 83. Ex.: 82 123 4567."
             : null
-        : method === "emola"
-          ? !/^\d{9}$/.test(normalizedPhone)
-            ? "Número e-Mola inválido. Usa 9 dígitos, por exemplo 86 123 4567."
-            : !/^(86|87)\d{7}$/.test(normalizedPhone)
-              ? "Este número não é de e-Mola. Para e-Mola, usa um número Movitel que começa por 86 ou 87. Ex.: 86 123 4567."
-              : null
-          : !/^\d{9}$/.test(normalizedPhone)
+        : !/^\d{9}$/.test(normalizedPhone)
             ? "Número M-Pesa inválido. Usa 9 dígitos, por exemplo 84 123 4567."
             : !/^(84|85)\d{7}$/.test(normalizedPhone)
               ? "Este número não é de M-Pesa. Para M-Pesa, usa um número Vodacom que começa por 84 ou 85. Ex.: 84 123 4567."
@@ -314,7 +308,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : method === "emola" ? "Ex.: 86 123 4567" : "Ex.: 84 123 4567"}
+        placeholder={method === "mcash" ? "Ex.: 82 123 4567" : "Ex.: 84 123 4567"}
         inputMode="tel"
         maxLength={32}
         value={msisdn}
@@ -326,9 +320,7 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
         <p className="text-[11px] text-muted-foreground">
           {method === "mcash"
             ? "mKesh: usa um número Tmcel iniciado por 82 ou 83."
-            : method === "emola"
-              ? "e-Mola: usa um número Movitel iniciado por 86 ou 87."
-              : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
+            : "M-Pesa: usa um número Vodacom iniciado por 84 ou 85."}
         </p>
       )}
       <div className="rounded-2xl bg-secondary/70 p-3 text-xs">
@@ -410,7 +402,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       <MethodPicker value={method} onChange={setMethod} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
-        placeholder={method === "mcash" ? "Número mKesh (82/83…)" : method === "emola" ? "Número e-Mola (86/87…)" : "Número M-Pesa (84/85…)"}
+        placeholder={method === "mcash" ? "Número mKesh (82/83…)" : "Número M-Pesa (84/85…)" }
         inputMode="tel"
         maxLength={32}
         value={destination}
@@ -461,7 +453,6 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
       <div className="flex flex-wrap gap-1">
         <Pill tone="muted">M-Pesa</Pill>
         <Pill tone="muted">mKesh</Pill>
-        <Pill tone="muted">e-Mola</Pill>
         <Pill tone="muted">Taxa transparente</Pill>
       </div>
     </Card>
