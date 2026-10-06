@@ -236,16 +236,27 @@ export function BackgroundMusic() {
     audio.setAttribute("playsinline", "true");
     audioRef.current = audio;
 
-    const onEnded = () => {
+    const advanceTrack = () => {
       if (
         isTransitioningRef.current ||
         !enabledRef.current ||
         document.hidden ||
-        isGame
+        isGameRef.current
       ) {
         return;
       }
-      void loadTrack(chooseNextTrack(), true);
+      const nextIndex = (trackRef.current + 1) % TRACKS.length;
+      void loadTrack(nextIndex, true);
+    };
+
+    const onEnded = () => {
+      advanceTrack();
+    };
+
+    const onError = () => {
+      // Se um ficheiro estiver indisponível/corrompido, não deixa a música morrer:
+      // passa imediatamente para a próxima faixa.
+      if (!isTransitioningRef.current) advanceTrack();
     };
 
     const onPlay = () => {
@@ -257,6 +268,7 @@ export function BackgroundMusic() {
     };
 
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
@@ -266,6 +278,7 @@ export function BackgroundMusic() {
 
     return () => {
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.pause();
