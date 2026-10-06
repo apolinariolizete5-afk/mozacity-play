@@ -244,7 +244,7 @@ export async function requestPayout(input: {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await fetch(`${apiUrl().replace(/\\/$/, "")}/payouts`, {
+    const response = await fetch(`${apiUrl().replace(/\/$/, "")}/payouts`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
