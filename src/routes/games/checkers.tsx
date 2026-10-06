@@ -42,10 +42,10 @@ function CheckersMatch() {
   const { bet: routeBet, timer, room, bot } = Route.useSearch();
   const botMode = Boolean(bot && !room);
   const botDifficulty = (bot ?? "normal") as BotDifficulty;
-  const humanTurn = botMode ? state.turn === 0 : state.turn === realtime.playerIndex;
   const bet = CHECKERS_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
+  const humanTurn = botMode ? state.turn === 0 : state.turn === realtime.playerIndex;
   const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const settled = useRef(false);
