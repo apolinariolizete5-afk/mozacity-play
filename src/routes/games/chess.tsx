@@ -131,8 +131,6 @@ function ChessMatch() {
     };
   }, [botDifficulty, botMode, ready, state.turn, state.over]);
 
-me.broadcastState(state);
-  }, [ready, realtime.playerIndex, realtime.remoteState, state]);
 
   useEffect(() => {
     if (botMode) return;
