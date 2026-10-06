@@ -42,6 +42,7 @@ function CheckersMatch() {
   const { bet: routeBet, timer, room, bot } = Route.useSearch();
   const botMode = Boolean(bot && !room);
   const botDifficulty = (bot ?? "normal") as BotDifficulty;
+  const humanTurn = botMode ? state.turn === 0 : state.turn === realtime.playerIndex;
   const bet = CHECKERS_TEST_MODE ? 0 : routeBet;
   const app = useApp();
   const [state, setState] = useState(() => checkersEngine.createGame());
@@ -218,7 +219,7 @@ function CheckersMatch() {
           </Card>
         }
       >
-        {ready ? <CheckersBoard state={state} disabled={state.turn !== 0 || state.over} onMove={play} /> : <Card className="p-8 text-center"><p className="font-bold">{botMode ? "Partida contra Bot" : "Sala online"}</p><p className="mt-2 text-sm text-muted-foreground">{botMode ? `Dificuldade: ${botLabel("checkers", botDifficulty)}` : `Código: ${room || "—"}. A aguardar um jogador real para começar.`}</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
+        {ready ? <CheckersBoard state={state} disabled={!humanTurn || state.over} onMove={play} /> : <Card className="p-8 text-center"><p className="font-bold">{botMode ? "Partida contra Bot" : "Sala online"}</p><p className="mt-2 text-sm text-muted-foreground">{botMode ? `Dificuldade: ${botLabel("checkers", botDifficulty)}` : `Código: ${room || "—"}. A aguardar um jogador real para começar.`}</p><Link to="/rooms" className="mt-4 inline-block rounded-2xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Voltar às salas</Link></Card>}
       </MatchShell>
       {result ? (
         <ResultOverlay
