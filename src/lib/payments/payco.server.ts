@@ -145,11 +145,12 @@ export async function requestDeposit(input: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      // PAY.CO.MZ identifies the receiving wallet through X-Wallet-Id.
+      // Keep the charge body aligned with the official production examples.
       body: JSON.stringify({
         amount: input.amountCents / 100,
         method: provider,
         customer_contact: normalizeMsisdn(input.msisdn),
-        wallet_id: walletId,
       }),
       signal: controller.signal,
     });
