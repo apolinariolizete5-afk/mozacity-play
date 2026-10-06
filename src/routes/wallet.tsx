@@ -275,7 +275,10 @@ function DepositPanel({ summary, onDone }: { summary: WalletSummary; onDone: () 
           msisdn: normalizedPhone,
         },
       }),
-    onSuccess: onDone,
+    onSuccess: (data) => {
+      onDone();
+      if (data.checkout_url) window.location.assign(data.checkout_url);
+    },
   });
 
   const value = Number(amount);
