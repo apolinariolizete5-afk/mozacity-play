@@ -33,10 +33,10 @@ function ChessMatch() {
   const { bet, timer, room, bot } = Route.useSearch();
   const botMode = Boolean(bot && !room);
   const botDifficulty = (bot ?? "normal") as BotDifficulty;
-  const humanColor = botMode ? "w" : realtime.playerIndex === 0 ? "w" : "b";
-  const humanTurn = state.turn === humanColor;
   const app = useApp();
   const [state, setState] = useState(() => chessEngine.createGame());
+  const humanColor = botMode ? "w" : realtime.playerIndex === 0 ? "w" : "b";
+  const humanTurn = state.turn === humanColor;
   const [seconds, setSeconds] = useState(15);
   const [opponent, setOpponent] = useState("A aguardar adversário...");
   const realtime = useRealtimeRoom<any>(room || undefined, "chess", { playerId: app.profile.id, name: app.profile.name }, Boolean(room));
