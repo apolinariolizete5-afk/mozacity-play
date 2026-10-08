@@ -449,9 +449,16 @@ function Rooms() {
                     <Button size="sm" variant="outline" onClick={() => void shareRoom(r)}>
                       <Share2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="sm" onClick={() => void join(r.code)}>
-                      Jogar
-                    </Button>
+                    {r.hostId === app.profile.id ? (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setActiveLobby({
+                          code: r.code, game: r.game, bet: 0, capacity: r.capacity, isHost: true,
+                        })}>Abrir</Button>
+                        <Button size="sm" variant="outline" onClick={() => void removeOwnedRoom(r.code)}>Remover</Button>
+                      </>
+                    ) : (
+                      <Button size="sm" onClick={() => void join(r.code)}>Jogar</Button>
+                    )}
                   </div>
                 </div>
               </Card>
