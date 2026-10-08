@@ -312,7 +312,7 @@ function Rooms() {
                 min={MOZAPLAY_TEST_MODE ? 0 : minBetMzn ?? undefined}
                 step={1}
                 value={MOZAPLAY_TEST_MODE ? "0" : betInput}
-                disabled={(game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)}
+                disabled={MOZAPLAY_TEST_MODE}
                 onFocus={() => {
                   betInputEditingRef.current = true;
                 }}
