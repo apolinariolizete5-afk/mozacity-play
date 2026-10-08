@@ -67,7 +67,7 @@ export function BackgroundMusic() {
   const desiredTrack = getTrackIndex(pathname);
 
   useEffect(() => {
-    false = isGame;
+    isGameRef.current = isGame;
   }, [isGame]);
 
   const clearTimers = useCallback(() => {
