@@ -132,30 +132,44 @@ export async function createRoom(input: {
   const channel = getLobbyChannel();
   await ensureSubscribed(channel);
   const code = makeRoomCode();
-  const bet = Math.max(0, Math.round(Number(input.bet ?? 0)));
+  const createdAt = new Date().toISOString();
+  const capacity = input.game === "ludo" ? Math.min(4, Math.max(2, input.capacity ?? 2)) : 2;
   const room: LobbyRoom = {
     id: code,
     code,
     game: input.game,
     isPrivate: Boolean(input.isPrivate),
-    bet,
+    bet: 0,
     timer: TURN_SECONDS,
-    capacity: input.game === "ludo" ? Math.min(4, Math.max(2, input.capacity ?? 2)) : 2,
+    capacity,
     status: "WAITING",
     players: [{ id: input.player.playerId, name: input.player.name }],
     hostId: input.player.playerId,
-    createdAt: new Date().toISOString(),
+    createdAt,
   };
+
+  const { error: saveError } = await supabase.from("game_rooms").insert({
+    code,
+    game: input.game,
+    is_private: room.isPrivate,
+    bet_cents: 0,
+    capacity,
+    status: "WAITING",
+    host_id: input.player.playerId,
+    host_name: input.player.name || "Jogador",
+    created_at: createdAt,
+  });
+  if (saveError) throw new Error(`Não foi possível guardar a sala: ${saveError.message}`);
 
   await channel.track({
     ...input.player,
     roomCode: code,
     game: input.game,
-    isPrivate: Boolean(input.isPrivate),
-    capacity: room.capacity,
+    isPrivate: room.isPrivate,
+    capacity,
     hostId: input.player.playerId,
-    bet,
-    createdAt: room.createdAt,
+    bet: 0,
+    createdAt,
   });
 
   return room;
@@ -166,24 +180,32 @@ export async function joinRoom(roomCode: string, player: RoomPresence) {
   await ensureSubscribed(channel);
   const code = roomCode.toUpperCase().trim();
   const currentRooms = presenceToRooms(channel.presenceState() as Record<string, unknown[]>);
-  const existing = currentRooms.find((r) => r.code === code);
+  const liveRoom = currentRooms.find((r) => r.code === code);
+  const { data: savedRoom, error: lookupError } = await supabase.rpc("get_game_room_by_code", { _code: code });
+  if (lookupError) throw new Error(`Não foi possível consultar a sala: ${lookupError.message}`);
+  const saved = savedRoom as {
+    code?: string; game?: GameId; is_private?: boolean; bet_cents?: number;
+    capacity?: number; host_id?: string; created_at?: string;
+  } | null;
+  if (!saved && !liveRoom) throw new Error("Esta sala não existe ou já foi removida.");
+
+  const game = (saved?.game ?? liveRoom?.game ?? "ludo") as GameId;
+  const isPrivate = saved?.is_private ?? liveRoom?.isPrivate ?? false;
+  const capacity = saved?.capacity ?? liveRoom?.capacity ?? 2;
+  const hostId = saved?.host_id ?? liveRoom?.hostId ?? player.playerId;
 
   await channel.track({
     ...player,
     roomCode: code,
-    game: existing?.game ?? "ludo",
-    isPrivate: existing?.isPrivate ?? false,
-    capacity: existing?.capacity ?? 2,
-    bet: existing?.bet ?? 0,
-    hostId: existing?.hostId ?? player.playerId,
+    game,
+    isPrivate,
+    capacity,
+    bet: 0,
+    hostId,
+    createdAt: saved?.created_at ?? liveRoom?.createdAt,
   });
 
-  return {
-    code,
-    game: existing?.game ?? "ludo",
-    bet: existing?.bet ?? 0,
-    capacity: existing?.capacity ?? 2,
-  };
+  return { code, game, bet: 0, capacity, hostId };
 }
 
 export function useRealtimeLobby(player: RoomPresence, enabled = true) {
@@ -192,40 +214,87 @@ export function useRealtimeLobby(player: RoomPresence, enabled = true) {
   useEffect(() => {
     if (!enabled || !player.playerId) return;
 
-    // Do not reuse the shared lobby channel here. createRoom/joinRoom can
-    // subscribe that channel before this hook mounts. Supabase requires all
-    // presence listeners to be attached before subscribe(), otherwise it
-    // throws: "cannot add presence callbacks ... after subscribe()".
+    // Keep realtime presence for online players, but load room records from
+    // PostgreSQL so the room survives when its host closes the app.
     const channel = supabase.channel("mozaplay:lobby", {
-      config: {
-        presence: {},
-        broadcast: { self: false, ack: true },
-      },
+      config: { presence: {}, broadcast: { self: false, ack: true } },
     });
+    let active = true;
+    let persistedRooms: LobbyRoom[] = [];
 
     const sync = () => {
-      setRemoteRooms(
-        presenceToRooms(channel.presenceState() as Record<string, unknown[]>),
-      );
+      const liveRooms = presenceToRooms(channel.presenceState() as Record<string, unknown[]>);
+      const liveByCode = new Map(liveRooms.map((room) => [room.code, room]));
+      const merged = persistedRooms.map((room) => {
+        const live = liveByCode.get(room.code);
+        return {
+          ...room,
+          players: live?.players ?? [],
+          status: live && live.players.length >= room.capacity ? "READY" as const : "WAITING" as const,
+        };
+      });
+      const savedCodes = new Set(persistedRooms.map((room) => room.code));
+      for (const room of liveRooms) if (!savedCodes.has(room.code)) merged.push(room);
+      setRemoteRooms(merged);
     };
 
-    // IMPORTANT: every presence callback is registered before subscribe().
+    const loadSavedRooms = async () => {
+      const { data, error } = await supabase
+        .from("game_rooms")
+        .select("code,game,is_private,bet_cents,capacity,status,host_id,host_name,created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (!active) return;
+      if (error) {
+        console.warn("[MozaPlay] Não foi possível carregar salas guardadas:", error.message);
+        sync();
+        return;
+      }
+      persistedRooms = (data ?? []).map((row: any) => ({
+        id: row.code,
+        code: row.code,
+        game: row.game as GameId,
+        isPrivate: Boolean(row.is_private),
+        bet: 0,
+        timer: TURN_SECONDS,
+        capacity: Math.min(row.game === "ludo" ? 4 : 2, Math.max(2, Number(row.capacity) || 2)),
+        status: "WAITING" as const,
+        players: [],
+        hostId: row.host_id,
+        createdAt: row.created_at,
+      }));
+      sync();
+    };
+
+    // Register all presence listeners before subscribe().
     channel.on("presence", { event: "sync" }, sync);
     channel.on("presence", { event: "join" }, sync);
     channel.on("presence", { event: "leave" }, sync);
-
-    let active = true;
-    void ensureSubscribed(channel).then(() => {
-      if (active) sync();
-    });
+    void ensureSubscribed(channel).then(() => { if (active) sync(); });
+    void loadSavedRooms();
+    const refreshId = window.setInterval(() => void loadSavedRooms(), 10000);
+    const onVisible = () => { if (document.visibilityState === "visible") void loadSavedRooms(); };
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       active = false;
+      window.clearInterval(refreshId);
+      document.removeEventListener("visibilitychange", onVisible);
       void supabase.removeChannel(channel);
     };
   }, [enabled, player.playerId]);
 
   return { remoteRooms };
+}
+
+export async function removeRoom(roomCode: string, playerId: string) {
+  const code = roomCode.toUpperCase().trim();
+  const { error } = await supabase
+    .from("game_rooms")
+    .delete()
+    .eq("code", code)
+    .eq("host_id", playerId);
+  if (error) throw new Error(`Não foi possível remover a sala: ${error.message}`);
 }
 
 export function useRealtimeRoom<T>(
