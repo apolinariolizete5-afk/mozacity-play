@@ -305,13 +305,13 @@ function Rooms() {
             <div>
               <label className="text-xs font-bold text-muted-foreground">Valor da aposta (MZN)</label>
               {MOZAPLAY_TEST_MODE && (
-                <p className="mt-1 text-xs font-extrabold text-primary">MODO TESTE — {game === "ludo" ? "Ludo" : "Damas"} sem dinheiro, sem saldo e sem cobrança.</p>
+                <p className="mt-1 text-xs font-extrabold text-primary">MODO TESTE TOTAL — todos os jogos sem apostas nem cobranças.</p>
               )}
               <input
                 type="number"
-                min={((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)) ? 0 : minBetMzn ?? undefined}
+                min={MOZAPLAY_TEST_MODE ? 0 : minBetMzn ?? undefined}
                 step={1}
-                value={((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)) ? "0" : betInput}
+                value={MOZAPLAY_TEST_MODE ? "0" : betInput}
                 disabled={(game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)}
                 onFocus={() => {
                   betInputEditingRef.current = true;
