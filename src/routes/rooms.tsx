@@ -215,6 +215,16 @@ function Rooms() {
   };
 
   const visibleRooms = remoteRooms.filter((r) => !r.isPrivate);
+  const myRooms = remoteRooms.filter((r) => r.hostId === app.profile.id);
+
+  const removeOwnedRoom = async (roomCode: string) => {
+    try {
+      await removeRoom(roomCode, app.profile.id);
+      setMessage(`Sala ${roomCode} removida.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível remover a sala.");
+    }
+  };
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-28 pt-5 sm:px-6">
@@ -233,6 +243,11 @@ function Rooms() {
           }}
           onCancel={() => {
             setActiveLobby(null);
+          }}
+          onRemove={async () => {
+            await removeRoom(activeLobby.code, app.profile.id);
+            setActiveLobby(null);
+            setMessage(`Sala ${activeLobby.code} removida.`);
           }}
         />
       )}
