@@ -7,6 +7,7 @@ import { chessEngine, chessTimeout, inCheck, type ChessMove } from "@/lib/games/
 import { recordMatch, useApp } from "@/lib/store";
 import { lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { useRealtimeRoom } from "@/lib/realtime";
+import { MOZAPLAY_TEST_MODE } from "@/lib/test-mode";
 import { chooseChessBotMove, isBotDifficulty, botLabel, type BotDifficulty } from "@/lib/games/bot";
 
 export const Route = createFileRoute("/games/chess")({
@@ -30,7 +31,8 @@ export const Route = createFileRoute("/games/chess")({
 
 function ChessMatch() {
   const navigate = useNavigate();
-  const { bet, timer, room, bot } = Route.useSearch();
+  const { bet: routeBet, timer, room, bot } = Route.useSearch();
+  const bet = MOZAPLAY_TEST_MODE ? 0 : routeBet;
   const botMode = Boolean(bot && !room);
   const botDifficulty = (bot ?? "normal") as BotDifficulty;
   const app = useApp();
@@ -62,6 +64,7 @@ function ChessMatch() {
   const wagerLocked = useRef(false);
 
   useEffect(() => {
+    if (MOZAPLAY_TEST_MODE) { setEscrowReady(true); return; }
     if (!playersReady || !room || realtime.players.length < 2 || roomRegistered.current) return;
     const playerIds = realtime.players.map((player) => player.playerId);
     if (playerIds.length < 2) return;
