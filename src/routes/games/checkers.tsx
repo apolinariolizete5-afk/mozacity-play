@@ -11,9 +11,10 @@ import {
 import { recordMatch, useApp } from "@/lib/store";
 import { forfeitRoomMatch, lockRoomWager, registerRoomMatch, settleRoomMatch } from "@/lib/wallet.functions";
 import { useRealtimeRoom } from "@/lib/realtime";
+import { MOZAPLAY_TEST_MODE } from "@/lib/test-mode";
 import { chooseCheckersBotMove, isBotDifficulty, botLabel, type BotDifficulty } from "@/lib/games/bot";
 
-const CHECKERS_TEST_MODE = import.meta.env.VITE_CHECKERS_TEST_MODE !== "false";
+const CHECKERS_TEST_MODE = MOZAPLAY_TEST_MODE;
 
 export const Route = createFileRoute("/games/checkers")({
   ssr: false,
