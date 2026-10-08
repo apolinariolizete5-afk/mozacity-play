@@ -10,13 +10,12 @@ import { recordMatch, useApp } from "@/lib/store";
 import { lockRoomWager, registerRoomMatchMulti, settleRoomMatchMulti } from "@/lib/wallet.functions";
 import { cn } from "@/lib/utils";
 import { useRealtimeRoom } from "@/lib/realtime";
+import { MOZAPLAY_TEST_MODE } from "@/lib/test-mode";
 import "@/styles/ludo-motion.css";
 import { chooseLudoBotMove, isBotDifficulty, botLabel, type BotDifficulty } from "@/lib/games/bot";
 
 const TURN_SECONDS = 15;
-// Teste temporário do Ludo: por padrão fica ativo durante a fase de testes.
-// Para reativar o fluxo financeiro, defina VITE_LUDO_TEST_MODE=false.
-const LUDO_TEST_MODE = import.meta.env.VITE_LUDO_TEST_MODE !== "false";
+const LUDO_TEST_MODE = MOZAPLAY_TEST_MODE;
 
 const PLAYER_COLORS = [
   { border: "border-emerald-500", bg: "bg-emerald-950/70", ring: "ring-emerald-400", text: "text-emerald-400" },
