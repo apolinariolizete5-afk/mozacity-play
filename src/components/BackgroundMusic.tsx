@@ -52,7 +52,6 @@ export function BackgroundMusic() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
   const titleTimerRef = useRef<number | null>(null);
-  const nextTrackTimerRef = useRef<number | null>(null);
   const trackRef = useRef(0);
   const generationRef = useRef(0);
   const enabledRef = useRef(enabled);
@@ -67,10 +66,8 @@ export function BackgroundMusic() {
   const clearTimers = useCallback(() => {
     if (fadeTimerRef.current !== null) window.clearInterval(fadeTimerRef.current);
     if (titleTimerRef.current !== null) window.clearTimeout(titleTimerRef.current);
-    if (nextTrackTimerRef.current !== null) window.clearTimeout(nextTrackTimerRef.current);
     fadeTimerRef.current = null;
     titleTimerRef.current = null;
-    nextTrackTimerRef.current = null;
   }, []);
 
   const showTrackTitle = useCallback((name: string) => {
@@ -105,11 +102,6 @@ export function BackgroundMusic() {
     },
     [],
   );
-
-  const chooseNextTrack = useCallback(() => {
-    if (TRACKS.length <= 1) return 0;
-    return (trackRef.current + 1) % TRACKS.length;
-  }, []);
 
   const loadTrack = useCallback(
     async (index: number, fadeIn = true) => {
@@ -275,7 +267,6 @@ export function BackgroundMusic() {
       playingRef.current = false;
     };
 
-    audio.addEventListener("ended", onEnded);
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
@@ -285,7 +276,6 @@ export function BackgroundMusic() {
     }
 
     return () => {
-      audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
@@ -294,7 +284,7 @@ export function BackgroundMusic() {
       audioRef.current = null;
       clearTimers();
     };
-  }, [chooseNextTrack, clearTimers, loadTrack]);
+  }, [clearTimers, loadTrack, desiredTrack]);
 
   useEffect(() => {
     if (!enabled || document.hidden) {
@@ -334,7 +324,8 @@ export function BackgroundMusic() {
       } else if (detail?.action === "start") {
         setMusicEnabled(true);
       } else if (detail?.action === "next" && enabledRef.current) {
-        void loadTrack((trackRef.current + 1) % TRACKS.length, true);
+        const next = (trackRef.current + 1) % TRACKS.length;
+        void loadTrack(next, true);
       }
     };
 
