@@ -17,6 +17,19 @@ export function CheckersBoard({
   const targets = from === null ? [] : moves.filter((m) => m.from === from).map((m) => m.to);
   const lastMove = state.lastMove;
 
+  // Clear a stale selection after a remote move, turn change, or forced capture.
+  useMemo(() => {
+    if (from === null) return;
+    const selectedPiece = state.board[from];
+    if (
+      !selectedPiece ||
+      selectedPiece.p !== state.turn ||
+      !moves.some((move) => move.from === from)
+    ) {
+      setFrom(null);
+    }
+  }, [from, state, moves]);
+
   const click = (square: number) => {
     if (disabled) return;
     if (from !== null && targets.includes(square)) {
@@ -58,6 +71,8 @@ export function CheckersBoard({
             <button
               key={i}
               type="button"
+              disabled={Boolean(disabled)}
+              aria-label={`Casa ${Math.floor(i / 8) + 1}, ${(i % 8) + 1}${piece ? piece.p === 0 ? ", peça clara" : ", peça escura" : ""}${piece?.king ? ", dama" : ""}`}
               onClick={() => click(i)}
               className={cn(
                 "relative flex items-center justify-center p-[10%] transition-colors",
