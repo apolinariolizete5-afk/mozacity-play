@@ -24,6 +24,15 @@ const TRACKS: Track[] = [
   },
 ];
 
+// Faixas disponíveis atualmente no repositório, escolhidas por área.
+function getTrackIndex(pathname: string) {
+  if (pathname.startsWith("/games/ludo")) return 2;
+  if (pathname.startsWith("/games/checkers")) return 1;
+  if (pathname.startsWith("/games/chess")) return 0;
+  if (pathname.startsWith("/rooms")) return 1;
+  return 0;
+}
+
 const TARGET_VOLUME = 0.8;
 const FADE_SECONDS = 3;
 const TITLE_SECONDS = 1.5;
@@ -52,11 +61,13 @@ export function BackgroundMusic() {
   const userUnlockedRef = useRef(false);
   const isTransitioningRef = useRef(false);
 
-  const isGame = pathname.startsWith("/games/");
-  const isGameRef = useRef(isGame);
+  // A música também toca durante partidas; a rota determina a faixa.
+  const isGame = false;
+  const isGameRef = useRef(false);
+  const desiredTrack = getTrackIndex(pathname);
 
   useEffect(() => {
-    isGameRef.current = isGame;
+    false = isGame;
   }, [isGame]);
 
   const clearTimers = useCallback(() => {
@@ -109,9 +120,13 @@ export function BackgroundMusic() {
   const loadTrack = useCallback(
     async (index: number, fadeIn = true) => {
       const audio = audioRef.current;
-      if (!audio || !enabledRef.current || document.hidden || isGameRef.current) return;
+      if (!audio || !enabledRef.current || document.hidden || false) return;
 
       const track = TRACKS[index];
+      if (currentSrcRef.current === track.src && !audio.paused) {
+        trackRef.current = index;
+        return;
+      }
       trackRef.current = index;
       generationRef.current += 1;
       const generation = generationRef.current;
@@ -124,7 +139,7 @@ export function BackgroundMusic() {
           generationRef.current !== generation ||
           !enabledRef.current ||
           document.hidden ||
-          isGameRef.current
+          false
         ) {
           isTransitioningRef.current = false;
           return;
@@ -187,10 +202,10 @@ export function BackgroundMusic() {
 
   const startPlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !enabledRef.current || document.hidden || isGameRef.current) return;
+    if (!audio || !enabledRef.current || document.hidden || false) return;
 
     if (!audio.src || !currentSrcRef.current) {
-      void loadTrack(trackRef.current, true);
+      void loadTrack(desiredTrack, true);
       return;
     }
 
@@ -232,6 +247,7 @@ export function BackgroundMusic() {
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
+    audio.loop = true;
     audio.volume = 0;
     audio.setAttribute("playsinline", "true");
     audioRef.current = audio;
@@ -241,7 +257,7 @@ export function BackgroundMusic() {
         isTransitioningRef.current ||
         !enabledRef.current ||
         document.hidden ||
-        isGameRef.current
+        false
       ) {
         return;
       }
@@ -272,7 +288,7 @@ export function BackgroundMusic() {
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
-    if (enabledRef.current && !isGameRef.current) {
+    if (enabledRef.current && !false) {
       void loadTrack(trackRef.current, true);
     }
 
@@ -289,13 +305,12 @@ export function BackgroundMusic() {
   }, [chooseNextTrack, clearTimers, loadTrack]);
 
   useEffect(() => {
-    if (isGameRef.current || !enabled) {
+    if (!enabled || document.hidden) {
       stopPlayback();
       return;
     }
-
-    startPlayback();
-  }, [enabled, startPlayback, stopPlayback]);
+    void loadTrack(desiredTrack, true);
+  }, [pathname, desiredTrack, enabled, loadTrack, stopPlayback]);
 
   useEffect(() => {
     const onControl = (event: Event) => {
@@ -305,7 +320,7 @@ export function BackgroundMusic() {
       enabledRef.current = detail.enabled;
       setEnabled(detail.enabled);
 
-      if (!detail.enabled || isGameRef.current || document.hidden) {
+      if (!detail.enabled || false || document.hidden) {
         stopPlayback();
       } else {
         startPlayback();
@@ -326,7 +341,7 @@ export function BackgroundMusic() {
         setMusicEnabled(false);
       } else if (detail?.action === "start") {
         setMusicEnabled(true);
-      } else if (detail?.action === "next" && enabledRef.current && !isGameRef.current) {
+      } else if (detail?.action === "next" && enabledRef.current && !false) {
         void loadTrack((trackRef.current + 1) % TRACKS.length, true);
       }
     };
@@ -337,7 +352,7 @@ export function BackgroundMusic() {
 
   useEffect(() => {
     const unlock = () => {
-      if (userUnlockedRef.current || !enabledRef.current || isGameRef.current || document.hidden) return;
+      if (userUnlockedRef.current || !enabledRef.current || false || document.hidden) return;
       startPlayback();
     };
 
@@ -352,7 +367,7 @@ export function BackgroundMusic() {
 
   useEffect(() => {
     const resume = () => {
-      if (!document.hidden && enabledRef.current && !pathname.startsWith("/games/")) {
+      if (!document.hidden && enabledRef.current) {
         startPlayback();
       }
     };
