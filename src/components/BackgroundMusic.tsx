@@ -237,26 +237,9 @@ export function BackgroundMusic() {
     audio.setAttribute("playsinline", "true");
     audioRef.current = audio;
 
-    const advanceTrack = () => {
-      if (
-        isTransitioningRef.current ||
-        !enabledRef.current ||
-        document.hidden ||
-      ) {
-        return;
-      }
-      const nextIndex = (trackRef.current + 1) % TRACKS.length;
-      void loadTrack(nextIndex, true);
-    };
-
-    const onEnded = () => {
-      advanceTrack();
-    };
-
     const onError = () => {
-      // Se um ficheiro estiver indisponível/corrompido, não deixa a música morrer:
-      // passa imediatamente para a próxima faixa.
-      if (!isTransitioningRef.current) advanceTrack();
+      // Evita um ciclo infinito se uma faixa estiver indisponível.
+      console.warn("[Music] Não foi possível carregar a faixa atual.");
     };
 
     const onPlay = () => {
@@ -271,10 +254,6 @@ export function BackgroundMusic() {
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
 
-    if (enabledRef.current) {
-      void loadTrack(trackRef.current, true);
-    }
-
     return () => {
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
@@ -284,7 +263,7 @@ export function BackgroundMusic() {
       audioRef.current = null;
       clearTimers();
     };
-  }, [clearTimers, loadTrack, desiredTrack]);
+  }, [clearTimers]);
 
   useEffect(() => {
     if (!enabled || document.hidden) {
