@@ -63,6 +63,7 @@ export const startDeposit = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (MOZAPLAY_TEST_MODE) throw new Error("test_mode_no_real_money");
     const phoneError = validateDepositMsisdn(data.method, data.msisdn);
     if (phoneError) throw new Error(phoneError);
 
@@ -153,6 +154,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (MOZAPLAY_TEST_MODE) throw new Error("test_mode_no_real_money");
     const digits = normalizeMozMobile(data.destination);
     if (!/^\d{9}$/.test(digits)) throw new Error("invalid_destination");
     if (data.method === "mpesa" && !/^(84|85)\d{7}$/.test(digits)) throw new Error("invalid_mpesa_destination");
@@ -214,6 +216,7 @@ export const lockRoomWager = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (MOZAPLAY_TEST_MODE) throw new Error("test_mode_no_real_money");
     const { data: result, error } = await context.supabase.rpc("lock_room_wager", {
       _room_code: data.room_code,
       _amount_cents: data.bet_cents,
@@ -236,6 +239,7 @@ export const settleRoomMatch = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (MOZAPLAY_TEST_MODE) throw new Error("test_mode_no_real_money");
     const { data: result, error } = await context.supabase.rpc("settle_room_result", {
       _room_code: data.room_code,
       _winner_id: data.winner_id as string,
@@ -253,6 +257,7 @@ export const forfeitRoomMatch = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (MOZAPLAY_TEST_MODE) throw new Error("test_mode_no_real_money");
     const { data: result, error } = await context.supabase.rpc("forfeit_room_match", {
       _room_code: data.room_code,
     });
@@ -301,6 +306,7 @@ export const settleRoomMatchMulti = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (MOZAPLAY_TEST_MODE) throw new Error("test_mode_no_real_money");
     const { data: result, error } = await context.supabase.rpc("settle_room_result_multi", {
       _room_code: data.room_code,
       _winner_id: data.winner_id,
