@@ -195,9 +195,9 @@ export function BackgroundMusic() {
 
   const startPlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !enabledRef.current || document.hidden || false) return;
+    if (!audio || !enabledRef.current || document.hidden) return;
 
-    if (!audio.src || !currentSrcRef.current) {
+    if (!audio.src || !currentSrcRef.current || currentSrcRef.current !== TRACKS[desiredTrack].src) {
       void loadTrack(desiredTrack, true);
       return;
     }
@@ -281,7 +281,7 @@ export function BackgroundMusic() {
     audio.addEventListener("pause", onPause);
 
     if (enabledRef.current) {
-      void loadTrack(desiredTrack, true);
+      void loadTrack(trackRef.current, true);
     }
 
     return () => {
