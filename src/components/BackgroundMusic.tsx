@@ -124,7 +124,7 @@ export function BackgroundMusic() {
         if (
           generationRef.current !== generation ||
           !enabledRef.current ||
-          document.hidden ||
+          document.hidden
         ) {
           isTransitioningRef.current = false;
           return;
