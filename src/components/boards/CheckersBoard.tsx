@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { legalMoves, type CheckersMove, type CheckersState } from "@/lib/games/checkers";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ export function CheckersBoard({
   const lastMove = state.lastMove;
 
   // Clear a stale selection after a remote move, turn change, or forced capture.
-  useMemo(() => {
+  useEffect(() => {
     if (from === null) return;
     const selectedPiece = state.board[from];
     if (
