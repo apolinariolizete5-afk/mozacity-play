@@ -21,6 +21,7 @@ interface PrivateRoomLobbyModalProps {
   isHost: boolean;
   onStartMatch: () => void;
   onCancel: () => void;
+  onRemove: () => void | Promise<void>;
 }
 
 export function PrivateRoomLobbyModal({
@@ -34,6 +35,7 @@ export function PrivateRoomLobbyModal({
   isHost,
   onStartMatch,
   onCancel,
+  onRemove,
 }: PrivateRoomLobbyModalProps) {
   const [copied, setCopied] = useState(false);
   const [players, setPlayers] = useState<LobbyPlayer[]>([]);
@@ -149,16 +151,30 @@ Acesse: ${window.location.origin}/rooms?code=${roomCode}`
     }, 1000);
   };
 
-  const handleCancelClick = async () => {
-    if (isHost) {
-      const channel = supabase.channel(`mozaplay:lobby_room:${roomCode}`);
-      await channel.send({
-        type: "broadcast",
-        event: "cancel_room",
-        payload: { roomCode },
-      });
-    }
+  const handleCancelClick = () => {
+    // Fechar o modal ou sair da vista não apaga a sala guardada.
     onCancel();
+  };
+
+  const handleRemoveClick = async () => {
+    if (!isHost) return;
+    const channel = supabase.channel(`mozaplay:lobby_room:${roomCode}`);
+    await new Promise<void>((resolve) => {
+      const timeout = window.setTimeout(resolve, 2500);
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          window.clearTimeout(timeout);
+          resolve();
+        }
+      });
+    });
+    await channel.send({
+      type: "broadcast",
+      event: "cancel_room",
+      payload: { roomCode },
+    });
+    await supabase.removeChannel(channel);
+    await onRemove();
   };
 
   const isRoomFull = players.length >= capacity;
@@ -270,10 +286,10 @@ Acesse: ${window.location.origin}/rooms?code=${roomCode}`
         ) : (
           <div className="flex gap-3">
             <button
-              onClick={handleCancelClick}
-              className="flex-1 rounded-2xl border border-border bg-secondary py-3 text-sm font-bold text-foreground transition hover:bg-secondary/70"
+              onClick={isHost ? handleRemoveClick : handleCancelClick}
+              className={`flex-1 rounded-2xl border py-3 text-sm font-bold transition ${isHost ? "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20" : "border-border bg-secondary text-foreground hover:bg-secondary/70"}`}
             >
-              {isHost ? "Cancelar Sala" : "Sair da Sala"}
+              {isHost ? "Remover Sala" : "Sair da Sala"}
             </button>
 
             {isHost ? (
@@ -295,7 +311,7 @@ Acesse: ${window.location.origin}/rooms?code=${roomCode}`
 
         <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-          A aposta só é bloqueada quando a partida for confirmada por ambos.
+          Esta sala fica guardada até o anfitrião escolher “Remover Sala”.
         </div>
       </div>
     </div>
