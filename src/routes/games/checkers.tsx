@@ -152,14 +152,45 @@ function CheckersMatch() {
   }, [state, bet, opponent, realtime.forfeitWinner, realtime.players]);
 
   function play(move: CheckersMove) {
-    if (!room || realtime.players.length < 2) return;
-    setState((s) => {
-      const next = checkersEngine.applyMove(s, move);
-      if (room) void realtime.broadcastState(next);
+    // In a bot match, the human controls player 0 without an online room.
+    // In online matches, only allow moves after both real players have joined.
+    if (botMode) {
+      if (state.turn !== 0 || state.over) return;
+    } else if (!room || realtime.players.length < 2 || !ready || state.turn !== realtime.playerIndex || state.over) {
+      return;
+    }
+
+    setState((current) => {
+      const next = checkersEngine.applyMove(current, move);
+      if (next !== current) {
+        if (room) void realtime.broadcastState(next);
+        setMoveCount((count) => count + 1);
+      }
       return next;
     });
-    setMoveCount((c) => c + 1);
   }
+
+  // Bot moves are executed by the existing checkers engine, not simulated
+  // as a human presence or broadcast as an online player.
+  useEffect(() => {
+    if (!botMode || !ready || state.over || state.turn !== 1) return;
+    let cancelled = false;
+    const delay = botDifficulty === "hard" ? 850 : botDifficulty === "normal" ? 600 : 350;
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled) return;
+      setState((current) => {
+        if (current.over || current.turn !== 1) return current;
+        const move = chooseCheckersBotMove(current, botDifficulty);
+        const next = checkersEngine.applyMove(current, move);
+        if (next !== current) setMoveCount((count) => count + 1);
+        return next;
+      });
+    }, delay);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [botMode, botDifficulty, ready, state]);
 
   useEffect(() => {
     if (!room || !realtime.remoteState) return;
