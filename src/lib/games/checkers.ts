@@ -195,24 +195,28 @@ export const checkersEngine: GameEngine<CheckersState, CheckersMove> = {
     if (captureTarget !== undefined) n.board[captureTarget] = null;
 
     const crownRank = piece.p === 0 ? 0 : 7;
-    const crowned = !piece.king && rank(move.to) === crownRank;
-    if (crowned) piece.king = true;
+    const crownCandidate = !piece.king && rank(move.to) === crownRank;
     n.lastMove = { ...move };
 
     if (wasCapture) {
       const remainingRequired = state.chain !== null
         ? Math.max(0, (state.chainRemaining ?? 1) - 1)
         : Math.max(0, (Math.max(...legalBefore.map((m) => maxCaptureDepth(state.board, m.from))) || 1) - 1);
+      // In Brazilian draughts a man is crowned only if the capture sequence
+      // ends on the promotion row; merely crossing/stopping there mid-chain
+      // does not turn it into a flying king before the move is complete.
       const further = capturesFor(n.board, move.to);
       if (further.length > 0 && remainingRequired > 0) {
         n.chain = move.to;
         n.chainRemaining = remainingRequired;
       } else {
+        if (crownCandidate) piece.king = true;
         n.chain = null;
         n.chainRemaining = undefined;
         n.turn = state.turn === 0 ? 1 : 0;
       }
     } else {
+      if (crownCandidate) piece.king = true;
       n.chain = null;
       n.chainRemaining = undefined;
       n.turn = state.turn === 0 ? 1 : 0;
