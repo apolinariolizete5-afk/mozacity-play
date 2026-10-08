@@ -4,16 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, Share2, Users2, AlertCircle } from "lucide-react";
 import { Button, Card, PageHeader, Pill } from "@/components/ui/primitives";
 import { GAME_META, type GameId } from "@/lib/games/types";
-import { createRoom, joinRoom, useRealtimeLobby } from "@/lib/realtime";
+import { createRoom, joinRoom, removeRoom, useRealtimeLobby } from "@/lib/realtime";
+import { MOZAPLAY_TEST_MODE } from "@/lib/test-mode";
 import { useApp } from "@/lib/store";
 import { getPublicPlatformSettings } from "@/lib/platform.functions";
 import { getWalletSummary } from "@/lib/wallet.functions";
 import { PrivateRoomLobbyModal } from "@/components/PrivateRoomLobbyModal";
-
-// Modos de teste temporários: não exigem saldo nem aposta.
-// Para reativar o fluxo financeiro, defina as respetivas variáveis como false.
-const LUDO_TEST_MODE = import.meta.env.VITE_LUDO_TEST_MODE !== "false";
-const CHECKERS_TEST_MODE = import.meta.env.VITE_CHECKERS_TEST_MODE !== "false";
 
 export const Route = createFileRoute("/rooms")({
   head: () => ({
@@ -101,7 +97,7 @@ function Rooms() {
   );
 
   const navigateToGame = (targetGame: GameId, targetCode: string, targetBet: number, targetCapacity: number) => {
-    const wager = ((targetGame === "ludo" && LUDO_TEST_MODE) || (targetGame === "checkers" && CHECKERS_TEST_MODE)) ? 0 : Math.max(minBetMzn ?? 0, Math.round(Number(targetBet) || 0));
+    const wager = MOZAPLAY_TEST_MODE ? 0 : Math.max(minBetMzn ?? 0, Math.round(Number(targetBet) || 0));
     if (targetGame === "ludo") {
       void navigate({
         to: "/games/ludo",
@@ -132,16 +128,16 @@ function Rooms() {
     }
     try {
       const entered = Number(betInput);
-      if (!((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE))) {
+      if (!MOZAPLAY_TEST_MODE) {
         if (!Number.isFinite(entered) || entered < (minBetMzn ?? 0)) {
         setMessage(`O valor mínimo da aposta é ${minBetMzn ?? 0} MT.`);
           return;
         }
       }
-      const wager = ((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)) ? 0 : Math.round(entered);
+      const wager = MOZAPLAY_TEST_MODE ? 0 : Math.round(entered);
 
       const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
-      if (!((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)) && wager > 0 && userBalance < wager) {
+      if (!MOZAPLAY_TEST_MODE && wager > 0 && userBalance < wager) {
         setMessage(`Saldo insuficiente para esta aposta de ${wager} MT.`);
         return;
       }
@@ -177,10 +173,10 @@ function Rooms() {
     try {
       const targetCode = roomCode.toUpperCase().trim();
       const existing = remoteRooms.find((r) => r.code === targetCode);
-      const roomBet = ((existing?.game === "ludo" && LUDO_TEST_MODE) || (existing?.game === "checkers" && CHECKERS_TEST_MODE)) ? 0 : existing?.bet ?? bet ?? 0;
+      const roomBet = MOZAPLAY_TEST_MODE ? 0 : existing?.bet ?? bet ?? 0;
 
       const userBalance = walletBalance ?? Number.POSITIVE_INFINITY;
-      if (!((existing?.game === "ludo" && LUDO_TEST_MODE) || (existing?.game === "checkers" && CHECKERS_TEST_MODE)) && roomBet > 0 && userBalance < roomBet) {
+      if (!MOZAPLAY_TEST_MODE && roomBet > 0 && userBalance < roomBet) {
         setMessage(`Saldo insuficiente (${userBalance.toFixed(2)} MT) para esta sala com aposta de ${roomBet} MT.`);
         return;
       }
