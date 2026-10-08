@@ -160,6 +160,7 @@ export async function createRoom(input: {
     created_at: createdAt,
   });
   if (saveError) throw new Error(`Não foi possível guardar a sala: ${saveError.message}`);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("mozaplay:rooms-refresh"));
 
   await channel.track({
     ...input.player,
@@ -274,12 +275,15 @@ export function useRealtimeLobby(player: RoomPresence, enabled = true) {
     void loadSavedRooms();
     const refreshId = window.setInterval(() => void loadSavedRooms(), 10000);
     const onVisible = () => { if (document.visibilityState === "visible") void loadSavedRooms(); };
+    const onRoomsRefresh = () => void loadSavedRooms();
+    window.addEventListener("mozaplay:rooms-refresh", onRoomsRefresh);
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       active = false;
       window.clearInterval(refreshId);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("mozaplay:rooms-refresh", onRoomsRefresh);
       void supabase.removeChannel(channel);
     };
   }, [enabled, player.playerId]);
@@ -289,12 +293,15 @@ export function useRealtimeLobby(player: RoomPresence, enabled = true) {
 
 export async function removeRoom(roomCode: string, playerId: string) {
   const code = roomCode.toUpperCase().trim();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("game_rooms")
     .delete()
     .eq("code", code)
-    .eq("host_id", playerId);
+    .eq("host_id", playerId)
+    .select("code");
   if (error) throw new Error(`Não foi possível remover a sala: ${error.message}`);
+  if (!data?.length) throw new Error("Só o anfitrião pode remover esta sala, ou ela já foi removida.");
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("mozaplay:rooms-refresh"));
 }
 
 export function useRealtimeRoom<T>(
