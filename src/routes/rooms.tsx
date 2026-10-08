@@ -377,6 +377,33 @@ function Rooms() {
         </Card>
       )}
 
+      {myRooms.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">As minhas salas guardadas ({myRooms.length})</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {myRooms.map((r) => (
+              <Card key={r.code} className="space-y-3 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Pill>{GAME_META[r.game]?.name || r.game}</Pill>
+                    <Pill>{r.isPrivate ? "Privada" : "Pública"}</Pill>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{r.players.length}/{r.capacity} online</span>
+                </div>
+                <div className="font-mono text-sm font-extrabold tracking-widest">Código: {r.code}</div>
+                <p className="text-[11px] text-muted-foreground">Criada em {new Date(r.createdAt).toLocaleString()}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1" onClick={() => setActiveLobby({
+                    code: r.code, game: r.game, bet: 0, capacity: r.capacity, isHost: true,
+                  })}>Abrir sala</Button>
+                  <Button size="sm" variant="outline" onClick={() => void removeOwnedRoom(r.code)}>Remover</Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       <Card className="space-y-3 p-4">
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tens um código de amigo?</h3>
         <div className="flex gap-2">
