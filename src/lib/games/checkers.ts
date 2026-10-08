@@ -139,7 +139,9 @@ function bestCaptureMovesForPiece(board: (CheckerPiece | null)[], from: number, 
 export function legalMoves(s: CheckersState): CheckersMove[] {
   if (s.over) return [];
   if (s.chain !== null) {
-    return bestCaptureMovesForPiece(s.board, s.chain, s.chainRemaining ?? maxCaptureDepth(s.board, s.chain) + 1);
+    return s.chainRemaining === undefined
+      ? bestCaptureMovesForPiece(s.board, s.chain)
+      : bestCaptureMovesForPiece(s.board, s.chain, s.chainRemaining);
   }
 
   let allCaptures: CheckersMove[] = [];
