@@ -246,6 +246,12 @@ function Rooms() {
         }
       />
 
+      {MOZAPLAY_TEST_MODE && (
+        <Card className="border-primary/40 bg-primary/10 text-xs font-bold text-primary">
+          MODO TESTE TOTAL ATIVO — todos os jogos são gratuitos e sem apostas.
+        </Card>
+      )}
+
       {message && (
         <Card className="border-primary/40 bg-primary/10 text-xs font-semibold text-primary">
           {message}
@@ -298,7 +304,7 @@ function Rooms() {
 
             <div>
               <label className="text-xs font-bold text-muted-foreground">Valor da aposta (MZN)</label>
-              {((game === "ludo" && LUDO_TEST_MODE) || (game === "checkers" && CHECKERS_TEST_MODE)) && (
+              {MOZAPLAY_TEST_MODE && (
                 <p className="mt-1 text-xs font-extrabold text-primary">MODO TESTE — {game === "ludo" ? "Ludo" : "Damas"} sem dinheiro, sem saldo e sem cobrança.</p>
               )}
               <input
