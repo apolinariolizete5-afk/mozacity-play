@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleDot, Goal, MoveUpRight, RotateCcw, Shield, Swords } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleDot, MoveUpRight, RotateCcw, Swords } from "lucide-react";
 
 export const Route = createFileRoute("/games/football")({
   ssr: false,
