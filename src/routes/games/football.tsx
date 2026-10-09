@@ -93,6 +93,7 @@ function FootballPrototype() {
     const from = { ...ball };
     const targetX = clamp(50 + (ball.x - player.x) * 1.25, 8, 92);
     let step = 0;
+    let keeperX = keeper.x;
     shotTimer.current = window.setInterval(() => {
       step += 1;
       const t = Math.min(step / 12, 1);
@@ -100,11 +101,12 @@ function FootballPrototype() {
       const nextX = from.x + (targetX - from.x) * t + curve;
       const nextY = from.y + (5 - from.y) * t;
       setBall({ x: clamp(nextX, 5, 95), y: nextY });
-      setKeeper((current) => ({ x: clamp(current.x + (nextX - current.x) * 0.24, 35, 65), y: 8 }));
+      keeperX = clamp(keeperX + (nextX - keeperX) * 0.24, 35, 65);
+      setKeeper({ x: keeperX, y: 8 });
       if (t >= 1) {
         if (shotTimer.current !== null) window.clearInterval(shotTimer.current);
         shotTimer.current = null;
-        const saved = Math.abs(targetX - keeper.x) < 10;
+        const saved = Math.abs(targetX - keeperX) < 10;
         const goal = !saved && Math.abs(targetX - 50) < 24;
         if (goal) {
           setScore((current) => ({ ...current, home: current.home + 1 }));
