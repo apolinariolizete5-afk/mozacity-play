@@ -10,6 +10,7 @@ export function CheckersBoard({ state, onMove, disabled }: {
   const moves = useMemo(() => legalMoves(state), [state]);
   const selectedMoves = from === null ? [] : moves.filter(m => m.from === from);
   const targets = selectedMoves.map(m => m.to);
+  const routeSquares = new Set(selectedMoves.flatMap(m => m.path ?? [m.to]));
   const lastMove = state.lastMove;
 
   // Show the full route before committing a multi-capture.
@@ -39,12 +40,18 @@ export function CheckersBoard({ state, onMove, disabled }: {
 
   const click = (square: number) => {
     if (disabled) return;
-    if (from !== null && targets.includes(square)) {
-      // A complete capture sequence is one engine move: no repeated landing clicks.
-      const candidates = selectedMoves.filter(m => m.to === square);
-      const chosen = candidates[0];
-      if (chosen) onMove(chosen);
-      setFrom(null);
+    if (from !== null && routeSquares.has(square)) {
+      // Accept tapping a landing square along the shown capture route, not only the final square.
+      const candidates = selectedMoves.filter(m => (m.path ?? [m.to]).includes(square));
+      const exactFinal = candidates.filter(m => m.to === square);
+      const choices = exactFinal.length ? exactFinal : candidates;
+      if (choices.length === 1) {
+        onMove(choices[0]);
+        setFrom(null);
+      } else if (choices.length > 1 && exactFinal.length) {
+        onMove(choices[0]);
+        setFrom(null);
+      }
       return;
     }
     const piece = state.board[square];
@@ -61,7 +68,7 @@ export function CheckersBoard({ state, onMove, disabled }: {
       }
       .checkers-piece-arrive { animation: checkers-piece-arrive 260ms cubic-bezier(.2,.8,.2,1); }
     `}</style>
-    <div className="grid aspect-square w-full grid-cols-8 overflow-hidden rounded-2xl border-4 border-border/70">
+    <div className="grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-2xl border-4 border-border/70">
       {state.board.map((piece, i) => {
         const dark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
         const arriving = Boolean(piece && lastMove?.to === i);
@@ -74,10 +81,10 @@ export function CheckersBoard({ state, onMove, disabled }: {
         return <button key={i} type="button" disabled={Boolean(disabled)}
           aria-label={`Casa ${Math.floor(i / 8) + 1}, ${(i % 8) + 1}${piece ? piece.p === 0 ? ", peça clara" : ", peça escura" : ""}${piece?.king ? ", dama" : ""}${hint ? ", caminho de captura " + hint : ""}`}
           onClick={() => click(i)}
-          className={cn("relative flex items-center justify-center p-[10%] transition-colors", dark ? "bg-board-dark" : "bg-board-light", from === i && "bg-accent/70")}>
+          className={cn("relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden p-0 transition-colors", dark ? "bg-board-dark" : "bg-board-light", from === i && "bg-accent/70")}>
           {piece ? <span key={`piece-${i}-${piece.p}-${piece.king ? "k" : "m"}-${lastMove?.from ?? "n"}-${lastMove?.to ?? "n"}`}
             style={moveStyle}
-            className={cn("flex h-full w-full items-center justify-center rounded-full text-[3.2vw] font-black shadow-md sm:text-base",
+            className={cn("flex aspect-square w-[78%] shrink-0 items-center justify-center rounded-full text-[clamp(0.55rem,2.6vw,1rem)] font-black shadow-md",
               piece.p === 0 ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900" : "bg-gradient-to-br from-neutral-700 to-neutral-950 text-amber-300",
               arriving && "checkers-piece-arrive")}>{piece.king ? "♛" : ""}</span> : null}
           {hint && !piece && !isTarget ? <span className="absolute flex h-1/2 w-1/2 items-center justify-center rounded-full bg-accent/80 text-sm font-black text-accent-foreground">{hint}</span> : null}
