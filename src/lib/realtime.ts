@@ -235,7 +235,7 @@ export function useRealtimeLobby(player: RoomPresence, enabled = true) {
         };
       });
       const savedCodes = new Set(persistedRooms.map((room) => room.code));
-      for (const room of liveRooms) if (!savedCodes.has(room.code)) merged.push(room);
+      for (const room of liveRooms) if (!savedCodes.has(room.code)) merged.push(room as (typeof merged)[number]);
       setRemoteRooms(merged);
     };
 

@@ -15,8 +15,8 @@ export const Route = createFileRoute("/games/chess")({
   validateSearch: (search: Record<string, unknown>) => ({
     bet: Math.max(0, Number(search["bet"] ?? 0) || 0),
     timer: 15,
-    room: String(search["room"] ?? ""),
-    bot: isBotDifficulty(search["bot"]) ? search["bot"] : null,
+    room: String(search["room"] ?? "") as string | undefined,
+    bot: (isBotDifficulty(search["bot"]) ? search["bot"] : null) as BotDifficulty | null | undefined,
   }),
   head: () => ({
     meta: [
