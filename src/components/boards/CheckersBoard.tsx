@@ -3,94 +3,105 @@ import type { CSSProperties } from "react";
 import { legalMoves, type CheckersMove, type CheckersState } from "@/lib/games/checkers";
 import { cn } from "@/lib/utils";
 
-export function CheckersBoard({ state, onMove, disabled }: {
-  state: CheckersState; onMove: (move: CheckersMove) => void; disabled?: boolean;
+export function CheckersBoard({
+  state,
+  onMove,
+  disabled,
+}: {
+  state: CheckersState;
+  onMove: (move: CheckersMove) => void;
+  disabled?: boolean;
 }) {
   const [from, setFrom] = useState<number | null>(null);
   const moves = useMemo(() => legalMoves(state), [state]);
-  const selectedMoves = from === null ? [] : moves.filter(m => m.from === from);
-  const targets = selectedMoves.map(m => m.to);
-  const routeSquares = new Set(selectedMoves.flatMap(m => m.path ?? [m.to]));
+  const targets = from === null ? [] : moves.filter((m) => m.from === from).map((m) => m.to);
   const lastMove = state.lastMove;
 
-  // Show the full route before committing a multi-capture.
-  const routeHints = useMemo(() => {
-    const hints = new Map<number, string>();
-    const arrows: Record<string, string> = {
-      "-1,-1":"↖", "-1,1":"↗", "1,-1":"↙", "1,1":"↘",
-    };
-    for (const move of selectedMoves) {
-      const path = move.path ?? [move.to];
-      let previous = move.from;
-      for (const square of path) {
-        const dr = Math.sign(Math.floor(square / 8) - Math.floor(previous / 8));
-        const df = Math.sign(square % 8 - previous % 8);
-        hints.set(square, arrows[`${dr},${df}`] ?? "➜");
-        previous = square;
-      }
-    }
-    return hints;
-  }, [selectedMoves]);
-
+  // Clear a stale selection after a remote move, turn change, or forced capture.
   useEffect(() => {
     if (from === null) return;
     const selectedPiece = state.board[from];
-    if (!selectedPiece || selectedPiece.p !== state.turn || !moves.some(m => m.from === from)) setFrom(null);
+    if (
+      !selectedPiece ||
+      selectedPiece.p !== state.turn ||
+      !moves.some((move) => move.from === from)
+    ) {
+      setFrom(null);
+    }
   }, [from, state, moves]);
 
   const click = (square: number) => {
     if (disabled) return;
-    if (from !== null && routeSquares.has(square)) {
-      // Accept tapping a landing square along the shown capture route, not only the final square.
-      const candidates = selectedMoves.filter(m => (m.path ?? [m.to]).includes(square));
-      const exactFinal = candidates.filter(m => m.to === square);
-      const choices = exactFinal.length ? exactFinal : candidates;
-      if (choices.length === 1) {
-        onMove(choices[0]);
-        setFrom(null);
-      } else if (choices.length > 1 && exactFinal.length) {
-        onMove(choices[0]);
-        setFrom(null);
-      }
+    if (from !== null && targets.includes(square)) {
+      onMove({ from, to: square });
+      setFrom(null);
       return;
     }
     const piece = state.board[square];
-    const selectable = piece && piece.p === state.turn && moves.some(m => m.from === square);
+    const selectable = piece && piece.p === state.turn && moves.some((m) => m.from === square);
     setFrom(selectable ? square : null);
   };
 
-  return <>
-    <style>{`
-      @keyframes checkers-piece-arrive {
-        from { transform: translate(calc(var(--move-x) * 100%), calc(var(--move-y) * 100%)) scale(.78); opacity: .45; }
-        65% { transform: translate(0, 0) scale(1.05); opacity: 1; }
-        to { transform: translate(0, 0) scale(1); opacity: 1; }
-      }
-      .checkers-piece-arrive { animation: checkers-piece-arrive 260ms cubic-bezier(.2,.8,.2,1); }
-    `}</style>
-    <div className="grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-2xl border-4 border-border/70">
-      {state.board.map((piece, i) => {
-        const dark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
-        const arriving = Boolean(piece && lastMove?.to === i);
-        const moveStyle: CSSProperties | undefined = arriving ? {
-          "--move-x": String(Math.floor(lastMove!.from % 8) - Math.floor(lastMove!.to % 8)),
-          "--move-y": String(Math.floor(lastMove!.from / 8) - Math.floor(lastMove!.to / 8)),
-        } as CSSProperties : undefined;
-        const hint = routeHints.get(i);
-        const isTarget = targets.includes(i);
-        return <button key={i} type="button" disabled={Boolean(disabled)}
-          aria-label={`Casa ${Math.floor(i / 8) + 1}, ${(i % 8) + 1}${piece ? piece.p === 0 ? ", peça clara" : ", peça escura" : ""}${piece?.king ? ", dama" : ""}${hint ? ", caminho de captura " + hint : ""}`}
-          onClick={() => click(i)}
-          className={cn("relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden p-0 transition-colors", dark ? "bg-board-dark" : "bg-board-light", from === i && "bg-accent/70")}>
-          {piece ? <span key={`piece-${i}-${piece.p}-${piece.king ? "k" : "m"}-${lastMove?.from ?? "n"}-${lastMove?.to ?? "n"}`}
-            style={moveStyle}
-            className={cn("flex aspect-square w-[78%] shrink-0 items-center justify-center rounded-full text-[clamp(0.55rem,2.6vw,1rem)] font-black shadow-md",
-              piece.p === 0 ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900" : "bg-gradient-to-br from-neutral-700 to-neutral-950 text-amber-300",
-              arriving && "checkers-piece-arrive")}>{piece.king ? "♛" : ""}</span> : null}
-          {hint && !piece && !isTarget ? <span className="absolute flex h-1/2 w-1/2 items-center justify-center rounded-full bg-accent/80 text-sm font-black text-accent-foreground">{hint}</span> : null}
-          {isTarget ? <span className="absolute flex h-1/2 w-1/2 items-center justify-center rounded-full bg-accent/90 text-xs font-black text-accent-foreground ring-2 ring-background">{hint ?? "●"}</span> : null}
-        </button>;
-      })}
-    </div>
-  </>;
+  return (
+    <>
+      <style>{`
+        @keyframes checkers-piece-arrive {
+          from {
+            transform: translate(calc(var(--move-x) * 100%), calc(var(--move-y) * 100%)) scale(.78);
+            opacity: .45;
+          }
+          65% { transform: translate(0, 0) scale(1.05); opacity: 1; }
+          to { transform: translate(0, 0) scale(1); opacity: 1; }
+        }
+        .checkers-piece-arrive { animation: checkers-piece-arrive 260ms cubic-bezier(.2,.8,.2,1); }
+      `}</style>
+
+      <div className="grid aspect-square w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-2xl border-4 border-border/70">
+        {state.board.map((piece, i) => {
+          const dark = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
+          const arriving = Boolean(piece && lastMove?.to === i);
+          const moveStyle: CSSProperties | undefined = arriving
+            ? {
+                "--move-x": String(Math.floor(lastMove!.from % 8) - Math.floor(lastMove!.to % 8)),
+                "--move-y": String(Math.floor(lastMove!.from / 8) - Math.floor(lastMove!.to / 8)),
+              } as CSSProperties
+            : undefined;
+
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={Boolean(disabled)}
+              aria-label={`Casa ${Math.floor(i / 8) + 1}, ${(i % 8) + 1}${piece ? piece.p === 0 ? ", peça clara" : ", peça escura" : ""}${piece?.king ? ", dama" : ""}`}
+              onClick={() => click(i)}
+              className={cn(
+                "relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden p-0 transition-colors",
+                dark ? "bg-board-dark" : "bg-board-light",
+                from === i && "bg-accent/70",
+              )}
+            >
+              {piece ? (
+                <span
+                  key={`piece-${i}-${piece.p}-${piece.king ? "k" : "m"}-${lastMove?.from ?? "n"}-${lastMove?.to ?? "n"}`}
+                  style={moveStyle}
+                  className={cn(
+                    "flex aspect-square w-[78%] shrink-0 items-center justify-center rounded-full text-[clamp(0.55rem,2.6vw,1rem)] font-black shadow-md",
+                    piece.p === 0
+                      ? "bg-gradient-to-br from-amber-200 to-amber-400 text-amber-900"
+                      : "bg-gradient-to-br from-neutral-700 to-neutral-950 text-amber-300",
+                    arriving && "checkers-piece-arrive",
+                  )}
+                >
+                  {piece.king ? "♛" : ""}
+                </span>
+              ) : null}
+              {targets.includes(i) ? (
+                <span className="absolute h-1/3 w-1/3 rounded-full bg-accent/80 animate-pulse" />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
 }
