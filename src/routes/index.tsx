@@ -110,6 +110,20 @@ function Home() {
         </Link>
       </section>
 
+      <section className="mt-6">
+        <Link to="/games/football" className="group flex flex-col gap-4 overflow-hidden rounded-3xl border border-emerald-400/25 bg-gradient-to-r from-emerald-950 via-[#102b20] to-card p-5 transition-colors hover:border-emerald-300/50 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 text-3xl">⚽</span>
+            <div>
+              <p className="font-display text-xl font-black">Futebol 3D <span className="text-emerald-400">NOVO</span></p>
+              <p className="mt-1 text-sm text-muted-foreground">Experimenta o protótipo de campo, movimento, passe e remate.</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300/80">Versão experimental · ainda sem multiplayer</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-4 py-3 text-sm font-extrabold text-emerald-950">Experimentar →</span>
+        </Link>
+      </section>
+
       <section className="mt-8">
         <div className="mb-4 flex items-end justify-between">
           <div><p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary">Escolhe o desafio</p><h2 className="mt-1 font-display text-2xl font-black">Todos os jogos</h2></div>
