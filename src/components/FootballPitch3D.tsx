@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 type Point = { x: number; y: number };
-type Props = { player: Point; ball: Point };
+type Props = { player: Point; ball: Point; keeper: Point };
 
 const VERTEX = `
 attribute vec2 a_position;
@@ -23,7 +23,7 @@ function project(x: number, y: number): [number, number] {
   return [((x - 50) / 50) * depth * 0.88, (0.88 - y / 100 * 1.68) * depth];
 }
 
-export function FootballPitch3D({ player, ball }: Props) {
+export function FootballPitch3D({ player, ball, keeper }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export function FootballPitch3D({ player, ball }: Props) {
     return () => {
       gl.deleteBuffer(buffer); gl.deleteProgram(program); gl.deleteShader(vs); gl.deleteShader(fs);
     };
-  }, [player.x, player.y, ball.x, ball.y]);
+  }, [player.x, player.y, ball.x, ball.y, keeper.x, keeper.y]);
 
   return <canvas ref={canvasRef} width={900} height={620} aria-label="Campo de futebol 3D renderizado com WebGL" className="h-full w-full rounded-2xl" />;
 }
