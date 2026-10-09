@@ -9,8 +9,12 @@ export interface CheckerPiece {
 export interface CheckersMove {
   from: number;
   to: number;
-  /** Exact square of the captured piece; kings can capture from a distance. */
+  /** First captured square (kept for compatibility with older callers). */
   captured?: number;
+  /** Every landing square in a complete multi-capture move. */
+  path?: number[];
+  /** All enemy squares removed when this move is applied. */
+  capturedPieces?: number[];
 }
 
 export interface CheckersState {
@@ -95,6 +99,32 @@ function boardAfterCapture(board: (CheckerPiece | null)[], move: CheckersMove) {
   return next;
 }
 
+/** Enumerate every complete capture route. Captures are resolved together as one turn. */
+function captureSequences(board: (CheckerPiece | null)[], from: number): CheckersMove[] {
+  if (!board[from]) return [];
+  const walk = (
+    position: number,
+    currentBoard: (CheckerPiece | null)[],
+    path: number[],
+    taken: number[],
+  ): CheckersMove[] => {
+    const nextCaptures = capturesFor(currentBoard, position);
+    if (!nextCaptures.length) {
+      return taken.length
+        ? [{ from, to: position, captured: taken[0], path: [...path], capturedPieces: [...taken] }]
+        : [];
+    }
+    const routes: CheckersMove[] = [];
+    for (const step of nextCaptures) {
+      if (step.captured === undefined) continue;
+      const after = boardAfterCapture(currentBoard, step);
+      routes.push(...walk(step.to, after, [...path, step.to], [...taken, step.captured]));
+    }
+    return routes;
+  };
+  return walk(from, board, [], []);
+}
+
 /** Maximum number of pieces this piece can capture from this position. */
 function maxCaptureDepth(board: (CheckerPiece | null)[], from: number): number {
   let best = 0;
@@ -138,12 +168,18 @@ function bestCaptureMovesForPiece(board: (CheckerPiece | null)[], from: number, 
 
 export function legalMoves(s: CheckersState): CheckersMove[] {
   if (s.over) return [];
-  if (s.chain !== null) return capturesFor(s.board, s.chain);
   const captures: CheckersMove[] = [];
-  for (let i = 0; i < 64; i++) if (s.board[i]?.p === s.turn) captures.push(...capturesFor(s.board, i));
+  for (let i = 0; i < 64; i++) {
+    if (s.board[i]?.p === s.turn) captures.push(...captureSequences(s.board, i));
+  }
+  // House rule: a player may choose any complete capture route, not only the
+  // route that takes the maximum number of pieces.
   if (captures.length) return captures;
+
   const moves: CheckersMove[] = [];
-  for (let i = 0; i < 64; i++) if (s.board[i]?.p === s.turn) moves.push(...ordinaryMoves(s.board, i));
+  for (let i = 0; i < 64; i++) {
+    if (s.board[i]?.p === s.turn) moves.push(...ordinaryMoves(s.board, i));
+  }
   return moves;
 }
 
@@ -162,30 +198,30 @@ export const checkersEngine: GameEngine<CheckersState, CheckersMove> = {
     return { board, turn: 0, chain: null, chainRemaining: undefined, over: false, winner: null, lastMove: null };
   },
   validateMove(state, move) {
-    return legalMoves(state).some((m) =>
-      m.from === move.from && m.to === move.to && m.captured === move.captured
-    );
+    const signature = (m: CheckersMove) => JSON.stringify({
+      from: m.from,
+      to: m.to,
+      path: m.path ?? [m.to],
+      capturedPieces: m.capturedPieces ?? (m.captured === undefined ? [] : [m.captured]),
+    });
+    return legalMoves(state).some((m) => signature(m) === signature(move));
   },
   applyMove(state, move) {
     if (!checkersEngine.validateMove(state, move)) return state;
     const n = clone(state);
     const piece = n.board[move.from]!;
+    const taken = move.capturedPieces ?? (move.captured === undefined ? [] : [move.captured]);
     n.board[move.from] = null;
     n.board[move.to] = piece;
-    if (move.captured !== undefined) n.board[move.captured] = null;
+    for (const square of taken) n.board[square] = null;
+
     const crownRank = piece.p === 0 ? 0 : 7;
-    const crowned = !piece.king && rank(move.to) === crownRank;
-    if (crowned) piece.king = true;
-    n.lastMove = { ...move };
-    const further = move.captured !== undefined && !crowned ? capturesFor(n.board, move.to) : [];
-    if (further.length) {
-      n.chain = move.to;
-      n.chainRemaining = undefined;
-    } else {
-      n.chain = null;
-      n.chainRemaining = undefined;
-      n.turn = state.turn === 0 ? 1 : 0;
-    }
+    if (!piece.king && rank(move.to) === crownRank) piece.king = true;
+    n.lastMove = { ...move, path: [...(move.path ?? [move.to])], capturedPieces: [...taken] };
+    n.chain = null;
+    n.chainRemaining = undefined;
+    n.turn = state.turn === 0 ? 1 : 0;
+
     if (n.board.filter((p) => p && p.p === n.turn).length === 0 || legalMoves(n).length === 0) {
       n.over = true;
       n.winner = state.turn;
