@@ -49,12 +49,12 @@ function DiceFace({ value, rolling }: { value: number; rolling?: boolean }) {
 
 export const Route = createFileRoute("/games/ludo")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { bet: number; timer: number; players: number; room?: string; bot?: BotDifficulty | null } => ({
     bet: Math.max(0, Number(search["bet"] ?? 0) || 0),
     timer: TURN_SECONDS,
     players: Math.min(4, Math.max(2, Number(search["players"] ?? 2) || 2)),
     room: String(search["room"] ?? ""),
-    bot: isBotDifficulty(search["bot"]) ? search["bot"] : null,
+    bot: (isBotDifficulty(search["bot"]) ? search["bot"] : null),
   }),
   head: () => ({
     meta: [

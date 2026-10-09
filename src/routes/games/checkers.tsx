@@ -18,11 +18,11 @@ const CHECKERS_TEST_MODE = MOZAPLAY_TEST_MODE;
 
 export const Route = createFileRoute("/games/checkers")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { bet: number; timer: number; room?: string; bot?: BotDifficulty | null } => ({
     bet: Math.max(0, Number(search["bet"] ?? 0) || 0),
     timer: 15,
     room: String(search["room"] ?? ""),
-    bot: isBotDifficulty(search["bot"]) ? search["bot"] : null,
+    bot: (isBotDifficulty(search["bot"]) ? search["bot"] : null),
   }),
   head: () => ({
     meta: [

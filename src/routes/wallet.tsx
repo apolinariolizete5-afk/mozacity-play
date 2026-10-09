@@ -406,7 +406,7 @@ function WithdrawPanel({ summary, onDone }: { summary: WalletSummary; onDone: ()
           Levantar tudo ({formatMzn(summary.withdrawable_cents)})
         </button>
       </div>
-      <MethodPicker value={method} onChange={setMethod} />
+      <MethodPicker value={method} onChange={(m) => setMethod(m as Exclude<Method, "card">)} />
       <input
         className="h-12 w-full rounded-2xl border border-border bg-secondary px-4 text-sm outline-none focus:border-primary"
         placeholder={method === "mcash" ? "Número mKesh (82/83…)" : method === "emola" ? "Número e-Mola (86/87…)" : "Número M-Pesa (84/85…)"}

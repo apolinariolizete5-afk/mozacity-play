@@ -90,6 +90,26 @@ function capturesFor(board: (CheckerPiece | null)[], from: number): CheckersMove
   return out;
 }
 
+/** Non-capturing moves: men step one square forwards, flying kings slide any distance. */
+function ordinaryMoves(board: (CheckerPiece | null)[], from: number): CheckersMove[] {
+  const piece = board[from];
+  if (!piece) return [];
+  const out: CheckersMove[] = [];
+  const forward = piece.p === 0 ? -1 : 1;
+  for (const [dr, df] of DIRECTIONS) {
+    if (!piece.king && dr !== forward) continue;
+    let r = rank(from) + dr;
+    let f = file(from) + df;
+    while (on(r, f) && !board[idx(r, f)]) {
+      out.push({ from, to: idx(r, f) });
+      if (!piece.king) break;
+      r += dr;
+      f += df;
+    }
+  }
+  return out;
+}
+
 function boardAfterCapture(board: (CheckerPiece | null)[], move: CheckersMove) {
   const next = board.map((p) => (p ? { ...p } : null));
   next[move.to] = next[move.from];
