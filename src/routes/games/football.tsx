@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleDot, MoveUpRight, RotateCcw, Swords } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, MoveUpRight, RotateCcw, Swords } from "lucide-react";
+import { FootballPitch3D } from "@/components/FootballPitch3D";
 
 export const Route = createFileRoute("/games/football")({
   ssr: false,
@@ -114,32 +115,11 @@ function FootballPrototype() {
             <div className="text-right"><p className="text-[10px] font-bold uppercase tracking-[.2em] text-emerald-200/60">Visitante</p><p className="text-2xl font-black tabular-nums">{score.away}</p></div>
           </div>
 
-          <div className="relative mx-auto h-[360px] w-full max-w-3xl overflow-hidden rounded-2xl bg-[#0b2b1d] sm:h-[490px]" style={{ perspective: "900px" }}>
-            <div className="absolute inset-x-[-8%] top-[-13%] h-[125%] overflow-hidden border-2 border-white/70 bg-[#247b45] shadow-[inset_0_0_70px_#071a12]" style={{ transform: "rotateX(24deg) scale(1.08)", transformOrigin: "center center" }}>
-              <div className="absolute inset-0" style={{ background: "repeating-linear-gradient(0deg, #247b45 0%, #247b45 10%, #2c894d 10%, #2c894d 20%)" }} />
-              <div className="absolute inset-[5%] border-2 border-white/80" />
-              <div className="absolute left-1/2 top-[5%] h-[90%] border-l-2 border-white/70" />
-              <div className="absolute left-1/2 top-1/2 h-[22%] w-[26%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/70" />
-              <div className="absolute left-1/2 top-[5%] h-[15%] w-[48%] -translate-x-1/2 border-x-2 border-b-2 border-white/80" />
-              <div className="absolute left-1/2 top-[5%] h-[5%] w-[22%] -translate-x-1/2 border-x-2 border-b-2 border-white/80" />
-              <div className="absolute left-1/2 bottom-[5%] h-[15%] w-[48%] -translate-x-1/2 border-x-2 border-t-2 border-white/80" />
-              <div className="absolute left-1/2 bottom-[5%] h-[5%] w-[22%] -translate-x-1/2 border-x-2 border-t-2 border-white/80" />
-              <div className="absolute left-1/2 top-[5%] h-[2%] w-[18%] -translate-x-1/2 rounded-t-sm border-x-2 border-t-2 border-white" />
-              <div className="absolute left-1/2 bottom-[5%] h-[2%] w-[18%] -translate-x-1/2 rounded-b-sm border-x-2 border-b-2 border-white" />
-              {[
-                { x: 28, y: 22 }, { x: 72, y: 22 }, { x: 50, y: 32 },
-                { x: 25, y: 43 }, { x: 75, y: 43 }, { x: 50, y: 48 },
-                { x: 30, y: 61 }, { x: 70, y: 61 }, { x: 50, y: 77 },
-              ].map((p, i) => <div key={i} className="absolute z-[2] h-4 w-4 rounded-full border-2 border-white bg-rose-500 shadow-[0_4px_4px_#0008] sm:h-5 sm:w-5" style={{ left: p.x + "%", top: p.y + "%", transform: "translate(-50%,-50%)" }} />)}
-              {[
-                { x: 43, y: 35 }, { x: 60, y: 48 }, { x: 37, y: 55 }, { x: 66, y: 72 },
-              ].map((p, i) => <div key={i} className="absolute z-[2] h-4 w-4 rounded-full border-2 border-white bg-sky-500 shadow-[0_4px_4px_#0008] sm:h-5 sm:w-5" style={{ left: p.x + "%", top: p.y + "%", transform: "translate(-50%,-50%)" }} />)}
-              <div className="absolute z-[4] h-7 w-7 rounded-full border-2 border-yellow-100 bg-yellow-400 shadow-[0_5px_8px_#0008] sm:h-8 sm:w-8" style={{ left: player.x + "%", top: player.y + "%", transform: "translate(-50%,-50%)", boxShadow: "0 0 0 5px #facc1533, 0 5px 8px #0008" }} />
-              <div className="absolute z-[5] grid h-4 w-4 place-items-center rounded-full bg-white text-[9px] text-black shadow-md sm:h-5 sm:w-5" style={{ left: ball.x + "%", top: ball.y + "%", transform: "translate(-50%,-50%)" }}><CircleDot className="h-3 w-3" /></div>
-              {shot && <div className="absolute left-1/2 top-[9%] z-[5] -translate-x-1/2 rounded-full bg-yellow-300 px-3 py-1 text-xs font-black text-green-950">REMATE!</div>}
-            </div>
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#06130d]/70 to-transparent" />
-            <div className="absolute bottom-3 left-3 rounded-lg bg-black/35 px-2 py-1 text-[10px] font-bold text-white/70">AZUL/AMARELO: A TUA EQUIPA</div>
+          <div className="relative mx-auto h-[360px] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/20 bg-[#0b2b1d] shadow-inner sm:h-[490px]">
+            <FootballPitch3D player={player} ball={ball} />
+            {shot && <div className="absolute left-1/2 top-[9%] -translate-x-1/2 rounded-full bg-yellow-300 px-3 py-1 text-xs font-black text-green-950">REMATE!</div>}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#06130d]/50 to-transparent" />
+            <div className="absolute bottom-3 left-3 rounded-lg bg-black/35 px-2 py-1 text-[10px] font-bold text-white/80">AMARELO: O TEU JOGADOR · AZUL/VERMELHO: EQUIPAS</div>
           </div>
 
           <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-4">
