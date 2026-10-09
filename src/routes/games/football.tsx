@@ -145,7 +145,7 @@ function FootballGame() {
         <>
           <Joystick onMove={(x, z) => { input.current.mx = x; input.current.mz = z; }} />
           <div className="absolute bottom-6 right-4 flex items-end gap-3">
-            <HoldButton label="SPRINT" className="h-14 w-14 bg-secondary text-secondary-foreground"
+            <HoldButton label="C · CORRER" className="h-14 w-14 bg-secondary text-secondary-foreground"
               onDown={() => { input.current.sprint = true; if (!hud.hasBall) input.current.action = true; }} onUp={() => { input.current.sprint = false; }} />
             <div className="flex flex-col items-center gap-3">
               <HoldButton label="B · REMATE" className="h-20 w-20 bg-destructive text-destructive-foreground"
