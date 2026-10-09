@@ -34,7 +34,6 @@ const file = (i: number) => i % 8;
 const idx = (r: number, f: number) => r * 8 + f;
 const on = (r: number, f: number) => r >= 0 && r < 8 && f >= 0 && f < 8;
 const DIRECTIONS = [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const;
-const isCapture = (m: CheckersMove) => m.captured !== undefined;
 
 export function checkersTimeout(state: CheckersState): CheckersState {
   if (state.over) return state;
@@ -123,47 +122,6 @@ function captureSequences(board: (CheckerPiece | null)[], from: number): Checker
     return routes;
   };
   return walk(from, board, [], []);
-}
-
-/** Maximum number of pieces this piece can capture from this position. */
-function maxCaptureDepth(board: (CheckerPiece | null)[], from: number): number {
-  let best = 0;
-  for (const move of capturesFor(board, from)) {
-    best = Math.max(best, 1 + maxCaptureDepth(boardAfterCapture(board, move), move.to));
-  }
-  return best;
-}
-
-function ordinaryMoves(board: (CheckerPiece | null)[], from: number): CheckersMove[] {
-  const piece = board[from];
-  if (!piece) return [];
-  const out: CheckersMove[] = [];
-  if (piece.king) {
-    for (const [dr, df] of DIRECTIONS) {
-      let r = rank(from) + dr;
-      let f = file(from) + df;
-      while (on(r, f) && !board[idx(r, f)]) {
-        out.push({ from, to: idx(r, f) });
-        r += dr;
-        f += df;
-      }
-    }
-  } else {
-    const dr = piece.p === 0 ? -1 : 1;
-    for (const df of [-1, 1]) {
-      const r = rank(from) + dr;
-      const f = file(from) + df;
-      if (on(r, f) && !board[idx(r, f)]) out.push({ from, to: idx(r, f) });
-    }
-  }
-  return out;
-}
-
-function bestCaptureMovesForPiece(board: (CheckerPiece | null)[], from: number, requiredDepth?: number): CheckersMove[] {
-  return capturesFor(board, from).filter((move) => {
-    const remaining = maxCaptureDepth(boardAfterCapture(board, move), move.to);
-    return requiredDepth === undefined ? remaining + 1 === maxCaptureDepth(board, from) : remaining + 1 === requiredDepth;
-  });
 }
 
 export function legalMoves(s: CheckersState): CheckersMove[] {
