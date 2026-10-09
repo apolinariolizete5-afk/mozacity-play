@@ -60,7 +60,7 @@ export function BackgroundMusic() {
   const userUnlockedRef = useRef(false);
   const isTransitioningRef = useRef(false);
 
-  // A música também toca durante partidas; a rota determina a faixa.
+  // Durante partidas, a música de fundo fica silenciada; ao sair, a faixa da área volta.
   const desiredTrack = getTrackIndex(pathname);
 
   const clearTimers = useCallback(() => {
@@ -106,7 +106,7 @@ export function BackgroundMusic() {
   const loadTrack = useCallback(
     async (index: number, fadeIn = true) => {
       const audio = audioRef.current;
-      if (!audio || !enabledRef.current || document.hidden) return;
+      if (!audio || !enabledRef.current || document.hidden || pathname.startsWith("/games/")) return;
 
       const track = TRACKS[index];
       if (currentSrcRef.current === track.src && !audio.paused) {
@@ -160,7 +160,7 @@ export function BackgroundMusic() {
         await startPlayback();
       }
     },
-    [clearTimers, fadeVolume, showTrackTitle],
+    [clearTimers, fadeVolume, showTrackTitle, pathname],
   );
 
   const stopPlayback = useCallback(
@@ -187,7 +187,7 @@ export function BackgroundMusic() {
 
   const startPlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !enabledRef.current || document.hidden) return;
+    if (!audio || !enabledRef.current || document.hidden || pathname.startsWith("/games/")) return;
 
     if (!audio.src || !currentSrcRef.current || currentSrcRef.current !== TRACKS[desiredTrack].src) {
       void loadTrack(desiredTrack, true);
@@ -207,7 +207,7 @@ export function BackgroundMusic() {
         userUnlockedRef.current = false;
         console.warn("[Music] Reprodução aguardando gesto do utilizador ou fonte indisponível:", error);
       });
-  }, [fadeVolume, loadTrack, desiredTrack]);
+  }, [fadeVolume, loadTrack, desiredTrack, pathname]);
 
   const setMusicEnabled = useCallback(
     (value: boolean) => {
@@ -266,7 +266,7 @@ export function BackgroundMusic() {
   }, [clearTimers]);
 
   useEffect(() => {
-    if (!enabled || document.hidden) {
+    if (!enabled || document.hidden || pathname.startsWith("/games/")) {
       stopPlayback();
       return;
     }
