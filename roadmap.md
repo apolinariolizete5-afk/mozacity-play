@@ -28,3 +28,7 @@
 ## Fase 6 — PWA e deploy
 - [ ] Pop-up de instalação (standalone detectado, 1x cada 5 dias, instruções iOS)
 - [ ] Segredos via variáveis de ambiente; pronto para Render
+
+## Fase 7 — Futebol 3D
+- [x] Futebol 11 contra 11 contra o computador, 3 minutos, grátis
+- [ ] Multiplayer online 1 contra 1 (depois de afinar o jogo contra o computador)
