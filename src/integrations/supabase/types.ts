@@ -62,6 +62,45 @@ export type Database = {
         }
         Relationships: []
       }
+      game_rooms: {
+        Row: {
+          bet_cents: number
+          capacity: number
+          code: string
+          created_at: string
+          game: string
+          host_id: string
+          host_name: string
+          is_private: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bet_cents?: number
+          capacity?: number
+          code: string
+          created_at?: string
+          game: string
+          host_id: string
+          host_name?: string
+          is_private?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bet_cents?: number
+          capacity?: number
+          code?: string
+          created_at?: string
+          game?: string
+          host_id?: string
+          host_name?: string
+          is_private?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       internal_secrets: {
         Row: {
           created_at: string
@@ -724,7 +763,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      stats: {
+        Row: {
+          draws: number | null
+          losses: number | null
+          user_id: string | null
+          wins: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_adjust_balance: {
@@ -870,6 +917,7 @@ export type Database = {
         Returns: Json
       }
       forfeit_room_match: { Args: { _room_code: string }; Returns: Json }
+      get_game_room_by_code: { Args: { _code: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
