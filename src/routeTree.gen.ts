@@ -24,9 +24,9 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as GamesCheckersRouteImport } from './routes/games/checkers'
 import { Route as GamesChessRouteImport } from './routes/games/chess'
+import { Route as GamesFootballRouteImport } from './routes/games/football'
 import { Route as GamesLudoRouteImport } from './routes/games/ludo'
 import { Route as ApiPublicPushDispatchRouteImport } from './routes/api/public/push-dispatch'
-import { Route as ApiPublicWebhooksNetshopRouteImport } from './routes/api/public/webhooks/netshop'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -103,6 +103,11 @@ const GamesChessRoute = GamesChessRouteImport.update({
   path: '/games/chess',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GamesFootballRoute = GamesFootballRouteImport.update({
+  id: '/games/football',
+  path: '/games/football',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GamesLudoRoute = GamesLudoRouteImport.update({
   id: '/games/ludo',
   path: '/games/ludo',
@@ -113,12 +118,6 @@ const ApiPublicPushDispatchRoute = ApiPublicPushDispatchRouteImport.update({
   path: '/api/public/push-dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWebhooksNetshopRoute =
-  ApiPublicWebhooksNetshopRouteImport.update({
-    id: '/api/public/webhooks/netshop',
-    path: '/api/public/webhooks/netshop',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,9 +135,9 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof WalletRoute
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
+  '/games/football': typeof GamesFootballRoute
   '/games/ludo': typeof GamesLudoRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
-  '/api/public/webhooks/netshop': typeof ApiPublicWebhooksNetshopRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -156,9 +155,9 @@ export interface FileRoutesByTo {
   '/wallet': typeof WalletRoute
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
+  '/games/football': typeof GamesFootballRoute
   '/games/ludo': typeof GamesLudoRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
-  '/api/public/webhooks/netshop': typeof ApiPublicWebhooksNetshopRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -177,9 +176,9 @@ export interface FileRoutesById {
   '/wallet': typeof WalletRoute
   '/games/checkers': typeof GamesCheckersRoute
   '/games/chess': typeof GamesChessRoute
+  '/games/football': typeof GamesFootballRoute
   '/games/ludo': typeof GamesLudoRoute
   '/api/public/push-dispatch': typeof ApiPublicPushDispatchRoute
-  '/api/public/webhooks/netshop': typeof ApiPublicWebhooksNetshopRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -199,9 +198,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/games/checkers'
     | '/games/chess'
+    | '/games/football'
     | '/games/ludo'
     | '/api/public/push-dispatch'
-    | '/api/public/webhooks/netshop'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -219,9 +218,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/games/checkers'
     | '/games/chess'
+    | '/games/football'
     | '/games/ludo'
     | '/api/public/push-dispatch'
-    | '/api/public/webhooks/netshop'
   id:
     | '__root__'
     | '/'
@@ -239,9 +238,9 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/games/checkers'
     | '/games/chess'
+    | '/games/football'
     | '/games/ludo'
     | '/api/public/push-dispatch'
-    | '/api/public/webhooks/netshop'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -260,9 +259,9 @@ export interface RootRouteChildren {
   WalletRoute: typeof WalletRoute
   GamesCheckersRoute: typeof GamesCheckersRoute
   GamesChessRoute: typeof GamesChessRoute
+  GamesFootballRoute: typeof GamesFootballRoute
   GamesLudoRoute: typeof GamesLudoRoute
   ApiPublicPushDispatchRoute: typeof ApiPublicPushDispatchRoute
-  ApiPublicWebhooksNetshopRoute: typeof ApiPublicWebhooksNetshopRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -372,6 +371,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GamesChessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/games/football': {
+      id: '/games/football'
+      path: '/games/football'
+      fullPath: '/games/football'
+      preLoaderRoute: typeof GamesFootballRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/games/ludo': {
       id: '/games/ludo'
       path: '/games/ludo'
@@ -384,13 +390,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/push-dispatch'
       fullPath: '/api/public/push-dispatch'
       preLoaderRoute: typeof ApiPublicPushDispatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/webhooks/netshop': {
-      id: '/api/public/webhooks/netshop'
-      path: '/api/public/webhooks/netshop'
-      fullPath: '/api/public/webhooks/netshop'
-      preLoaderRoute: typeof ApiPublicWebhooksNetshopRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -412,9 +411,9 @@ const rootRouteChildren: RootRouteChildren = {
   WalletRoute: WalletRoute,
   GamesCheckersRoute: GamesCheckersRoute,
   GamesChessRoute: GamesChessRoute,
+  GamesFootballRoute: GamesFootballRoute,
   GamesLudoRoute: GamesLudoRoute,
   ApiPublicPushDispatchRoute: ApiPublicPushDispatchRoute,
-  ApiPublicWebhooksNetshopRoute: ApiPublicWebhooksNetshopRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
