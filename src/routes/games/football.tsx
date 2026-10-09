@@ -21,6 +21,8 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 function FootballPrototype() {
   const [player, setPlayer] = useState<Point>({ x: 50, y: 70 });
   const [ball, setBall] = useState<Point>({ x: 52, y: 67 });
+  const [keeper, setKeeper] = useState<Point>({ x: 50, y: 8 });
+  const shotTimer = useRef<number | null>(null);
   const [score, setScore] = useState({ home: 0, away: 0 });
   const [message, setMessage] = useState("Move o jogador e tenta marcar!");
   const [shot, setShot] = useState(false);
@@ -56,34 +58,70 @@ function FootballPrototype() {
   };
 
   const pass = () => {
-    setBall({ x: clamp(player.x + 10, 7, 93), y: clamp(player.y - 10, 7, 93) });
-    setMessage("Passe efectuado!");
+    if (shotTimer.current !== null) window.clearInterval(shotTimer.current);
+    const closeEnough = Math.hypot(ball.x - player.x, ball.y - player.y) < 22;
+    if (!closeEnough) {
+      setMessage("Aproxima-te da bola para fazer o passe.");
+      return;
+    }
+    const target = { x: clamp(player.x + (player.x < 50 ? 17 : -17), 7, 93), y: clamp(player.y - 18, 7, 93) };
+    const from = { ...ball };
+    let step = 0;
+    setMessage("Passe em movimento!");
+    shotTimer.current = window.setInterval(() => {
+      step += 1;
+      const t = Math.min(step / 8, 1);
+      setBall({ x: from.x + (target.x - from.x) * t, y: from.y + (target.y - from.y) * t });
+      if (t >= 1 && shotTimer.current !== null) {
+        window.clearInterval(shotTimer.current);
+        shotTimer.current = null;
+        setMessage("Passe recebido.");
+      }
+    }, 35);
     setShot(false);
   };
 
   const shoot = () => {
-    setShot(true);
-    setMessage("Remate!");
     const closeEnough = Math.hypot(ball.x - player.x, ball.y - player.y) < 22;
     if (!closeEnough) {
-      setBall({ x: player.x, y: Math.max(4, player.y - 15) });
       setMessage("Aproxima-te da bola para rematar.");
-      setShot(false);
       return;
     }
-    window.setTimeout(() => {
-      // A remate alinhado com o centro da baliza tem maior probabilidade de entrar.
-      const goal = Math.abs(ball.x - 50) < 17 && ball.y < 78;
-      if (goal) {
-        setScore((current) => ({ ...current, home: current.home + 1 }));
-        setMessage("GOLO! ⚽");
-      } else {
-        setMessage("O guarda-redes defendeu!");
+    if (shotTimer.current !== null) window.clearInterval(shotTimer.current);
+    setShot(true);
+    setMessage("Remate em direcção à baliza!");
+    const from = { ...ball };
+    const targetX = clamp(50 + (ball.x - player.x) * 1.25, 8, 92);
+    let step = 0;
+    shotTimer.current = window.setInterval(() => {
+      step += 1;
+      const t = Math.min(step / 12, 1);
+      const curve = Math.sin(t * Math.PI) * (targetX - from.x) * 0.12;
+      const nextX = from.x + (targetX - from.x) * t + curve;
+      const nextY = from.y + (5 - from.y) * t;
+      setBall({ x: clamp(nextX, 5, 95), y: nextY });
+      setKeeper((current) => ({ x: clamp(current.x + (nextX - current.x) * 0.24, 35, 65), y: 8 }));
+      if (t >= 1) {
+        if (shotTimer.current !== null) window.clearInterval(shotTimer.current);
+        shotTimer.current = null;
+        const saved = Math.abs(targetX - keeper.x) < 10;
+        const goal = !saved && Math.abs(targetX - 50) < 24;
+        if (goal) {
+          setScore((current) => ({ ...current, home: current.home + 1 }));
+          setMessage("GOLO! ⚽");
+        } else if (saved) {
+          setMessage("O guarda-redes defendeu o remate!");
+        } else {
+          setMessage("Remate para fora!");
+        }
+        window.setTimeout(() => {
+          setBall({ x: 50, y: 51 });
+          setPlayer({ x: 50, y: 70 });
+          setKeeper({ x: 50, y: 8 });
+          setShot(false);
+        }, 650);
       }
-      setBall({ x: 50, y: 51 });
-      setPlayer({ x: 50, y: 70 });
-      setShot(false);
-    }, 450);
+    }, 35);
   };
 
   const reset = () => {
@@ -116,7 +154,7 @@ function FootballPrototype() {
           </div>
 
           <div className="relative mx-auto h-[360px] w-full max-w-3xl overflow-hidden rounded-2xl border border-white/20 bg-[#0b2b1d] shadow-inner sm:h-[490px]">
-            <FootballPitch3D player={player} ball={ball} />
+            <FootballPitch3D player={player} ball={ball} keeper={keeper} />
             {shot && <div className="absolute left-1/2 top-[9%] -translate-x-1/2 rounded-full bg-yellow-300 px-3 py-1 text-xs font-black text-green-950">REMATE!</div>}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#06130d]/50 to-transparent" />
             <div className="absolute bottom-3 left-3 rounded-lg bg-black/35 px-2 py-1 text-[10px] font-bold text-white/80">AMARELO: O TEU JOGADOR · AZUL/VERMELHO: EQUIPAS</div>
@@ -142,8 +180,8 @@ function FootballPrototype() {
         </div>
         <div className="mx-auto mt-4 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4">
           <p className="text-sm font-bold">O que já podes testar</p>
-          <p className="mt-1 text-xs leading-5 text-white/65">Campo em perspectiva, movimento contínuo ao manter os controlos pressionados, equipas, passe, remate e marcador. A finalização já não depende de um resultado totalmente aleatório. Esta versão continua local e experimental: ainda não tem motor 3D real, física completa da bola, guarda-redes com IA ou adversário online.</p>
-          <p className="mt-2 text-xs text-amber-200">Próxima fase: motor 3D real e física da bola; depois, sincronização online 1 contra 1.</p>
+          <p className="mt-1 text-xs leading-5 text-white/65">Campo em perspectiva, movimento contínuo ao manter os controlos pressionados, equipas, passe, remate e marcador. A finalização já não depende de um resultado totalmente aleatório. Esta versão continua local e experimental: ainda não tem modelos 3D completos, física realista de colisões ou adversário online.</p>
+          <p className="mt-2 text-xs text-amber-200">Os passes e remates já percorrem uma trajectória animada, com reacção básica do guarda-redes. Próxima fase: colisões e sincronização online 1 contra 1.</p>
         </div>
       </section>
     </main>
