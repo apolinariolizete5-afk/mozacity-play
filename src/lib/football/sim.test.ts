@@ -1,3 +1,4 @@
+// @ts-ignore -- tipos do executor de testes do Bun
 import { describe, expect, test } from "bun:test";
 import { createMatch, emptyInput, gameMinute, step, HALF_L, MATCH_SECONDS } from "./sim";
 
