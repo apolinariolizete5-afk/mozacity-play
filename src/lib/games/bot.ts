@@ -1,63 +1,59 @@
 import { checkersEngine, legalMoves as checkersMoves, type CheckersMove, type CheckersState } from "./checkers";
-import { chessEngine, legalMoves as chessMoves, type ChessMove, type ChessState } from "./chess";
-import { ludoEngine, movableTokens, type LudoMove, type LudoState } from "./ludo";
+import { chessEngine, legalMoves as chessMoves, inCheck, type ChessMove, type ChessState } from "./chess";
+import { ludoEngine, movableTokens, absoluteRing, SAFE_STEPS, FINISHED, type LudoMove, type LudoState } from "./ludo";
 import type { GameId } from "./types";
 
 export type BotDifficulty = "easy" | "normal" | "hard";
 
 export const BOT_DIFFICULTIES: { id: BotDifficulty; label: string; description: string }[] = [
-  { id: "easy", label: "Fácil", description: "Jogadas simples e imprevisíveis." },
-  { id: "normal", label: "Normal", description: "Procura capturas e boas posições." },
-  { id: "hard", label: "Difícil", description: "Analisa respostas e procura a melhor jogada." },
+  { id: "easy", label: "Fácil", description: "Joga de forma simples e comete erros." },
+  { id: "normal", label: "Normal", description: "Escolhe jogadas razoáveis e aproveita oportunidades claras." },
+  { id: "hard", label: "Difícil", description: "Analisa respostas, protege peças e procura a melhor jogada." },
 ];
 
 const pick = <T,>(items: T[]) => items[Math.floor(Math.random() * items.length)]!;
 
+/* ------------------------------ LUDO ------------------------------ */
+
 function ludoScore(state: LudoState, move: LudoMove): number {
   if (move.type === "roll") return 0;
-
   const player = state.turn;
   const before = state.tokens[player]?.[move.token] ?? -1;
   const dice = state.dice ?? 0;
   const target = before === -1 ? 0 : before + dice;
-  let score = dice * 2;
+  let score = 0;
 
-  if (before === -1 && dice === 6) score += 35;
-  if (target >= 58) score += 180;
-  else if (target >= 52) score += 45;
+  // Getting a new token onto the board and finishing a token are valuable,
+  // but the bot should still compare these choices with captures and safety.
+  if (before === -1 && dice === 6) score += 34;
+  if (target >= FINISHED) score += 240;
+  else if (target >= 52) score += 55;
+  else if (before >= 0) score += Math.max(0, target - before) * 1.4;
 
   if (target >= 0 && target < 52) {
-    const absolute = (player * 13 + target) % 52;
-    if ([0, 8, 13, 21, 26, 34, 39, 47].includes(absolute)) score += 14;
+    const absolute = absoluteRing(player, target);
+    if (SAFE_STEPS.has(absolute)) score += 18;
 
-    let captures = 0;
     for (let opponent = 0; opponent < state.players; opponent += 1) {
-      if (opponent === player) continue;
-      for (const position of state.tokens[opponent] ?? []) {
-        if (position >= 0 && position < 52 && (opponent * 13 + position) % 52 === absolute) {
-          captures += 1;
-        }
-      }
-    }
-    score += captures * 90;
-
-    // Prefer moves that keep the piece away from an immediate capture.
-    let danger = 0;
-    for (let opponent = 0; opponent < state.players; opponent += 1) {
-      if (opponent === player) continue;
+      if (opponent === player || state.eliminated.includes(opponent)) continue;
       for (const position of state.tokens[opponent] ?? []) {
         if (position < 0 || position >= 52) continue;
-        const opponentAbsolute = (opponent * 13 + position) % 52;
-        const distance = (absolute - opponentAbsolute + 52) % 52;
-        if (distance >= 1 && distance <= 6) danger += 1;
+        const enemyAbsolute = absoluteRing(opponent, position);
+        if (enemyAbsolute === absolute && !SAFE_STEPS.has(absolute)) score += 115;
+        // Estimate immediate vulnerability to an opponent's next die roll.
+        const distance = (absolute - enemyAbsolute + 52) % 52;
+        if (distance >= 1 && distance <= 6 && !SAFE_STEPS.has(absolute)) score -= 8 + (7 - distance) * 2;
       }
     }
-    score -= danger * 12;
   }
 
-  // In hard mode this makes advancing a trailing piece preferable to
-  // repeatedly pushing a token that is already close to home.
-  if (before >= 0 && before < 20) score += 8;
+  // Prefer developing the furthest-behind token instead of over-focusing
+  // on a single token, unless a capture or finish is available.
+  if (before >= 0 && before < 52) {
+    const furthest = Math.max(...(state.tokens[player] ?? []).filter((p) => p >= 0 && p < 52), -1);
+    if (before < furthest) score += 8;
+  }
+  if (state.tokens[player]?.every((p) => p === FINISHED || p === -1)) score += 2;
   return score;
 }
 
@@ -66,96 +62,217 @@ export function chooseLudoBotMove(state: LudoState, difficulty: BotDifficulty): 
   const moves = movableTokens(state).map((token) => ({ type: "move", token }) as LudoMove);
   if (!moves.length) return { type: "roll" };
   if (difficulty === "easy") return pick(moves);
-  const ranked = moves.map((move) => ({ move, score: ludoScore(state, move) })).sort((a, b) => b.score - a.score);
-  if (difficulty === "normal") return ranked[Math.floor(Math.random() * Math.min(2, ranked.length))]!.move;
+
+  const ranked = moves
+    .map((move) => ({ move, score: ludoScore(state, move) }))
+    .sort((a, b) => b.score - a.score);
+
+  if (difficulty === "normal") {
+    // Normal usually makes a good move, but sometimes misses the best one.
+    const pool = ranked.slice(0, Math.min(3, ranked.length));
+    return pick(pool).move;
+  }
+
+  // Hard evaluates each candidate's result, then slightly penalizes moves
+  // that leave the token exposed. The die remains random and fair.
   return ranked[0]!.move;
 }
 
-function checkersScore(state: CheckersState, move: CheckersMove): number {
-  const next = checkersEngine.applyMove(state, move);
+/* ------------------------------ DAMAS ------------------------------ */
+
+function checkersEval(state: CheckersState): number {
+  if (state.over) return state.winner === 1 ? 100000 : state.winner === 0 ? -100000 : 0;
   let score = 0;
-  if (Math.abs(Math.floor(move.to / 8) - Math.floor(move.from / 8)) === 2) score += 100;
-  const piece = next.board[move.to];
-  if (piece?.king) score += 35;
-  if (piece) score += piece.p === 1 ? 3 : -3;
-  score += next.board.filter((p) => p?.p === 1).length * 8;
-  score -= next.board.filter((p) => p?.p === 0).length * 7;
-  if (next.over && next.winner === 1) score += 1000;
+  let botPieces = 0;
+  let humanPieces = 0;
+  for (let i = 0; i < state.board.length; i += 1) {
+    const piece = state.board[i];
+    if (!piece) continue;
+    const row = Math.floor(i / 8);
+    const col = i % 8;
+    const material = piece.king ? 185 : 100;
+    const progress = piece.p === 1 ? row * 2 : (7 - row) * 2;
+    const center = 3.5 - Math.abs(3.5 - col) + 3.5 - Math.abs(3.5 - row);
+    const value = material + progress + center * (piece.king ? 2.5 : 1.2);
+    if (piece.p === 1) {
+      botPieces += 1;
+      score += value;
+    } else {
+      humanPieces += 1;
+      score -= value;
+    }
+  }
+  if (botPieces === 0) return -100000;
+  if (humanPieces === 0) return 100000;
+
+  // Mobility helps distinguish a safe position from pieces that are trapped.
+  const currentTurn = state.turn;
+  const ownMoves = checkersMoves(state).length;
+  const otherState = { ...state, turn: state.turn === 1 ? 0 as const : 1 as const };
+  const otherMoves = checkersMoves(otherState).length;
+  score += (currentTurn === 1 ? ownMoves - otherMoves : otherMoves - ownMoves) * 2;
   return score;
 }
 
-function minimaxCheckers(state: CheckersState, depth: number, maximizing: boolean): number {
-  if (depth <= 0 || state.over) {
-    return state.board.reduce((sum, p) => sum + (p ? (p.p === 1 ? (p.king ? 18 : 10) : -(p.king ? 18 : 10)) : 0), 0);
+function orderCheckersMoves(state: CheckersState, moves: CheckersMove[]): CheckersMove[] {
+  return [...moves].sort((a, b) => {
+    const captureA = a.capturedPieces?.length ?? (a.captured === undefined ? 0 : 1);
+    const captureB = b.capturedPieces?.length ?? (b.captured === undefined ? 0 : 1);
+    const crownA = state.board[a.from] && !state.board[a.from]!.king && (state.board[a.from]!.p === 0 ? Math.floor(a.to / 8) === 0 : Math.floor(a.to / 8) === 7) ? 1 : 0;
+    const crownB = state.board[b.from] && !state.board[b.from]!.king && (state.board[b.from]!.p === 0 ? Math.floor(b.to / 8) === 0 : Math.floor(b.to / 8) === 7) ? 1 : 0;
+    return captureB - captureA || crownB - crownA;
+  });
+}
+
+function minimaxCheckers(state: CheckersState, depth: number, alpha: number, beta: number): number {
+  if (depth <= 0 || state.over) return checkersEval(state);
+  const moves = orderCheckersMoves(state, checkersMoves(state));
+  if (!moves.length) return state.turn === 1 ? -100000 : 100000;
+
+  if (state.turn === 1) {
+    let best = -Infinity;
+    for (const move of moves) {
+      best = Math.max(best, minimaxCheckers(checkersEngine.applyMove(state, move), depth - 1, alpha, beta));
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return best;
   }
-  const moves = checkersMoves(state);
-  if (!moves.length) return maximizing ? -10000 : 10000;
-  const values = moves.map((m) => minimaxCheckers(checkersEngine.applyMove(state, m), depth - 1, !maximizing));
-  return maximizing ? Math.max(...values) : Math.min(...values);
+
+  let best = Infinity;
+  for (const move of moves) {
+    best = Math.min(best, minimaxCheckers(checkersEngine.applyMove(state, move), depth - 1, alpha, beta));
+    beta = Math.min(beta, best);
+    if (beta <= alpha) break;
+  }
+  return best;
 }
 
 export function chooseCheckersBotMove(state: CheckersState, difficulty: BotDifficulty): CheckersMove {
   const moves = checkersMoves(state);
   if (!moves.length) return { from: 0, to: 0 };
   if (difficulty === "easy") return pick(moves);
-  const depth = difficulty === "hard" ? 3 : 1;
-  const ranked = moves.map((move) => {
+
+  const ordered = orderCheckersMoves(state, moves);
+  if (difficulty === "normal") {
+    // Normal notices captures and crowns, but retains some human-like variety.
+    const ranked = ordered.map((move) => ({ move, score: checkersEval(checkersEngine.applyMove(state, move)) }))
+      .sort((a, b) => b.score - a.score);
+    return pick(ranked.slice(0, Math.min(3, ranked.length))).move;
+  }
+
+  let bestScore = -Infinity;
+  let bestMoves: CheckersMove[] = [];
+  let alpha = -Infinity;
+  for (const move of ordered) {
     const next = checkersEngine.applyMove(state, move);
-    const score = checkersScore(state, move) + (difficulty === "hard" ? minimaxCheckers(next, depth - 1, false) : 0);
-    return { move, score };
-  }).sort((a, b) => b.score - a.score);
-  return difficulty === "normal" ? ranked[Math.floor(Math.random() * Math.min(2, ranked.length))]!.move : ranked[0]!.move;
+    const score = minimaxCheckers(next, 4, alpha, Infinity);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMoves = [move];
+    } else if (score === bestScore) {
+      bestMoves.push(move);
+    }
+    alpha = Math.max(alpha, bestScore);
+  }
+  return pick(bestMoves.length ? bestMoves : ordered);
 }
 
-const VALUE: Record<string, number> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+/* ------------------------------ XADREZ ------------------------------ */
 
-function chessScore(state: ChessState, perspective: "w" | "b"): number {
-  let score = 0;
-  for (const p of state.board) {
-    if (!p) continue;
-    const value = VALUE[p.t] ?? 0;
-    score += p.c === perspective ? value : -value;
-  }
+const VALUE: Record<string, number> = { p: 100, n: 320, b: 335, r: 500, q: 900, k: 20000 };
+
+function chessEval(state: ChessState, perspective: "w" | "b"): number {
   if (state.over) {
-    if (state.winner === (perspective === "w" ? 0 : 1)) score += 100000;
-    else if (state.winner !== null) score -= 100000;
-    else if (state.draw) score -= 20;
+    if (state.winner === (perspective === "w" ? 0 : 1)) return 100000;
+    if (state.winner !== null) return -100000;
+    return 0;
   }
+  let score = 0;
+  for (let i = 0; i < state.board.length; i += 1) {
+    const p = state.board[i];
+    if (!p) continue;
+    const sign = p.c === perspective ? 1 : -1;
+    const row = Math.floor(i / 8);
+    const col = i % 8;
+    const center = 3.5 - Math.abs(3.5 - col) + 3.5 - Math.abs(3.5 - row);
+    let positional = 0;
+    if (p.t === "p") positional = (p.c === "w" ? 6 - row : row - 1) * 5 + center * 1.2;
+    else if (p.t === "n" || p.t === "b") positional = center * 5;
+    else if (p.t === "q") positional = center * 1.5;
+    else if (p.t === "k") positional = center * -2;
+    score += sign * ((VALUE[p.t] ?? 0) + positional);
+  }
+  if (inCheck(state, perspective)) score -= 28;
+  if (inCheck(state, perspective === "w" ? "b" : "w")) score += 28;
   return score;
 }
 
-function minimaxChess(state: ChessState, depth: number, perspective: "w" | "b"): number {
-  if (depth <= 0 || state.over) return chessScore(state, perspective);
-  const moves = chessMoves(state);
-  if (!moves.length) return chessScore(state, perspective);
+function orderChessMoves(state: ChessState, moves: ChessMove[]): ChessMove[] {
+  return [...moves].sort((a, b) => {
+    const score = (m: ChessMove) => {
+      const victim = state.board[m.to];
+      const attacker = state.board[m.from];
+      return (victim ? (VALUE[victim.t] ?? 0) * 10 - (VALUE[attacker?.t ?? "p"] ?? 0) : 0)
+        + (m.promo ? (VALUE[m.promo] ?? 0) : 0);
+    };
+    return score(b) - score(a);
+  });
+}
 
+function minimaxChess(state: ChessState, depth: number, perspective: "w" | "b", alpha: number, beta: number): number {
+  if (depth <= 0 || state.over) return chessEval(state, perspective);
+  const moves = orderChessMoves(state, chessMoves(state));
+  if (!moves.length) return chessEval(state, perspective);
   const maximizing = state.turn === perspective;
-  const values = moves.slice(0, 40).map((move) =>
-    minimaxChess(chessEngine.applyMove(state, move), depth - 1, perspective),
-  );
-  return maximizing ? Math.max(...values) : Math.min(...values);
+  if (maximizing) {
+    let best = -Infinity;
+    for (const move of moves) {
+      best = Math.max(best, minimaxChess(chessEngine.applyMove(state, move), depth - 1, perspective, alpha, beta));
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+  let best = Infinity;
+  for (const move of moves) {
+    best = Math.min(best, minimaxChess(chessEngine.applyMove(state, move), depth - 1, perspective, alpha, beta));
+    beta = Math.min(beta, best);
+    if (beta <= alpha) break;
+  }
+  return best;
 }
 
 export function chooseChessBotMove(state: ChessState, difficulty: BotDifficulty): ChessMove {
   const moves = chessMoves(state);
   if (!moves.length) return { from: 0, to: 0 };
-
   if (difficulty === "easy") return pick(moves);
 
   const perspective = state.turn;
-  const depth = difficulty === "hard" ? 3 : 1;
-  const ranked = moves
-    .map((move) => {
-      const next = chessEngine.applyMove(state, move);
-      const score = minimaxChess(next, depth - 1, perspective);
-      return { move, score };
-    })
-    .sort((a, b) => b.score - a.score);
-
+  const ordered = orderChessMoves(state, moves);
   if (difficulty === "normal") {
-    return ranked[Math.floor(Math.random() * Math.min(3, ranked.length))]!.move;
+    const ranked = ordered.map((move) => ({
+      move,
+      score: chessEval(chessEngine.applyMove(state, move), perspective),
+    })).sort((a, b) => b.score - a.score);
+    return pick(ranked.slice(0, Math.min(4, ranked.length))).move;
   }
-  return ranked[0]!.move;
+
+  let bestScore = -Infinity;
+  let bestMoves: ChessMove[] = [];
+  let alpha = -Infinity;
+  for (const move of ordered) {
+    const next = chessEngine.applyMove(state, move);
+    const score = minimaxChess(next, 3, perspective, alpha, Infinity);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMoves = [move];
+    } else if (score === bestScore) {
+      bestMoves.push(move);
+    }
+    alpha = Math.max(alpha, bestScore);
+  }
+  return pick(bestMoves.length ? bestMoves : ordered);
 }
 
 export function isBotDifficulty(value: unknown): value is BotDifficulty {
