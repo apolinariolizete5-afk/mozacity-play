@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleDot, MoveUpRight, RotateCcw, Swords } from "lucide-react";
 
 export const Route = createFileRoute("/games/football")({
@@ -23,6 +23,18 @@ function FootballPrototype() {
   const [score, setScore] = useState({ home: 0, away: 0 });
   const [message, setMessage] = useState("Move o jogador e tenta marcar!");
   const [shot, setShot] = useState(false);
+  const holdTimer = useRef<number | null>(null);
+
+  const stopMove = useCallback(() => {
+    if (holdTimer.current !== null) {
+      window.clearInterval(holdTimer.current);
+      holdTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (holdTimer.current !== null) window.clearInterval(holdTimer.current);
+  }, []);
 
   const move = useCallback((dx: number, dy: number) => {
     setPlayer((current) => {
@@ -35,6 +47,12 @@ function FootballPrototype() {
       return next;
     });
   }, []);
+
+  const startMove = (dx: number, dy: number) => {
+    stopMove();
+    move(dx, dy);
+    holdTimer.current = window.setInterval(() => move(dx, dy), 115);
+  };
 
   const pass = () => {
     setBall({ x: clamp(player.x + 10, 7, 93), y: clamp(player.y - 10, 7, 93) });
@@ -53,7 +71,8 @@ function FootballPrototype() {
       return;
     }
     window.setTimeout(() => {
-      const goal = Math.random() > 0.42;
+      // A remate alinhado com o centro da baliza tem maior probabilidade de entrar.
+      const goal = Math.abs(ball.x - 50) < 17 && ball.y < 78;
       if (goal) {
         setScore((current) => ({ ...current, home: current.home + 1 }));
         setMessage("GOLO! ⚽");
@@ -128,11 +147,11 @@ function FootballPrototype() {
               <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[.2em] text-emerald-200/60">Movimento</p>
               <div className="grid w-36 grid-cols-3 gap-1.5 sm:w-44">
                 <span />
-                <button aria-label="Mover para cima" onClick={() => move(0, -5)} className="grid h-11 place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowUp /></button>
+                <button aria-label="Mover para cima" onPointerDown={() => startMove(0, -4)} onPointerUp={stopMove} onPointerLeave={stopMove} onPointerCancel={stopMove} className="grid h-11 touch-none place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowUp /></button>
                 <span />
-                <button aria-label="Mover para esquerda" onClick={() => move(-5, 0)} className="grid h-11 place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowLeft /></button>
-                <button aria-label="Mover para baixo" onClick={() => move(0, 5)} className="grid h-11 place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowDown /></button>
-                <button aria-label="Mover para direita" onClick={() => move(5, 0)} className="grid h-11 place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowRight /></button>
+                <button aria-label="Mover para esquerda" onPointerDown={() => startMove(-4, 0)} onPointerUp={stopMove} onPointerLeave={stopMove} onPointerCancel={stopMove} className="grid h-11 touch-none place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowLeft /></button>
+                <button aria-label="Mover para baixo" onPointerDown={() => startMove(0, 4)} onPointerUp={stopMove} onPointerLeave={stopMove} onPointerCancel={stopMove} className="grid h-11 touch-none place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowDown /></button>
+                <button aria-label="Mover para direita" onPointerDown={() => startMove(4, 0)} onPointerUp={stopMove} onPointerLeave={stopMove} onPointerCancel={stopMove} className="grid h-11 touch-none place-items-center rounded-xl border border-white/15 bg-white/10 active:bg-emerald-500"><ArrowRight /></button>
               </div>
             </div>
             <div className="flex gap-2">
@@ -143,8 +162,8 @@ function FootballPrototype() {
         </div>
         <div className="mx-auto mt-4 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-4">
           <p className="text-sm font-bold">O que já podes testar</p>
-          <p className="mt-1 text-xs leading-5 text-white/65">Campo em perspectiva 3D, equipas, jogador controlável, bola, passe, remate e marcador. Esta versão é local e experimental: ainda não tem adversário online, física real da bola nem guarda-redes controlado por IA.</p>
-          <p className="mt-2 text-xs text-amber-200">Próxima fase: física e controlo contínuo; depois, sincronização 1 contra 1.</p>
+          <p className="mt-1 text-xs leading-5 text-white/65">Campo em perspectiva, movimento contínuo ao manter os controlos pressionados, equipas, passe, remate e marcador. A finalização já não depende de um resultado totalmente aleatório. Esta versão continua local e experimental: ainda não tem motor 3D real, física completa da bola, guarda-redes com IA ou adversário online.</p>
+          <p className="mt-2 text-xs text-amber-200">Próxima fase: motor 3D real e física da bola; depois, sincronização online 1 contra 1.</p>
         </div>
       </section>
     </main>
