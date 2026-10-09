@@ -36,6 +36,7 @@ function FootballGame() {
   const match = useRef<Match>(createMatch());
   const input = useRef(emptyInput());
   const [started, setStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [hud, setHud] = useState<Hud>(() => readHud(match.current));
   const [power, setPower] = useState<number | null>(null);
   const shootStart = useRef<number | null>(null);
@@ -72,42 +73,47 @@ function FootballGame() {
     else input.current.action = true;
   }, [hud.hasBall]);
 
-  // Teclado: setas/WASD, J passe, K remate (segurar), Shift sprint.
+  // Teclado: setas/WASD; A passe (ou esquerda sem bola); B remate; C sprint/desarme; P pausa.
   useEffect(() => {
     const keys = new Set<string>();
     const sync = () => {
       const i = input.current;
-      i.mx = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
-      i.mz = (keys.has("arrowdown") || keys.has("s") ? 1 : 0) - (keys.has("arrowup") || keys.has("w") ? 1 : 0);
-      i.sprint = keys.has("shift");
+      i.mx = (keys.has("arrowright") || keys.has("d") ? 1 : 0) -
+        (keys.has("arrowleft") || (keys.has("a") && !hud.hasBall) ? 1 : 0);
+      i.mz = (keys.has("arrowdown") || keys.has("s") ? 1 : 0) -
+        (keys.has("arrowup") || keys.has("w") ? 1 : 0);
+      i.sprint = keys.has("shift") || keys.has("c");
     };
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       if (e.repeat) return;
-      if (k === "j" || k === " ") pressPass();
-      else if (k === "k") pressShoot();
-      else { keys.add(k); sync(); }
+      if (k === "p" || k === "escape") { if (started) setIsPaused(v => !v); return; }
+      if (k === "a" && hud.hasBall) { pressPass(); return; }
+      if (k === "b") { pressShoot(); return; }
+      if (k === "c" && !hud.hasBall) input.current.action = true;
+      keys.add(k); sync();
     };
     const up = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if (k === "k") releaseShoot();
+      if (k === "b") releaseShoot();
       keys.delete(k); sync();
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
-  }, [pressPass, pressShoot, releaseShoot]);
+  }, [pressPass, pressShoot, releaseShoot, hud.hasBall, started]);
 
   const restart = () => {
     match.current = createMatch();
     input.current = emptyInput();
     setHud(readHud(match.current));
     setGameKey((k) => k + 1);
+    setIsPaused(false);
     setStarted(true);
   };
 
-  const paused = !started;
+  const paused = !started || isPaused;
 
   return (
     <main className="fixed inset-0 touch-none select-none overflow-hidden bg-background text-foreground">
@@ -118,12 +124,13 @@ function FootballGame() {
       {/* Marcador */}
       <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
         <div className="flex items-stretch overflow-hidden rounded-lg border border-border/40 bg-background/85 text-sm font-black shadow-lg backdrop-blur">
-          <span className="flex items-center gap-2 bg-destructive px-3 py-1.5 text-destructive-foreground">MOZ</span>
+          <span className="flex items-center gap-2 bg-destructive px-3 py-1.5 text-destructive-foreground">VENTO AZUL</span>
           <span className="px-3 py-1.5 tabular-nums">{hud.score[0]} - {hud.score[1]}</span>
-          <span className="flex items-center bg-primary px-3 py-1.5 text-primary-foreground">CPU</span>
+          <span className="flex items-center bg-primary px-3 py-1.5 text-primary-foreground">ROCHA DOURADA</span>
           <span className="px-3 py-1.5 tabular-nums text-muted-foreground">{hud.minute}'</span>
         </div>
       </div>
+      <button type="button" onClick={() => setIsPaused(v => !v)} className="absolute right-3 top-2 z-20 grid h-9 w-9 place-items-center rounded-full border border-border/50 bg-background/85 text-lg font-black backdrop-blur" aria-label={isPaused ? "Continuar" : "Pausar"}>{isPaused ? "▶" : "Ⅱ"}</button>
       <Link to="/" className="absolute left-3 top-2 grid h-9 w-9 place-items-center rounded-full bg-background/80 backdrop-blur" aria-label="Voltar">
         <ArrowLeft className="h-4 w-4" />
       </Link>
@@ -139,11 +146,11 @@ function FootballGame() {
           <Joystick onMove={(x, z) => { input.current.mx = x; input.current.mz = z; }} />
           <div className="absolute bottom-6 right-4 flex items-end gap-3">
             <HoldButton label="SPRINT" className="h-14 w-14 bg-secondary text-secondary-foreground"
-              onDown={() => { input.current.sprint = true; }} onUp={() => { input.current.sprint = false; }} />
+              onDown={() => { input.current.sprint = true; if (!hud.hasBall) input.current.action = true; }} onUp={() => { input.current.sprint = false; }} />
             <div className="flex flex-col items-center gap-3">
-              <HoldButton label={hud.hasBall ? "REMATE" : "DESARME"} className="h-20 w-20 bg-destructive text-destructive-foreground"
+              <HoldButton label="B · REMATE" className="h-20 w-20 bg-destructive text-destructive-foreground"
                 onDown={pressShoot} onUp={releaseShoot} />
-              <HoldButton label={hud.hasBall ? "PASSE" : "TROCAR"} className="h-16 w-16 bg-primary text-primary-foreground"
+              <HoldButton label="A · PASSE" className="h-16 w-16 bg-primary text-primary-foreground"
                 onDown={pressPass} onUp={() => {}} />
             </div>
           </div>
@@ -161,13 +168,23 @@ function FootballGame() {
           <p className="text-sm text-muted-foreground">11 contra 11 · 3 minutos · Partida grátis contra o computador</p>
           <ul className="space-y-1 text-left text-xs text-muted-foreground">
             <li><b className="text-foreground">Mover:</b> joystick à esquerda (ou setas / WASD)</li>
-            <li><b className="text-foreground">Passe:</b> botão azul na direcção do joystick (J ou Espaço)</li>
-            <li><b className="text-foreground">Remate:</b> segura o botão vermelho para mais força (K)</li>
+            <li><b className="text-foreground">Passe:</b> botão azul na direcção do joystick (A)</li>
+            <li><b className="text-foreground">Remate:</b> segura o botão vermelho para mais força (B)</li>
             <li><b className="text-foreground">Sem bola:</b> azul troca de jogador, vermelho tenta desarmar</li>
-            <li><b className="text-foreground">Sprint:</b> segura o botão SPRINT (Shift)</li>
+            <li><b className="text-foreground">Sprint:</b> segura o botão SPRINT (C ou Shift)</li>
           </ul>
           <p className="text-xs text-muted-foreground sm:hidden">Roda o telemóvel na horizontal para jogar melhor.</p>
           <button onClick={() => setStarted(true)} className="w-full rounded-xl bg-primary py-3 font-black text-primary-foreground">COMEÇAR PARTIDA</button>
+        </Overlay>
+      )}
+
+      {started && isPaused && hud.phase !== "ended" && (
+        <Overlay>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Partida pausada</p>
+          <h2 className="text-3xl font-black">PAUSA</h2>
+          <p className="text-sm text-muted-foreground">O relógio e a partida estão parados.</p>
+          <button onClick={() => setIsPaused(false)} className="w-full rounded-xl bg-primary py-3 font-black text-primary-foreground">CONTINUAR</button>
+          <button onClick={restart} className="w-full rounded-xl border border-border py-3 font-bold">RECOMEÇAR PARTIDA</button>
         </Overlay>
       )}
 
