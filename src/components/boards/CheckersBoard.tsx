@@ -33,7 +33,10 @@ export function CheckersBoard({
   const click = (square: number) => {
     if (disabled) return;
     if (from !== null && targets.includes(square)) {
-      onMove({ from, to: square });
+      // Pass the exact legal move, including the captured square.
+      // The engine rejects a capture submitted only as { from, to }.
+      const selectedMove = moves.find((move) => move.from === from && move.to === square);
+      if (selectedMove) onMove(selectedMove);
       setFrom(null);
       return;
     }
