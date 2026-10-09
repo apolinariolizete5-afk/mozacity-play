@@ -153,8 +153,13 @@ function FootballPrototype() {
   }, [move, pass, shoot]);
 
   const reset = () => {
+    if (holdTimer.current !== null) window.clearInterval(holdTimer.current);
+    holdTimer.current = null;
+    if (shotTimer.current !== null) window.clearInterval(shotTimer.current);
+    shotTimer.current = null;
     setPlayer({ x: 50, y: 70 });
     setBall({ x: 52, y: 67 });
+    setKeeper({ x: 50, y: 8 });
     setScore({ home: 0, away: 0 });
     setMessage("Partida reiniciada.");
     setShot(false);
