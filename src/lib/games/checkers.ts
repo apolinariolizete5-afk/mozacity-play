@@ -51,7 +51,7 @@ function ordinaryMoves(board:(CheckerPiece|null)[],from:number):CheckersMove[]{
 export function legalMoves(s:CheckersState):CheckersMove[]{
  if(s.over)return [];const captures:CheckersMove[]=[];
  for(let i=0;i<64;i++)if(s.board[i]?.p===s.turn)captures.push(...captureSequences(s.board,i));
- if(captures.length){const max=Math.max(...captures.map(m=>m.capturedPieces?.length??0));return captures.filter(m=>(m.capturedPieces?.length??0)===max)}
+ // Brazilian-style house rule requested for MozaPlay: any complete capture route is selectable, even if another route captures more pieces.\n if(captures.length)return captures;
  const moves:CheckersMove[]=[];for(let i=0;i<64;i++)if(s.board[i]?.p===s.turn)moves.push(...ordinaryMoves(s.board,i));return moves;
 }
 export const checkersEngine:GameEngine<CheckersState,CheckersMove>={
