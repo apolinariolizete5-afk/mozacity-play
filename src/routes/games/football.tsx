@@ -126,6 +126,32 @@ function FootballPrototype() {
     }, 35);
   };
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const directions: Record<string, [number, number]> = {
+        arrowup: [0, -4], w: [0, -4],
+        arrowdown: [0, 4], s: [0, 4],
+        arrowleft: [-4, 0], a: [-4, 0],
+        arrowright: [4, 0], d: [4, 0],
+      };
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      if (directions[key]) {
+        event.preventDefault();
+        if (!event.repeat) move(directions[key][0], directions[key][1]);
+      } else if (key === " " || key === "spacebar") {
+        event.preventDefault();
+        if (!event.repeat) pass();
+      } else if (key === "enter") {
+        event.preventDefault();
+        if (!event.repeat) shoot();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [move, pass, shoot]);
+
   const reset = () => {
     setPlayer({ x: 50, y: 70 });
     setBall({ x: 52, y: 67 });
