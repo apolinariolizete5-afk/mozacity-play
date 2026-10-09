@@ -56,7 +56,7 @@ function ErrorComponent({ error, reset }: import("@tanstack/react-router").Error
         </p>
         <details className="mt-4 rounded-2xl bg-secondary p-3 text-left">
           <summary className="cursor-pointer text-xs font-bold">Ver detalhe técnico</summary>
-          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] text-muted-foreground">{error.message}</pre>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] text-muted-foreground">{error instanceof Error ? error.message : String(error)}</pre>
         </details>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
