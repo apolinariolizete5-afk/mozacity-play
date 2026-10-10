@@ -116,8 +116,8 @@ function FootballGame() {
   const paused = !started || isPaused;
 
   return (
-    <main className="fixed inset-0 touch-none select-none overflow-hidden bg-background text-foreground">
-      <Canvas key={gameKey} shadows dpr={[1, 1.5]} camera={{ position: [0, 17, 24], fov: 50 }} frameloop={paused ? "demand" : "always"}>
+    <main className="football-game touch-none select-none overflow-hidden bg-background text-foreground">
+      <Canvas key={gameKey} resize={{ offsetSize: true }} shadows dpr={[1, 1.5]} camera={{ position: [0, 17, 24], fov: 50 }} frameloop={paused ? "demand" : "always"}>
         <FootballScene match={match} input={input} onTick={onTick} />
       </Canvas>
 
@@ -173,7 +173,6 @@ function FootballGame() {
             <li><b className="text-foreground">Sem bola:</b> azul troca de jogador, vermelho tenta desarmar</li>
             <li><b className="text-foreground">Sprint:</b> segura o botão SPRINT (C ou Shift)</li>
           </ul>
-          <p className="text-xs text-muted-foreground sm:hidden">Roda o telemóvel na horizontal para jogar melhor.</p>
           <button onClick={() => setStarted(true)} className="w-full rounded-xl bg-primary py-3 font-black text-primary-foreground">COMEÇAR PARTIDA</button>
         </Overlay>
       )}
@@ -208,7 +207,7 @@ function FootballGame() {
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
     <div className="absolute inset-0 grid place-items-center bg-background/60 p-4 backdrop-blur-sm">
-      <div className="flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center shadow-2xl">{children}</div>
+      <div className="football-overlay-panel flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-card p-6 text-center shadow-2xl">{children}</div>
     </div>
   );
 }
@@ -235,8 +234,12 @@ function Joystick({ onMove }: { onMove: (x: number, z: number) => void }) {
     const el = base.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    let dx = e.clientX - (r.left + r.width / 2);
-    let dy = e.clientY - (r.top + r.height / 2);
+    const screenX = e.clientX - (r.left + r.width / 2);
+    const screenY = e.clientY - (r.top + r.height / 2);
+    const game = el.closest(".football-game");
+    const rotated = game && getComputedStyle(game).getPropertyValue("--football-rotated").trim() === "1";
+    let dx = rotated ? screenY : screenX;
+    let dy = rotated ? -screenX : screenY;
     const l = Math.hypot(dx, dy);
     if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
     setKnob({ x: dx, y: dy });
