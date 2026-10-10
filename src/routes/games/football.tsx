@@ -274,8 +274,8 @@ function Joystick({ onMove }: { onMove: (x: number, z: number) => void }) {
       className="absolute bottom-0 left-0 h-3/5 w-1/2 touch-none"
     >
       <div
-        className={`pointer-events-none absolute h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground/20 bg-background/30 backdrop-blur ${origin ? "" : "bottom-[-2.5rem] opacity-70"}`}
-        style={origin ? { left: o.x, top: o.y } : { left: 84 }}
+        className={`pointer-events-none absolute h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground/20 bg-background/30 backdrop-blur ${origin ? "" : "opacity-70"}`}
+        style={origin ? { left: o.x, top: o.y } : { left: 84, bottom: -40 }}
       >
         <div className="absolute left-1/2 top-1/2 h-14 w-14 rounded-full bg-foreground/70 shadow-lg"
           style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
