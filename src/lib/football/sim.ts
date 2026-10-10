@@ -458,12 +458,26 @@ export function step(m: Match, input: Input, rawDt: number) {
       } else if (chaser[p.team] === p.id && (p.team === 1 || dist(p.x, p.z, b.x, b.z) < 7)) {
         tx = predX; tz = predZ; sp = p.team === 1 ? 7.6 : 7.2;
       } else {
+        // Posicionamento por papel (escrito de raiz; ideia de papéis/estados inspirada
+        // em soccer-js, licença MIT): bloco compacto, linha defensiva e desmarcações.
         const attacking = possTeam === p.team;
         const push = attacking ? 10 : -2;
         tx = clamp(p.homeX + b.x * 0.5 + s * push, -HALF_L + 3, HALF_L - 3);
         tz = clamp(p.homeZ * 0.85 + b.z * 0.25, -HALF_W + 2, HALF_W - 2);
-        if (p.role === "FW" && attacking) tx = clamp(tx + s * 6, -HALF_L + 8, HALF_L - 8);
-        if (p.role === "DF" && !attacking) tx = s > 0 ? Math.min(tx, b.x - 2) : Math.max(tx, b.x + 2);
+        if (p.role === "FW" && attacking) {
+          tx = clamp(tx + s * 6, -HALF_L + 8, HALF_L - 8);
+          tz = clamp(tz + Math.sin(m.time * 0.7 + p.id) * 4, -HALF_W + 3, HALF_W - 3);
+        }
+        if (p.role === "MF") {
+          const lineX = b.x - s * (attacking ? 4 : 9);
+          tx = tx * 0.5 + lineX * 0.5;
+        }
+        if (p.role === "DF") {
+          if (!attacking) tx = s > 0 ? Math.min(tx, b.x - 2) : Math.max(tx, b.x + 2);
+          // Nunca passa do meio-campo quando a equipa ataca.
+          if (attacking) tx = s > 0 ? Math.min(tx, 4) : Math.max(tx, -4);
+          tz = tz * 0.8 + b.z * 0.1;
+        }
       }
       const dx = tx - p.x, dz = tz - p.z;
       const d = Math.hypot(dx, dz);
