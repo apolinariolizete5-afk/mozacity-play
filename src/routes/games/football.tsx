@@ -226,37 +226,60 @@ function HoldButton({ label, className, onDown, onUp }: { label: string; classNa
   );
 }
 
+// Joystick flutuante escrito de raiz, com ideias do html5-virtual-game-controller
+// (Copyright (c) Austin Hallock, licença MIT): nasce onde o dedo toca na metade esquerda,
+// segue um único dedo (multi-toque com os botões) e tem zona morta.
 function Joystick({ onMove }: { onMove: (x: number, z: number) => void }) {
-  const base = useRef<HTMLDivElement>(null);
+  const zone = useRef<HTMLDivElement>(null);
+  const pid = useRef<number | null>(null);
+  const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const R = 50;
-  const update = (e: React.PointerEvent) => {
-    const el = base.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const screenX = e.clientX - (r.left + r.width / 2);
-    const screenY = e.clientY - (r.top + r.height / 2);
-    const game = el.closest(".football-game");
+  const DEAD = 0.12;
+  const local = (e: React.PointerEvent) => {
+    const r = zone.current!.getBoundingClientRect();
+    const game = zone.current!.closest(".football-game");
     const rotated = game && getComputedStyle(game).getPropertyValue("--football-rotated").trim() === "1";
-    let dx = rotated ? screenY : screenX;
-    let dy = rotated ? -screenX : screenY;
+    // Em ecrã rodado, converter para coordenadas do palco.
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    return rotated ? { x: sy, y: r.width - sx } : { x: sx, y: sy };
+  };
+  const update = (e: React.PointerEvent, o: { x: number; y: number }) => {
+    const p = local(e);
+    let dx = p.x - o.x, dy = p.y - o.y;
     const l = Math.hypot(dx, dy);
     if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
     setKnob({ x: dx, y: dy });
-    onMove(dx / R, dy / R);
+    const n = Math.min(l, R) / R;
+    if (n < DEAD) onMove(0, 0);
+    else onMove(dx / R, dy / R);
   };
-  const end = () => { setKnob({ x: 0, y: 0 }); onMove(0, 0); };
+  const end = (e: React.PointerEvent) => {
+    if (pid.current !== e.pointerId) return;
+    pid.current = null; setOrigin(null); setKnob({ x: 0, y: 0 }); onMove(0, 0);
+  };
+  const o = origin ?? { x: 84, y: -1 };
   return (
     <div
-      ref={base}
-      onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); update(e); }}
-      onPointerMove={(e) => { if (e.buttons || e.pointerType === "touch") update(e); }}
+      ref={zone}
+      onPointerDown={(e) => {
+        if (pid.current !== null) return;
+        pid.current = e.pointerId;
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+        const p = local(e); setOrigin(p); update(e, p);
+      }}
+      onPointerMove={(e) => { if (pid.current === e.pointerId && origin) update(e, origin); }}
       onPointerUp={end}
       onPointerCancel={end}
-      className="absolute bottom-6 left-5 h-32 w-32 touch-none rounded-full border-2 border-foreground/20 bg-background/30 backdrop-blur"
+      className="absolute bottom-0 left-0 h-3/5 w-1/2 touch-none"
     >
-      <div className="absolute left-1/2 top-1/2 h-14 w-14 rounded-full bg-foreground/70 shadow-lg"
-        style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
+      <div
+        className={`pointer-events-none absolute h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground/20 bg-background/30 backdrop-blur ${origin ? "" : "opacity-70"}`}
+        style={origin ? { left: o.x, top: o.y } : { left: 84, bottom: -40 }}
+      >
+        <div className="absolute left-1/2 top-1/2 h-14 w-14 rounded-full bg-foreground/70 shadow-lg"
+          style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
+      </div>
     </div>
   );
 }
