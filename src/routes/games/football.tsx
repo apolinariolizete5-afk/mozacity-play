@@ -32,6 +32,21 @@ function readHud(m: Match): Hud {
   };
 }
 
+/** Vibração do telemóvel (Android/Chrome). Ignorada silenciosamente onde não existe. */
+function buzz(pattern: number | number[]) {
+  try { if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(pattern); } catch { /* sem suporte */ }
+}
+
+/** Pede ecrã inteiro e bloqueia em horizontal; se o navegador não permitir, o palco rodado por CSS assume. */
+async function enterLandscape() {
+  try {
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen();
+    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    await o.lock?.("landscape");
+  } catch { /* sem suporte: fica o modo rodado por CSS */ }
+}
+
 function FootballGame() {
   const match = useRef<Match>(createMatch());
   const input = useRef(emptyInput());
@@ -46,6 +61,17 @@ function FootballGame() {
     const next = readHud(m);
     setHud((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, []);
+
+  // Vibração: golo, apito final, ganhar a bola.
+  const prevHud = useRef(hud);
+  useEffect(() => {
+    const p = prevHud.current;
+    if (hud.score[0] > p.score[0]) buzz([120, 60, 120, 60, 300]);
+    else if (hud.score[1] > p.score[1]) buzz([400]);
+    if (hud.phase === "ended" && p.phase !== "ended") buzz([200, 100, 200, 100, 400]);
+    if (hud.hasBall && !p.hasBall) buzz(25);
+    prevHud.current = hud;
+  }, [hud]);
 
   // Barra de potência enquanto o botão de remate está premido.
   useEffect(() => {
@@ -67,10 +93,12 @@ function FootballGame() {
     shootStart.current = null;
     setPower(null);
     input.current.shoot = p;
+    buzz(Math.round(20 + p * 60));
   }, []);
   const pressPass = useCallback(() => {
     if (hud.hasBall) input.current.pass = true;
     else input.current.action = true;
+    buzz(15);
   }, [hud.hasBall]);
 
   // Teclado: setas/WASD; A passe (ou esquerda sem bola); B remate; C sprint/desarme; P pausa.
@@ -111,6 +139,7 @@ function FootballGame() {
     setGameKey((k) => k + 1);
     setIsPaused(false);
     setStarted(true);
+    void enterLandscape();
   };
 
   const paused = !started || isPaused;
@@ -173,7 +202,7 @@ function FootballGame() {
             <li><b className="text-foreground">Sem bola:</b> azul troca de jogador, vermelho tenta desarmar</li>
             <li><b className="text-foreground">Sprint:</b> segura o botão SPRINT (C ou Shift)</li>
           </ul>
-          <button onClick={() => setStarted(true)} className="w-full rounded-xl bg-primary py-3 font-black text-primary-foreground">COMEÇAR PARTIDA</button>
+          <button onClick={() => { void enterLandscape(); buzz(30); setStarted(true); }} className="w-full rounded-xl bg-primary py-3 font-black text-primary-foreground">COMEÇAR PARTIDA</button>
         </Overlay>
       )}
 
