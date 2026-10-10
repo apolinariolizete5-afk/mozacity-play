@@ -117,7 +117,7 @@ function FootballGame() {
 
   return (
     <main className="football-game touch-none select-none overflow-hidden bg-background text-foreground">
-      <Canvas key={gameKey} shadows dpr={[1, 1.5]} camera={{ position: [0, 17, 24], fov: 50 }} frameloop={paused ? "demand" : "always"}>
+      <Canvas key={gameKey} resize={{ offsetSize: true }} shadows dpr={[1, 1.5]} camera={{ position: [0, 17, 24], fov: 50 }} frameloop={paused ? "demand" : "always"}>
         <FootballScene match={match} input={input} onTick={onTick} />
       </Canvas>
 
