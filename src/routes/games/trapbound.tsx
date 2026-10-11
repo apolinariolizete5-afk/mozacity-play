@@ -26,11 +26,14 @@ const LEVELS: Level[] = Array.from({ length: 20 }, (_, i) => {
   }
   if (n >= 4) hazards.push({ x: 480, w: 38, h: 28, kind: "spikes" });
   if (n >= 9) hazards.push({ x: 680, w: 34, h: 24, kind: "trigger" });
-  const pitCount = n < 2 ? 0 : Math.min(1 + Math.floor((n - 2) / 4), 5);\n  const pits = Array.from({ length: pitCount }, (_, j) => ({ x: 300 + j * (440 / Math.max(1, pitCount)), w: 48 + Math.min(i, 26) }));\n  const platforms = n >= 3 ? [{ x: 330, y: 370, w: 115 }, ...(n >= 8 ? [{ x: 560, y: 325, w: 105 }] : [])] : [];
+  const pitCount = n < 2 ? 0 : Math.min(1 + Math.floor((n - 2) / 4), 5);
+  const pits = Array.from({ length: pitCount }, (_, j) => ({ x: 300 + j * (440 / Math.max(1, pitCount)), w: 48 + Math.min(i, 26) }));
+  const platforms = n >= 3 ? [{ x: 330, y: 370, w: 115 }, ...(n >= 8 ? [{ x: 560, y: 325, w: 105 }] : [])] : [];
   return {
     name: ["Primeiros passos", "Aprende a saltar", "Piso elevado", "Não confies no chão", "Ritmo certo"][Math.min(i, 4)] + (n > 5 ? ` · Fase ${n}` : ""),
     hint: n < 4 ? "Salta por cima dos espinhos e chega à saída." : n < 10 ? "Observa o caminho. Nem todos os pisos são seguros." : "Armadilhas mais rápidas. Mede o salto antes de avançar.",
     hazards,
+    pits,
     platforms,
   };
 });
@@ -89,7 +92,14 @@ function Trapbound() {
         g.x = Math.max(16, Math.min(920, g.x));
         g.grounded = false;
         const player = { x: g.x, y: g.y, w: 25, h: 34 };
-        const floorSolids: { x: number; y: number; w: number; h: number }[] = [];\n        let floorCursor = 0;\n        for (const pit of current.pits) {\n          if (pit.x > floorCursor) floorSolids.push({ x: floorCursor, y: 470, w: pit.x - floorCursor, h: 70 });\n          floorCursor = Math.max(floorCursor, pit.x + pit.w);\n        }\n        if (floorCursor < 960) floorSolids.push({ x: floorCursor, y: 470, w: 960 - floorCursor, h: 70 });\n        const solids = [...floorSolids, ...current.platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: 12 }))];
+        const floorSolids: { x: number; y: number; w: number; h: number }[] = [];
+        let floorCursor = 0;
+        for (const pit of current.pits) {
+          if (pit.x > floorCursor) floorSolids.push({ x: floorCursor, y: 470, w: pit.x - floorCursor, h: 70 });
+          floorCursor = Math.max(floorCursor, pit.x + pit.w);
+        }
+        if (floorCursor < 960) floorSolids.push({ x: floorCursor, y: 470, w: 960 - floorCursor, h: 70 });
+        const solids = [...floorSolids, ...current.platforms.map(p => ({ x: p.x, y: p.y, w: p.w, h: 12 }))];
         for (const s of solids) {
           if (player.x + player.w > s.x && player.x < s.x + s.w && player.y + player.h > s.y && player.y + player.h < s.y + s.h + 24 && g.vy >= 0) {
             g.y = s.y - player.h; g.vy = 0; g.grounded = true; player.y = g.y;
