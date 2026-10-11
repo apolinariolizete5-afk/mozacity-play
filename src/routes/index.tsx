@@ -124,6 +124,20 @@ function Home() {
         </Link>
       </section>
 
+      <section className="mt-5">
+        <Link to="/games/trapbound" className="group flex flex-col gap-4 overflow-hidden rounded-3xl border border-cyan-300/25 bg-gradient-to-r from-slate-950 via-[#172747] to-card p-5 transition-colors hover:border-cyan-200/60 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-cyan-200/20 bg-cyan-300/10 text-3xl">⚡</span>
+            <div>
+              <p className="font-display text-xl font-black">TRAPBOUND <span className="text-cyan-300">NOVO</span></p>
+              <p className="mt-1 text-sm text-muted-foreground">Corre, salta e sobrevive a 20 níveis de armadilhas inesperadas.</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-cyan-200/80">Plataformas 2D · solo · controlos móveis</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center justify-center rounded-xl bg-cyan-200 px-4 py-3 text-sm font-extrabold text-slate-950">Jogar agora →</span>
+        </Link>
+      </section>
+
       <section className="mt-8">
         <div className="mb-4 flex items-end justify-between">
           <div><p className="text-[10px] font-extrabold uppercase tracking-[.2em] text-primary">Escolhe o desafio</p><h2 className="mt-1 font-display text-2xl font-black">Todos os jogos</h2></div>
