@@ -123,8 +123,22 @@ function Trapbound() {
       ctx.fillStyle = grad; ctx.fillRect(0, 0, 960, 540);
       ctx.fillStyle = "rgba(109, 240, 207, .08)";
       for (let x = 20; x < 960; x += 48) for (let y = 20; y < 540; y += 48) { ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill(); }
-      ctx.fillStyle = "#2b3859"; ctx.fillRect(0, 470, 960, 70);
-      ctx.fillStyle = "#6df0cf"; ctx.fillRect(0, 470, 960, 5);
+      ctx.fillStyle = "#2b3859";
+      let drawCursor = 0;
+      for (const pit of current.pits) {
+        if (pit.x > drawCursor) ctx.fillRect(drawCursor, 470, pit.x - drawCursor, 70);
+        ctx.fillStyle = "#090d1d"; ctx.fillRect(pit.x, 470, pit.w, 70);
+        ctx.fillStyle = "#ff5478"; ctx.fillRect(pit.x, 470, 4, 9); ctx.fillRect(pit.x + pit.w - 4, 470, 4, 9);
+        ctx.fillStyle = "#2b3859"; drawCursor = pit.x + pit.w;
+      }
+      if (drawCursor < 960) ctx.fillRect(drawCursor, 470, 960 - drawCursor, 70);
+      ctx.fillStyle = "#6df0cf";
+      drawCursor = 0;
+      for (const pit of current.pits) {
+        if (pit.x > drawCursor) ctx.fillRect(drawCursor, 470, pit.x - drawCursor, 5);
+        drawCursor = pit.x + pit.w;
+      }
+      if (drawCursor < 960) ctx.fillRect(drawCursor, 470, 960 - drawCursor, 5);
       current.platforms.forEach(p => { ctx.fillStyle = "#3d5075"; ctx.fillRect(p.x, p.y, p.w, 12); ctx.fillStyle = "#6df0cf"; ctx.fillRect(p.x, p.y, p.w, 3); });
       current.hazards.forEach(h => {
         const active = h.kind !== "trigger" || Math.sin(g.time * (1.4 + g.level * 0.08) + h.x) > -0.25;
